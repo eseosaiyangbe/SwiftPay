@@ -2,6 +2,8 @@
 
 Deploy the full PayFlow stack on a local MicroK8s cluster.
 
+**Learning path:** Week 1 uses **`./scripts/deploy-microk8s.sh`** (applies this overlay). Week 2 explains *why* overlays exist—see [`LEARNING-PATH.md`](../../LEARNING-PATH.md) and [`docs/microk8s-deployment.md`](../../docs/microk8s-deployment.md).
+
 ## Prerequisites
 
 - MicroK8s installed (`snap install microk8s --classic`)
@@ -17,8 +19,30 @@ Deploy the full PayFlow stack on a local MicroK8s cluster.
 ## Deploy
 
 ```bash
-# From repo root — builds and deploys all manifests with local patches applied
+# From repo root — deploys all manifests with local patches applied
 kubectl apply -k k8s/overlays/local
+```
+
+## What “success” looks like
+
+Give it 2–5 minutes on first run (image pulls + DB migration), then:
+
+```bash
+kubectl get pods -n payflow
+```
+
+**Expected:**
+- `postgres-0` is `Running (1/1)`
+- `redis-*` and `rabbitmq-*` are `Running`
+- `job/db-migration-job` is `Completed`
+- all app pods are `Running` and `READY` (e.g. `api-gateway`, `auth-service`, `wallet-service`, `transaction-service`, `notification-service`, `frontend`)
+
+## Validate (recommended)
+
+Run the repo’s smoke test so you’re not guessing:
+
+```bash
+./scripts/validate.sh --env k8s --host http://api.payflow.local
 ```
 
 ## Access
@@ -87,3 +111,7 @@ Access Grafana at http://localhost:3006 (admin/admin).
 | 502 on /api calls | api-gateway not ready | Check `kubectl logs -n payflow deploy/api-gateway`; wait for `DB_PASSWORD` pod to become Ready |
 | frontend shows blank | nginx resolver failure | Ensure MicroK8s DNS addon is enabled: `microk8s enable dns` |
 | Pods stuck Pending | ResourceQuota exceeded | `kubectl describe quota -n payflow`; quota patch should have raised limits |
+
+If you’re still stuck, use:
+- `docs/microk8s-deployment.md` for the full local walkthrough
+- `TROUBLESHOOTING.md` (repo root) for symptom → root cause → fix

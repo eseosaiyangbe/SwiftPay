@@ -69,3 +69,20 @@ spec:
         env:
         - name: NODE_ENV
           value: "development"
+---
+# nginx resolver must be an IP address — hostnames are not supported by nginx.
+# kube-dns ClusterIP in MicroK8s is fixed at 10.152.183.10.
+# EKS/AKS overlays set their own NGINX_RESOLVER via their env patches.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: payflow
+spec:
+  template:
+    spec:
+      containers:
+      - name: frontend
+        env:
+        - name: NGINX_RESOLVER
+          value: "10.152.183.10"

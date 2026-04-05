@@ -2,6 +2,8 @@
 
 This document maps every resource, dependency order, cycles, IAM roles, security groups, and environment boundaries across the Terraform codebase.
 
+**Companion docs and visuals:** [terraform.md](terraform.md) (narrative hub-and-spoke model) · [EKS VPC integration diagram (PNG)](../docs/assets/EKS%20VPC%20Integration%20Pipeline-2026-03-30-135753.png) · [docs index](../docs/README.md#aws-eks-infrastructure-first-time).
+
 ---
 
 ## 1. Architecture Diagram (Every Resource → Box, Every Relationship → Arrow)

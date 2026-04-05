@@ -137,10 +137,10 @@ terraform workspace select prod
 
 ## Documentation
 
-- **[INFRASTRUCTURE-ONBOARDING.md](../INFRASTRUCTURE-ONBOARDING.md)** — Ordered checklist (bootstrap → Hub → EKS → managed services → bastion → app)
+- **[Infrastructure onboarding](../docs/INFRASTRUCTURE-ONBOARDING.md)** — Ordered checklist (bootstrap → Hub → EKS → managed services → bastion → app)
 - **[QUICK-START-INFRA.md](../QUICK-START-INFRA.md)** — Full step-by-step with Terraform targets, verification, troubleshooting
-- **README-BOOTSTRAP.md** - Complete bootstrap guide
-- **COMPLETE-DEPENDENCY-CHAIN.md** - EKS dependency chain and staged deployment
-- **DEPLOYMENT-GUIDE.md** - Deployment best practices
-- **ARCHITECTURE.md** - Infrastructure architecture diagram
+- **[terraform.md](terraform.md)** — Hub-and-spoke Terraform narrative (VPCs, TGW, traffic)
+- **[ARCHITECTURE-MAP.md](ARCHITECTURE-MAP.md)** — Resource-level map (modules, IAM, SGs, apply order)
+- **[Documentation index](../docs/README.md)** — Canonical deploy / debug paths (includes Terraform entry)
+- **[DEPLOYMENT-ORDER.md](../docs/DEPLOYMENT-ORDER.md)** — Terraform targets and prerequisites
 

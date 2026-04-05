@@ -40,7 +40,7 @@ kubectl apply -k .
 
 For complete deployment instructions, database migrations, and troubleshooting, see:
 - **[Deployment Guide](../../docs/DEPLOYMENT.md)** - Full deployment walkthrough
-- **[Architecture](../../docs/ARCHITECTURE.md)** - System design and infrastructure
+- **[Architecture](../../docs/architecture.md)** - System design and infrastructure
 - **[Runbook](../../docs/RUNBOOK.md)** - Debugging and operations
 
 ## How It Works

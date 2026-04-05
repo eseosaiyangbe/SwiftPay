@@ -83,9 +83,9 @@ resource "azurerm_postgresql_flexible_server" "payflow" {
   # Note: SSL is always enabled on Flexible Server
   # Logging is configured via Azure Monitor
 
-  # Lifecycle to prevent accidental destruction
+  # Lifecycle: prod workspace blocks destroy; non-prod allows teardown
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = terraform.workspace == "prod"
     ignore_changes = [
       tags,
       administrator_password,  # Don't recreate if password changes (use Azure Key Vault)

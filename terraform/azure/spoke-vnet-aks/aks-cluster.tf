@@ -81,9 +81,9 @@ resource "azurerm_kubernetes_cluster" "aks" {
   # API Server Access
   api_server_authorized_ip_ranges = var.enable_private_cluster ? [] : var.api_server_authorized_ip_ranges
 
-  # Lifecycle to prevent accidental destruction
+  # Lifecycle: prod workspace blocks destroy; non-prod allows destroy.sh / teardown
   lifecycle {
-    prevent_destroy = false  # Changed from true: allow terraform destroy (e.g. destroy.sh)
+    prevent_destroy = terraform.workspace == "prod"
     ignore_changes = [
       tags,
       default_node_pool[0].node_count,  # Ignore auto-scaling changes

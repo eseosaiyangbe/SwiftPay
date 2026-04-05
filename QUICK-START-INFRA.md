@@ -1,5 +1,7 @@
 # Quick Start: Get Infrastructure Running
 
+> **Optional detail.** Canonical order and links: [docs/README.md](docs/README.md). Prefer **[docs/INFRASTRUCTURE-ONBOARDING.md](docs/INFRASTRUCTURE-ONBOARDING.md)** for the full story, **[docs/DEPLOYMENT-ORDER.md](docs/DEPLOYMENT-ORDER.md)** for Terraform targets, and **`./spinup.sh`** from the repo root for scripted applies. This file adds extra verification and narrative that **overlaps** those.
+
 This guide walks you through deploying the PayFlow infrastructure step-by-step.
 
 ---

@@ -196,7 +196,9 @@ spec:
         cidr: 10.0.0.0/8  # Private RFC1918 - covers EKS + managed service subnets
     ports:
     - protocol: TCP
-      port: 5671  # Amazon MQ TLS port (changed from 5672)
+      port: 5672  # RabbitMQ plain AMQP (local / self-hosted)
+    - protocol: TCP
+      port: 5671  # Amazon MQ / RabbitMQ TLS (EKS managed)
   # Allow DNS (required for service discovery)
   - to: []
     ports:
@@ -242,7 +244,9 @@ spec:
     - protocol: TCP
       port: 6379  # Redis
     - protocol: TCP
-      port: 5671  # RabbitMQ (Amazon MQ TLS port, changed from 5672)
+      port: 5672  # RabbitMQ plain AMQP (local / self-hosted)
+    - protocol: TCP
+      port: 5671  # Amazon MQ / RabbitMQ TLS (EKS managed)
   # Allow traffic FROM postgres-exporter
   - from:
     - podSelector:
@@ -294,7 +298,9 @@ spec:
         cidr: 10.0.0.0/8  # Private RFC1918 - covers EKS + managed service subnets (Amazon MQ)
     ports:
     - protocol: TCP
-      port: 5671  # Amazon MQ TLS port (changed from 5672)
+      port: 5672  # RabbitMQ plain AMQP (local / self-hosted)
+    - protocol: TCP
+      port: 5671  # Amazon MQ / RabbitMQ TLS (EKS managed)
   # Allow DNS (required for service discovery)
   - to: []
     ports:

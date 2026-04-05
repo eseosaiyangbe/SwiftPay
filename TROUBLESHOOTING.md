@@ -1,7 +1,14 @@
-# PayFlow Troubleshooting Guide
+# PayFlow Troubleshooting Guide — Quick Fix Reference
 
-Every failure mode found during a full system audit, with root cause and exact fix.
-Run `./scripts/validate.sh` first — it will tell you which layer is broken.
+> **This is the fast one.** Every failure mode found during a full system audit, presented as symptom → root cause → exact fix. No narrative, just solutions.
+>
+> Run `./scripts/validate.sh` first — it will tell you which layer is broken.
+>
+> Need deeper explanations with underlying concepts and real-world failure stories? See [`docs/troubleshooting.md`](docs/troubleshooting.md).
+>
+> **Which guide should I open?** See the [documentation index](docs/README.md) — deploy vs debug vs learn.
+>
+> **Learning path:** [`LEARNING-PATH.md`](LEARNING-PATH.md) runs **MicroK8s first**; Docker Compose is optional. Many fixes below are labeled **Docker Compose** vs **MicroK8s**—use the section that matches how you run the app.
 
 ---
 
@@ -144,9 +151,45 @@ microk8s enable dns
 
 # Check nginx config inside the frontend pod
 kubectl exec -n payflow deploy/frontend -- cat /etc/nginx/conf.d/default.conf
-# Should contain: resolver kube-dns.kube-system.svc.cluster.local valid=10s;
-# and: proxy_pass http://api-gateway.payflow.svc.cluster.local:80;
+# Should contain: resolver 10.152.183.10 valid=10s;  (IP, not hostname — nginx only accepts IPs)
+# and: set $api_upstream "http://api-gateway.payflow.svc.cluster.local:80";
+#      proxy_pass $api_upstream;  (variable forces lazy DNS, prevents startup crash)
 ```
+
+---
+
+### "Transaction failed: Message queue unavailable — please retry"
+
+**Symptom:** The frontend Send Money form returns this error. The transaction service logs show:
+```
+error: Transaction creation failed: {"error":"Message queue unavailable — please retry"}
+```
+The RabbitMQ pod is `Running` and healthy, but the transaction service cannot reach it.
+
+**Root cause:** Kubernetes `NetworkPolicy` is blocking port 5672 (plain AMQP). The base network policies were originally written for Amazon MQ on EKS which uses port **5671** (TLS). The `default-deny-all` policy silently drops all traffic on 5672, causing TCP timeouts the service reports as "queue unavailable."
+
+You can confirm the block:
+```bash
+# From inside the transaction-service pod — this will hang/timeout if blocked
+kubectl exec -n payflow deployment/transaction-service -- node -e "
+const amqp = require('amqplib');
+amqp.connect(process.env.RABBITMQ_URL)
+  .then(() => { console.log('CONNECTED'); process.exit(0); })
+  .catch(e => { console.error('FAILED:', e.message); process.exit(1); });
+"
+```
+
+**Fix:** Add port 5672 to the two network policies that govern RabbitMQ traffic — `services-allow-db` (egress) and `databases-allow-ingress-from-services` (ingress). The current base manifests already include this fix. If you hit this on an older checkout:
+```bash
+# Apply the overlay — network policies take effect immediately, no pod restart needed
+kubectl apply -k k8s/overlays/local
+
+# Verify the fix
+kubectl get networkpolicy services-allow-db -n payflow -o yaml | grep "port:"
+# Should show both 5672 and 5671
+```
+
+**Why both ports?** Port 5671 stays in the policy for EKS/Amazon MQ (TLS); port 5672 is needed locally. Opening a port in a NetworkPolicy is permissive — it doesn't force traffic to use it, so having both is safe.
 
 ---
 

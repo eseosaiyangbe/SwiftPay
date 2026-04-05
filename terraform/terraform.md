@@ -10,6 +10,10 @@ Our architecture uses a **hub-and-spoke design** with **Transit Gateway** connec
 - **Spoke VPC (EKS)** holds the Kubernetes cluster and application workloads. It attaches to the same Transit Gateway so the hub (e.g. bastion) can reach the cluster.
 - **Egress** is not centralized: the spoke uses its own NAT gateways for outbound internet; the hub’s public subnet uses an Internet Gateway. There is no single egress VPC or shared NAT.
 
+![EKS VPC hub-and-spoke integration pipeline](../docs/assets/EKS%20VPC%20Integration%20Pipeline-2026-03-30-135753.png)
+
+*Same figure appears in [docs/architecture.md](../docs/architecture.md#infrastructure) and [INFRASTRUCTURE-ONBOARDING.md](../docs/INFRASTRUCTURE-ONBOARDING.md).*
+
 ---
 
 ## Hub VPC

@@ -90,10 +90,9 @@ resource "aws_eks_cluster" "payflow" {
     delete = "30m"
   }
 
-  # Lifecycle to prevent accidental destruction
-  # access_config: ignore so adding it does not force replace on existing clusters. Set once via CLI (see DEPLOYMENT-ORDER.md).
+  # Lifecycle: prod workspace blocks destroy; access_config ignored so CLI-set values do not force replace
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = terraform.workspace == "prod"
     ignore_changes = [
       tags,
       enabled_cluster_log_types,

@@ -8,6 +8,8 @@ PayFlow Wallet is a complete payment platform demonstrating real-world microserv
 
 > **New here?** Start with [`LEARNING-PATH.md`](LEARNING-PATH.md) (week-by-week). **Docs are indexed** in [`docs/README.md`](docs/README.md) so you can pick one path instead of every guide at once.
 
+**Deep dive (design choices, fintech mindset, end-to-end traces):** [*Building PayFlow* — a developer’s field guide](https://osomudeya.gumroad.com/l/payflow) walks through why the system is built the way it is (atomicity, idempotency, queues vs HTTP, Terraform/Kubernetes, security, observability, CI/CD). It complements this repo’s markdown docs; when something disagrees, **the repo and running code are the source of truth**.
+
 **Credit:** If you use this repo as a base for your own project, course, or content, please **acknowledge PayFlow Wallet** and link to [https://github.com/Ship-With-Zee/payflow-wallet](https://github.com/Ship-With-Zee/payflow-wallet). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution guidelines and attribution details.
 
 ## Architecture

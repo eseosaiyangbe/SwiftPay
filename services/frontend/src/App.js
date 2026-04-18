@@ -94,9 +94,10 @@ export default function SwiftPayApp() {
   }, [user, clearSessionTimers, finishLogout]);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
+    APIClient.initializeSession();
+    const storedUser = APIClient.getStoredUser();
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      setUser(storedUser);
     }
     setLoading(false);
   }, []);

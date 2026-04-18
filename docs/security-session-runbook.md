@@ -94,6 +94,31 @@ Why:
 - Cloudflared, ingress, and Kubernetes deployments need explicit hostnames.
 - This prepares us for the later Kubernetes and Cloudflared phases.
 
+### Frontend Session Storage
+
+Files:
+
+- `services/frontend/src/lib/api-client.js`
+- `services/frontend/src/App.js`
+
+The frontend no longer stores tokens in `localStorage`.
+
+Current behavior:
+
+```text
+1. Login/register stores access token, refresh token, and user profile in sessionStorage.
+2. Browser tab refresh keeps the session.
+3. Closing the browser tab/window clears the session.
+4. App startup deletes older SwiftPay token values from localStorage.
+5. Logout clears both sessionStorage and any legacy localStorage values.
+```
+
+Why:
+
+- `localStorage` survives browser restarts, which increases token exposure time.
+- `sessionStorage` is still browser-accessible JavaScript storage, but it is shorter-lived.
+- This is a useful local hardening step before a larger HTTP-only cookie or backend-for-frontend design.
+
 ## Smoke Test
 
 We added:
@@ -162,9 +187,11 @@ npm run smoke:notifications
 
 ## Current Limitations
 
-The frontend still stores tokens in `localStorage`.
+The frontend still stores tokens in browser-accessible JavaScript storage.
 
-That is acceptable for this first pass because we hardened the backend first and kept the frontend stable. The next frontend security step is to reduce token exposure, preferably by moving toward HTTP-only cookies or a backend-for-frontend pattern.
+This is better than `localStorage` because the data is no longer durable across browser restarts, but it is not the final fintech-grade pattern.
+
+The next frontend security step is to move toward HTTP-only cookies or a backend-for-frontend pattern.
 
 ## Production Notes
 

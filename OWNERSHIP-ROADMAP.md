@@ -780,7 +780,7 @@ Move closer to fintech-grade security practices.
 Work items:
 
 - Review JWT and refresh token flow. Complete first pass.
-- Replace or reduce frontend `localStorage` token exposure.
+- Replace or reduce frontend `localStorage` token exposure. Complete first pass.
 - Review CORS configuration. Complete first pass.
 - Review secrets strategy. Complete first pass.
 - Ensure default credentials cannot run in production. Complete first pass for JWT secrets.
@@ -803,10 +803,12 @@ Progress notes:
 - Updated `.env.example` to use `http://localhost:8081` instead of `*`.
 - Added `scripts/smoke-auth-security.sh` and `npm run smoke:auth-security`.
 - Added `docs/security-session-runbook.md` as the operational guide for this phase.
+- Moved frontend tokens and user profile from `localStorage` to `sessionStorage`.
+- Added frontend startup cleanup for legacy `localStorage` token values.
 
 Remaining work:
 
-- Reduce frontend token exposure beyond `localStorage`.
+- Move token handling to HTTP-only cookies or a backend-for-frontend pattern.
 - Add deeper automated tests around account lockout, password change, and refresh-token reuse.
 
 ### Phase 5: Kubernetes Ownership

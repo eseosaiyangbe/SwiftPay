@@ -30,20 +30,56 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+const SESSION_KEYS = ['accessToken', 'refreshToken', 'user'];
+
+class SessionStore {
+  static migrateFromLocalStorage() {
+    SESSION_KEYS.forEach((key) => localStorage.removeItem(key));
+  }
+
+  static get(key) {
+    return sessionStorage.getItem(key);
+  }
+
+  static set(key, value) {
+    sessionStorage.setItem(key, value);
+  }
+
+  static removeAll() {
+    SESSION_KEYS.forEach((key) => {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    });
+  }
+}
 
 export class APIClient {
+  static initializeSession() {
+    SessionStore.migrateFromLocalStorage();
+  }
+
+  static getStoredUser() {
+    const storedUser = SessionStore.get('user');
+    if (!storedUser) return null;
+
+    try {
+      return JSON.parse(storedUser);
+    } catch {
+      this.removeToken();
+      return null;
+    }
+  }
+
   static getToken() {
-    return localStorage.getItem('accessToken');
+    return SessionStore.get('accessToken');
   }
 
   static setToken(token) {
-    localStorage.setItem('accessToken', token);
+    SessionStore.set('accessToken', token);
   }
 
   static removeToken() {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    SessionStore.removeAll();
   }
 
   static async request(endpoint, options = {}, isRetryAfterRefresh = false) {
@@ -102,7 +138,7 @@ export class APIClient {
   }
 
   static async tryRefreshToken() {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = SessionStore.get('refreshToken');
     if (!refreshToken) return false;
 
     try {
@@ -116,7 +152,7 @@ export class APIClient {
       const data = await res.json();
       if (data.accessToken) {
         this.setToken(data.accessToken);
-        if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+        if (data.refreshToken) SessionStore.set('refreshToken', data.refreshToken);
         return true;
       }
       return false;
@@ -131,9 +167,8 @@ export class APIClient {
       body: JSON.stringify({ email, password }),
     });
     this.setToken(data.accessToken);
-    // localStorage is vulnerable to XSS; for higher security use httpOnly cookies.
-    localStorage.setItem('refreshToken', data.refreshToken);
-    localStorage.setItem('user', JSON.stringify(data.user));
+    SessionStore.set('refreshToken', data.refreshToken);
+    SessionStore.set('user', JSON.stringify(data.user));
     return data;
   }
 
@@ -143,15 +178,15 @@ export class APIClient {
       body: JSON.stringify({ email, password, name }),
     });
     this.setToken(data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
+    SessionStore.set('refreshToken', data.refreshToken);
     const user = data.user || { id: data.userId, email, name, role: 'user' };
-    localStorage.setItem('user', JSON.stringify(user));
+    SessionStore.set('user', JSON.stringify(user));
     return { ...data, user };
   }
 
   static async logout() {
     try {
-      const refreshToken = localStorage.getItem('refreshToken');
+      const refreshToken = SessionStore.get('refreshToken');
       await this.request('/auth/logout', {
         method: 'POST',
         body: JSON.stringify(refreshToken ? { refreshToken } : {}),

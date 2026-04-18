@@ -119,6 +119,34 @@ Why:
 - `sessionStorage` is still browser-accessible JavaScript storage, but it is shorter-lived.
 - This is a useful local hardening step before a larger HTTP-only cookie or backend-for-frontend design.
 
+### Frontend Password Change
+
+Files:
+
+- `services/frontend/src/components/settings/SettingsTab.js`
+- `services/frontend/src/lib/api-client.js`
+- `services/frontend/src/App.js`
+
+The frontend now has a Settings tab with a Change Password form.
+
+Current behavior:
+
+```text
+1. User opens Settings.
+2. User enters current password, new password, and confirmation.
+3. Frontend calls POST /api/auth/change-password through the API Gateway.
+4. Auth Service updates the password.
+5. Auth Service revokes the current access token and all refresh tokens.
+6. Frontend clears local session state.
+7. User is returned to login with a success notice.
+```
+
+Why:
+
+- The backend already revokes sessions after password changes.
+- The UI should match that security behavior instead of leaving the user on a dead session.
+- This gives us a complete browser path for a core account-security feature.
+
 ## Smoke Tests
 
 ### Refresh And Logout Security

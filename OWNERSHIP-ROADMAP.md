@@ -808,6 +808,8 @@ Progress notes:
 - Added API Gateway support for `POST /api/auth/change-password`.
 - Added `scripts/smoke-auth-deep.sh` and `npm run smoke:auth-deep` for account lockout and password-change verification.
 - Added `scripts/smoke-production-config-guards.sh` and `npm run smoke:production-guards` for production JWT/CORS guard verification.
+- Added a frontend Settings tab with Change Password support.
+- Password changes now clear frontend session state and return the user to login with a success notice.
 
 Remaining work:
 

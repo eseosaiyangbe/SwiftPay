@@ -6,6 +6,7 @@ import { formatRelativeAge, newestFirst, oldestFirst } from './lib/transaction-u
 import { LoginPage } from './components/auth/LoginPage';
 import { DashboardTab } from './components/dashboard/DashboardTab';
 import { MonitoringTab } from './components/monitoring/MonitoringTab';
+import { SettingsTab } from './components/settings/SettingsTab';
 import { ActivityTab } from './components/transactions/ActivityTab';
 import { SendMoneyTab } from './components/transactions/SendMoneyTab';
 
@@ -65,6 +66,7 @@ export default function SwiftPayApp() {
     setSendAmount('');
     setRecipient('');
     setSendSuccess(false);
+    setActiveTab('dashboard');
     setError(null);
     setSessionNotice(timedOut ? 'You were signed out because the session was inactive.' : null);
   }, [clearSessionTimers]);
@@ -284,6 +286,29 @@ export default function SwiftPayApp() {
     }
   };
 
+  const handleChangePassword = async ({ currentPassword, newPassword }) => {
+    await APIClient.changePassword(currentPassword, newPassword);
+
+    clearSessionTimers();
+    APIClient.removeToken();
+    setUser(null);
+    setWallet(null);
+    setAllWallets([]);
+    setTransactions([]);
+    setNotifications([]);
+    setMetrics(null);
+    setDataLoading(false);
+    setMarkingNotificationId(null);
+    setDeletingNotificationId(null);
+    setSessionWarningSeconds(null);
+    setSendAmount('');
+    setRecipient('');
+    setSendSuccess(false);
+    setActiveTab('dashboard');
+    setError(null);
+    setSessionNotice('Password changed successfully. Please sign in again.');
+  };
+
   const handleLogout = () => finishLogout();
 
   if (loading) {
@@ -399,7 +424,7 @@ export default function SwiftPayApp() {
       <nav className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex space-x-8">
-            {['dashboard', 'send', 'activity', 'monitoring'].map(tab => (
+            {['dashboard', 'send', 'activity', 'monitoring', 'settings'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -506,6 +531,13 @@ export default function SwiftPayApp() {
 
         {activeTab === 'monitoring' && (
           <MonitoringTab metrics={metrics} />
+        )}
+
+        {activeTab === 'settings' && (
+          <SettingsTab
+            user={user}
+            onChangePassword={handleChangePassword}
+          />
         )}
       </main>
     </div>

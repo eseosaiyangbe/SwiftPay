@@ -222,6 +222,14 @@ const executeWithCircuitBreaker = async (service, operation, fn) => {
     circuitBreakerState.set({ service, operation }, 0); // #### Update metric ####
     return result; // #### Return successful result ####
   } catch (error) {
+    // Client/auth errors mean the dependency answered correctly; do not open the service circuit.
+    if (error.response?.status && error.response.status < 500) {
+      breaker.failures = 0;
+      breaker.state = 0;
+      circuitBreakerState.set({ service, operation }, 0);
+      throw error;
+    }
+
     breaker.failures++; // #### Increment failure count ####
     breaker.lastFailure = now; // #### Record failure time ####
     
@@ -431,6 +439,28 @@ app.get('/api/auth/me', authenticate, async (req, res) => {
     transactionTotal.inc({ status: 'failed', type: 'get_user', service: 'auth-service' });
     res.status(error.response?.status || 500).json(
       error.response?.data || { error: 'Failed to get user' }
+    );
+  }
+});
+
+app.post('/api/auth/change-password', authenticate, async (req, res) => {
+  try {
+    const response = await axios.post(
+      `${AUTH_SERVICE}/auth/change-password`,
+      req.body,
+      {
+        headers: {
+          Authorization: req.headers.authorization,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    transactionTotal.inc({ status: 'success', type: 'change_password', service: 'auth-service' });
+    res.json(response.data);
+  } catch (error) {
+    transactionTotal.inc({ status: 'failed', type: 'change_password', service: 'auth-service' });
+    res.status(error.response?.status || 500).json(
+      error.response?.data || { error: 'Password change failed' }
     );
   }
 });

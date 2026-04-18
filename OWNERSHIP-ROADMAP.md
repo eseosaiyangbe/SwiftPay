@@ -771,7 +771,7 @@ Progress notes:
 
 ### Phase 4: Security And Session Hardening
 
-Status: in progress, backend first pass complete.
+Status: complete first pass.
 
 Goal:
 
@@ -784,7 +784,7 @@ Work items:
 - Review CORS configuration. Complete first pass.
 - Review secrets strategy. Complete first pass.
 - Ensure default credentials cannot run in production. Complete first pass for JWT secrets.
-- Add auth-related tests. Complete first pass.
+- Add auth-related tests. Complete first pass with deeper coverage.
 
 Success criteria:
 
@@ -805,11 +805,14 @@ Progress notes:
 - Added `docs/security-session-runbook.md` as the operational guide for this phase.
 - Moved frontend tokens and user profile from `localStorage` to `sessionStorage`.
 - Added frontend startup cleanup for legacy `localStorage` token values.
+- Added API Gateway support for `POST /api/auth/change-password`.
+- Added `scripts/smoke-auth-deep.sh` and `npm run smoke:auth-deep` for account lockout and password-change verification.
+- Added `scripts/smoke-production-config-guards.sh` and `npm run smoke:production-guards` for production JWT/CORS guard verification.
 
 Remaining work:
 
-- Move token handling to HTTP-only cookies or a backend-for-frontend pattern.
-- Add deeper automated tests around account lockout, password change, and refresh-token reuse.
+- Move token handling to HTTP-only cookies or a backend-for-frontend pattern in a later production hardening phase.
+- Convert smoke scripts into CI jobs when the CI/CD phase begins.
 
 ### Phase 5: Kubernetes Ownership
 

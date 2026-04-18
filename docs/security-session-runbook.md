@@ -119,9 +119,11 @@ Why:
 - `sessionStorage` is still browser-accessible JavaScript storage, but it is shorter-lived.
 - This is a useful local hardening step before a larger HTTP-only cookie or backend-for-frontend design.
 
-## Smoke Test
+## Smoke Tests
 
-We added:
+### Refresh And Logout Security
+
+Command:
 
 ```bash
 npm run smoke:auth-security
@@ -155,6 +157,62 @@ Expected result:
 Auth security smoke test passed.
 ```
 
+### Account Lockout And Password Change
+
+Command:
+
+```bash
+npm run smoke:auth-deep
+```
+
+Under the hood this runs:
+
+```bash
+bash scripts/smoke-auth-deep.sh
+```
+
+The test verifies:
+
+- A new user locks after repeated bad login attempts.
+- The correct password is rejected while the account is locked.
+- A separate user can change password through the API Gateway.
+- The old access token is revoked after password change.
+- The old refresh token is revoked after password change.
+- The old password no longer works.
+- The new password works.
+
+Expected result:
+
+```text
+Deep auth security smoke test passed.
+```
+
+### Production Config Guards
+
+Command:
+
+```bash
+npm run smoke:production-guards
+```
+
+Under the hood this runs:
+
+```bash
+bash scripts/smoke-production-config-guards.sh
+```
+
+The test verifies:
+
+- Auth Service refuses weak `JWT_SECRET` in production mode.
+- API Gateway refuses wildcard `CORS_ORIGIN=*` in production mode.
+- API Gateway refuses weak `JWT_SECRET` in production mode.
+
+Expected result:
+
+```text
+Production config guard smoke test passed.
+```
+
 ## Useful Verification Commands
 
 Check JavaScript syntax:
@@ -175,6 +233,8 @@ Run the Phase 4 smoke test:
 
 ```bash
 npm run smoke:auth-security
+npm run smoke:auth-deep
+npm run smoke:production-guards
 ```
 
 Run existing money-flow checks:

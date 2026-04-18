@@ -32,6 +32,39 @@ const getApiBaseUrl = () => {
 const API_BASE_URL = getApiBaseUrl();
 const SESSION_KEYS = ['accessToken', 'refreshToken', 'user'];
 
+const formatLockoutWait = (lockedUntil) => {
+  if (!lockedUntil) return null;
+
+  const lockedUntilTime = new Date(lockedUntil).getTime();
+  if (Number.isNaN(lockedUntilTime)) return null;
+
+  const remainingMs = lockedUntilTime - Date.now();
+  if (remainingMs <= 0) return 'Please try again now.';
+
+  const remainingMinutes = Math.ceil(remainingMs / 60000);
+  if (remainingMinutes < 60) {
+    return `Please try again in about ${remainingMinutes} minute${remainingMinutes === 1 ? '' : 's'}.`;
+  }
+
+  const remainingHours = Math.ceil(remainingMinutes / 60);
+  return `Please try again in about ${remainingHours} hour${remainingHours === 1 ? '' : 's'}.`;
+};
+
+const buildErrorMessage = (error, fallback) => {
+  if (error.lockedUntil) {
+    const waitMessage = formatLockoutWait(error.lockedUntil);
+    return waitMessage
+      ? `Account locked after too many failed attempts. ${waitMessage}`
+      : 'Account locked after too many failed attempts. Please try again later.';
+  }
+
+  if (typeof error.attemptsRemaining === 'number') {
+    return `${error.error || fallback}. ${error.attemptsRemaining} attempt${error.attemptsRemaining === 1 ? '' : 's'} remaining before lockout.`;
+  }
+
+  return error.error || error.message || fallback;
+};
+
 class SessionStore {
   static migrateFromLocalStorage() {
     SESSION_KEYS.forEach((key) => localStorage.removeItem(key));
@@ -102,7 +135,7 @@ export class APIClient {
     if (response.status === 401) {
       if (isAuthEndpoint) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || 'Invalid credentials');
+        throw new Error(buildErrorMessage(body, 'Invalid credentials'));
       }
       if (!isRetryAfterRefresh) {
         const refreshed = await this.tryRefreshToken();
@@ -131,7 +164,7 @@ export class APIClient {
         }).join('. ');
         throw new Error(errorMessages || 'Validation failed');
       }
-      throw new Error(error.error || error.message || `HTTP ${response.status}`);
+      throw new Error(buildErrorMessage(error, `HTTP ${response.status}`));
     }
 
     return response.json();

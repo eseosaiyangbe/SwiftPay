@@ -328,8 +328,8 @@ services:
       JWT_SECRET: J8vmoWX/NIIcBunMHhkMmok7ZViKS/OaQovGmp9ETm2+puxFEL/lt+egqTNRLM3J
       NODE_ENV: development
       SERVICE_NAME: api-gateway
-      # Empty string → api-gateway reflects request Origin (required when credentials:true)
-      # "*" wildcard is rejected by browsers for credentialed requests — do not use it.
+      # Empty string is allowed only in development and accepts local browser origins.
+      # Production must list explicit trusted origins, for example: https://swiftpay.example.com
       CORS_ORIGIN: ""
     depends_on:
       - auth-service

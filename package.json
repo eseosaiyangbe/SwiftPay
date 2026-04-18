@@ -19,6 +19,7 @@
     "smoke:send-money": "bash scripts/smoke-send-money.sh",
     "smoke:failed-transaction": "bash scripts/smoke-failed-transaction.sh",
     "smoke:notifications": "bash scripts/smoke-notifications.sh",
+    "smoke:auth-security": "bash scripts/smoke-auth-security.sh",
     
     "lint:all": "npm run lint:services",
     "lint:services": "cd services/auth-service && npm run lint && cd ../api-gateway && npm run lint && cd ../wallet-service && npm run lint && cd ../transaction-service && npm run lint && cd ../notification-service && npm run lint",

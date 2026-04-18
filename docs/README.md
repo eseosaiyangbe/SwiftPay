@@ -59,6 +59,7 @@ Read in this **order** (do not parallel-read every deploy guide):
 |-------|-----|
 | Big picture | [architecture.md](architecture.md), [system-flow.md](system-flow.md) |
 | Verified Send Money runbook | [send-money-runbook.md](send-money-runbook.md) |
+| Security and session hardening | [security-session-runbook.md](security-session-runbook.md) |
 | SwiftPay observability runbook | [observability-runbook.md](observability-runbook.md) |
 | Why these technologies | [technology-choices.md](technology-choices.md) |
 | APIs, ports, env | [SERVICES.md](SERVICES.md) |

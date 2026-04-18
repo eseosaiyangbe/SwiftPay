@@ -69,6 +69,44 @@ const failedTransfers = register.getSingleMetric('failed_transfers_total') ||
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+function parseAllowedOrigins(value) {
+  return (value || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+function buildCorsOptions() {
+  const allowedOrigins = parseAllowedOrigins(process.env.CORS_ORIGIN);
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction && (allowedOrigins.length === 0 || allowedOrigins.includes('*'))) {
+    throw new Error('CORS_ORIGIN must list explicit trusted origins in production');
+  }
+
+  return {
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (!isProduction && (allowedOrigins.length === 0 || allowedOrigins.includes('*'))) {
+        callback(null, true);
+        return;
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true
+  };
+}
+
 // Single persistent pool for infrastructure health checks (avoids connection leak)
 const { Pool } = require('pg');
 if (!process.env.DB_PASSWORD) {
@@ -207,11 +245,8 @@ checkInfrastructureHealth(); // #### Run initial check immediately ####
 // #### Security Middleware ####
 app.use(helmet()); // #### Sets security headers (X-Frame-Options, X-XSS-Protection, etc.) ####
 app.set('trust proxy', 1); // #### Trust proxy headers from ingress controller ####
-// CORS: with credentials:true, origin cannot be '*' (browser blocks). Use explicit CORS_ORIGIN or reflect request origin.
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || true, // true = reflect request Origin (same-origin works)
-  credentials: true
-}));
+// CORS: with credentials:true, production must use explicit trusted origins.
+app.use(cors(buildCorsOptions()));
 app.use(morgan('combined')); // #### Log all HTTP requests ####
 app.use(express.json({ limit: '10kb' })); // #### Parse JSON bodies, limit to 10KB ####
 

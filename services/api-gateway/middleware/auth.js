@@ -3,7 +3,28 @@
 const jwt = require('jsonwebtoken');
 const redis = require('redis');
 
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'dev-only-secret-change-in-production');
+const DEFAULT_DEV_JWT_SECRET = 'dev-only-secret-change-in-production';
+const WEAK_JWT_SECRETS = new Set([
+  DEFAULT_DEV_JWT_SECRET,
+  'your-super-secret-jwt-key-change-in-production-use-at-least-256-bits',
+  'your-secret-key',
+  'change-me',
+]);
+
+function resolveJwtSecret() {
+  const secret = process.env.JWT_SECRET || DEFAULT_DEV_JWT_SECRET;
+
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (!secret || WEAK_JWT_SECRETS.has(secret) || secret.length < 32)
+  ) {
+    throw new Error('JWT_SECRET must be set to a strong non-default value in production');
+  }
+
+  return secret;
+}
+
+const JWT_SECRET = resolveJwtSecret();
 const REDIS_URL = process.env.REDIS_URL || 'redis://redis:6379';
 
 let redisClient = null;

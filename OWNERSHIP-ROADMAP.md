@@ -771,24 +771,43 @@ Progress notes:
 
 ### Phase 4: Security And Session Hardening
 
+Status: in progress, backend first pass complete.
+
 Goal:
 
 Move closer to fintech-grade security practices.
 
 Work items:
 
-- Review JWT and refresh token flow.
+- Review JWT and refresh token flow. Complete first pass.
 - Replace or reduce frontend `localStorage` token exposure.
-- Review CORS configuration.
-- Review secrets strategy.
-- Ensure default credentials cannot run in production.
-- Add auth-related tests.
+- Review CORS configuration. Complete first pass.
+- Review secrets strategy. Complete first pass.
+- Ensure default credentials cannot run in production. Complete first pass for JWT secrets.
+- Add auth-related tests. Complete first pass.
 
 Success criteria:
 
 - Production mode refuses weak secrets.
 - Token handling is safer.
 - Auth behavior is documented and tested.
+
+Progress notes:
+
+- Added production JWT secret guards in Auth Service and API Gateway auth middleware.
+- Added weak/default JWT secret rejection for production mode.
+- Added `jti` claims to generated access and refresh tokens so newly issued tokens are unique.
+- Added refresh token rotation in Auth Service so used refresh tokens cannot be replayed.
+- Hardened API Gateway CORS parsing for comma-separated trusted origins.
+- Kept empty `CORS_ORIGIN` development-friendly for Docker Compose, while rejecting missing or wildcard CORS origins in production.
+- Updated `.env.example` to use `http://localhost:8081` instead of `*`.
+- Added `scripts/smoke-auth-security.sh` and `npm run smoke:auth-security`.
+- Added `docs/security-session-runbook.md` as the operational guide for this phase.
+
+Remaining work:
+
+- Reduce frontend token exposure beyond `localStorage`.
+- Add deeper automated tests around account lockout, password change, and refresh-token reuse.
 
 ### Phase 5: Kubernetes Ownership
 

@@ -49,8 +49,25 @@ const redisClient = redis.createClient({
 redisClient.on('error', (err) => console.error('Redis error:', err));
 redisClient.connect().catch((err) => console.error('Redis connect error:', err.message));
 
-// JWT Configuration — require secret in production so all replicas use the same key
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? (() => { throw new Error('JWT_SECRET must be set in production'); })() : 'dev-only-secret-change-in-production');
+// JWT Configuration — require a strong shared secret in production so all replicas use the same key.
+const DEFAULT_DEV_JWT_SECRET = 'dev-only-secret-change-in-production';
+const WEAK_JWT_SECRETS = new Set([
+  DEFAULT_DEV_JWT_SECRET,
+  'your-super-secret-jwt-key-change-in-production-use-at-least-256-bits',
+  'your-secret-key',
+  'change-me',
+]);
+
+function assertProductionJwtSecret(secret) {
+  if (process.env.NODE_ENV !== 'production') return;
+
+  if (!secret || WEAK_JWT_SECRETS.has(secret) || secret.length < 32) {
+    throw new Error('JWT_SECRET must be set to a strong non-default value in production');
+  }
+}
+
+const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_DEV_JWT_SECRET;
+assertProductionJwtSecret(JWT_SECRET);
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = '7d';
 
@@ -165,13 +182,13 @@ async function auditLog(userId, action, resource, req, metadata = {}) {
 // Utility: Generate tokens
 function generateTokens(userId, email, role) {
   const accessToken = jwt.sign(
-    { userId, email, role },
+    { userId, email, role, jti: uuidv4() },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
 
   const refreshToken = jwt.sign(
-    { userId, type: 'refresh' },
+    { userId, type: 'refresh', jti: uuidv4() },
     JWT_SECRET,
     { expiresIn: REFRESH_TOKEN_EXPIRES_IN }
   );
@@ -429,8 +446,23 @@ app.post('/auth/refresh', async (req, res) => {
 
     const user = userResult.rows[0];
 
-    // Generate new tokens
+    // Rotate refresh tokens so a used token cannot be replayed.
     const tokens = generateTokens(user.id, user.email, user.role);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
+    await pool.query(
+      `INSERT INTO refresh_tokens (user_id, token, expires_at, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        user.id,
+        tokens.refreshToken,
+        expiresAt,
+        req.ip,
+        req.get('user-agent')
+      ]
+    );
 
     await auditLog(user.id, 'TOKEN_REFRESHED', 'users', req);
 

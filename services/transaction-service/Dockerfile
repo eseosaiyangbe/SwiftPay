@@ -1,5 +1,5 @@
 # ============================================
-# PayFlow Transaction Service - Optimized Multi-Stage Build
+# SwiftPay Transaction Service - Optimized Multi-Stage Build
 # Target: <100MB (reduced from 200MB)
 # ============================================
 

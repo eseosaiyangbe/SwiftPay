@@ -40,7 +40,7 @@ location /api {
     proxy_pass http://api-gateway:80;
     
     # Kubernetes: Use full FQDN with variable (prevents startup failures)
-    set $api_gateway "http://api-gateway.payflow.svc.cluster.local:80";
+    set $api_gateway "http://api-gateway.swiftpay.svc.cluster.local:80";
     proxy_pass $api_gateway;
 }
 ```
@@ -64,7 +64,7 @@ docker-compose exec frontend wget -qO- http://api-gateway:80/health
 **Kubernetes:**
 ```bash
 # Test from frontend pod
-kubectl exec -it <frontend-pod> -n payflow -- wget -qO- http://api-gateway.payflow.svc.cluster.local:80/health
+kubectl exec -it <frontend-pod> -n swiftpay -- wget -qO- http://api-gateway.swiftpay.svc.cluster.local:80/health
 ```
 
 **4. Port Alignment**
@@ -88,7 +88,7 @@ docker-compose exec frontend cat /etc/nginx/conf.d/default.conf | grep proxy_pas
 **Kubernetes:**
 ```bash
 # Check nginx config in ConfigMap
-kubectl get configmap frontend-nginx -n payflow -o yaml | grep proxy_pass
+kubectl get configmap frontend-nginx -n swiftpay -o yaml | grep proxy_pass
 
 # Should show: proxy_pass $api_gateway; (with variable)
 ```
@@ -139,13 +139,13 @@ docker-compose logs -f
 **Kubernetes:**
 ```bash
 # View pod logs
-kubectl logs <pod-name> -n payflow
+kubectl logs <pod-name> -n swiftpay
 
 # View service logs
-kubectl logs -l app=frontend -n payflow
+kubectl logs -l app=frontend -n swiftpay
 
 # View previous container logs (if crashed)
-kubectl logs <pod-name> -n payflow --previous
+kubectl logs <pod-name> -n swiftpay --previous
 ```
 
 **What to look for:**
@@ -170,13 +170,13 @@ docker ps
 **Kubernetes:**
 ```bash
 # Check pods
-kubectl get pods -n payflow
+kubectl get pods -n swiftpay
 
 # Check services
-kubectl get svc -n payflow
+kubectl get svc -n swiftpay
 
 # Check deployments
-kubectl get deployments -n payflow
+kubectl get deployments -n swiftpay
 ```
 
 **What to look for:**
@@ -198,7 +198,7 @@ docker stats
 **Kubernetes:**
 ```bash
 # Check resource usage
-kubectl top pods -n payflow
+kubectl top pods -n swiftpay
 kubectl top nodes
 ```
 
@@ -295,7 +295,7 @@ docker-compose ps postgres
 docker-compose logs postgres
 
 # Test connection
-docker-compose exec postgres psql -U payflow -d payflow
+docker-compose exec postgres psql -U swiftpay -d swiftpay
 ```
 
 **Common Causes:**
@@ -306,7 +306,7 @@ docker-compose exec postgres psql -U payflow -d payflow
 docker-compose up -d postgres
 
 # Wait for it to be ready
-docker-compose exec postgres pg_isready -U payflow
+docker-compose exec postgres pg_isready -U swiftpay
 ```
 
 **2. Wrong Connection String**
@@ -379,13 +379,13 @@ STATUS: CrashLoopBackOff
 **Diagnosis:**
 ```bash
 # Check pod status
-kubectl describe pod <pod-name> -n payflow
+kubectl describe pod <pod-name> -n swiftpay
 
 # Check logs
-kubectl logs <pod-name> -n payflow
+kubectl logs <pod-name> -n swiftpay
 
 # Check previous container logs
-kubectl logs <pod-name> -n payflow --previous
+kubectl logs <pod-name> -n swiftpay --previous
 ```
 
 **Common Causes:**
@@ -407,10 +407,10 @@ kubectl logs <pod-name> -n payflow --previous
 **Solution:**
 ```bash
 # Delete pod (will recreate)
-kubectl delete pod <pod-name> -n payflow
+kubectl delete pod <pod-name> -n swiftpay
 
 # Restart deployment
-kubectl rollout restart deployment/<deployment-name> -n payflow
+kubectl rollout restart deployment/<deployment-name> -n swiftpay
 ```
 
 ---
@@ -423,7 +423,7 @@ kubectl rollout restart deployment/<deployment-name> -n payflow
 
 You check your auth service and see:
 ```bash
-kubectl get pods -n payflow -l app=auth-service
+kubectl get pods -n swiftpay -l app=auth-service
 ```
 
 **Output:**
@@ -438,7 +438,7 @@ auth-service-56cc7b7488-7zhsj   0/1     CrashLoopBackOff   258        10d
 #### Step 1: Check the Logs (The Red Herring)
 
 ```bash
-kubectl logs -n payflow deployment/auth-service --tail=50
+kubectl logs -n swiftpay deployment/auth-service --tail=50
 ```
 
 **What you see:**
@@ -463,7 +463,7 @@ Error: getaddrinfo ENOTFOUND postgres
 
 ```bash
 # Check if PostgreSQL pod exists
-kubectl get pods -n payflow | grep postgres
+kubectl get pods -n swiftpay | grep postgres
 
 # Output: (empty - no pods!)
 ```
@@ -472,7 +472,7 @@ kubectl get pods -n payflow | grep postgres
 
 ```bash
 # Check StatefulSet status
-kubectl get statefulset postgres -n payflow
+kubectl get statefulset postgres -n swiftpay
 
 # Output:
 # NAME       READY   AGE
@@ -485,7 +485,7 @@ kubectl get statefulset postgres -n payflow
 
 ```bash
 # Check StatefulSet events
-kubectl describe statefulset postgres -n payflow | tail -20
+kubectl describe statefulset postgres -n swiftpay | tail -20
 ```
 
 **The smoking gun:**
@@ -495,7 +495,7 @@ Events:
   ----     ------        ----                  ----                    -------
   Warning  FailedCreate  5m9s (x2 over 5m10s)  statefulset-controller  
   create Pod postgres-0 in StatefulSet postgres failed error: 
-  pods "postgres-0" is forbidden: exceeded quota: payflow-resource-quota, 
+  pods "postgres-0" is forbidden: exceeded quota: swiftpay-resource-quota, 
   requested: limits.cpu=1,requests.cpu=250m, 
   used: limits.cpu=7900m,requests.cpu=3900m, 
   limited: limits.cpu=8,requests.cpu=4
@@ -509,7 +509,7 @@ Events:
 
 ```bash
 # Check current quota usage
-kubectl get resourcequota payflow-resource-quota -n payflow -o yaml
+kubectl get resourcequota swiftpay-resource-quota -n swiftpay -o yaml
 ```
 
 **What you see:**
@@ -558,7 +558,7 @@ kubectl apply -f k8s/infrastructure/postgres.yaml
 
 ```bash
 # Wait a few seconds, then check
-kubectl get pods -n payflow -l app=postgres
+kubectl get pods -n swiftpay -l app=postgres
 
 # Output:
 # NAME         READY   STATUS    RESTARTS   AGE
@@ -573,7 +573,7 @@ Once PostgreSQL is running, auth service automatically recovers:
 
 ```bash
 # Check auth service (wait 10-15 seconds)
-kubectl get pods -n payflow -l app=auth-service
+kubectl get pods -n swiftpay -l app=auth-service
 
 # Output:
 # NAME                            READY   STATUS    RESTARTS   AGE
@@ -583,7 +583,7 @@ kubectl get pods -n payflow -l app=auth-service
 
 **Verify it's working:**
 ```bash
-kubectl logs -n payflow deployment/auth-service --tail=10
+kubectl logs -n swiftpay deployment/auth-service --tail=10
 
 # Output:
 # Auth service running on port 3004
@@ -602,11 +602,11 @@ kubectl logs -n payflow deployment/auth-service --tail=10
 4. **Read the events**: `kubectl describe` shows events that explain WHY something failed, not just THAT it failed.
 
 **Quick diagnostic checklist for crash loops:**
-1. ✅ Check pod logs: `kubectl logs <pod-name> -n payflow`
-2. ✅ Check pod status: `kubectl describe pod <pod-name> -n payflow`
+1. ✅ Check pod logs: `kubectl logs <pod-name> -n swiftpay`
+2. ✅ Check pod status: `kubectl describe pod <pod-name> -n swiftpay`
 3. ✅ Check dependencies: Are databases/services it needs actually running?
-4. ✅ Check resource quotas: `kubectl get resourcequota -n payflow`
-5. ✅ Check events: `kubectl get events -n payflow --sort-by='.lastTimestamp'`
+4. ✅ Check resource quotas: `kubectl get resourcequota -n swiftpay`
+5. ✅ Check events: `kubectl get events -n swiftpay --sort-by='.lastTimestamp'`
 
 **Prevention tip**: Always add resource requests and limits to ALL pods, especially when using resource quotas. It's a best practice anyway!
 
@@ -622,10 +622,10 @@ STATUS: Pending
 **Diagnosis:**
 ```bash
 # Check why pod is pending
-kubectl describe pod <pod-name> -n payflow
+kubectl describe pod <pod-name> -n swiftpay
 
 # Look for events
-kubectl get events -n payflow
+kubectl get events -n swiftpay
 ```
 
 **Common Causes:**
@@ -651,7 +651,7 @@ kubectl get nodes
 kubectl top nodes
 
 # Check image
-kubectl describe pod <pod-name> -n payflow | grep Image
+kubectl describe pod <pod-name> -n swiftpay | grep Image
 ```
 
 ---
@@ -667,13 +667,13 @@ Service unavailable
 **Diagnosis:**
 ```bash
 # Check service
-kubectl get svc -n payflow
+kubectl get svc -n swiftpay
 
 # Check endpoints
-kubectl get endpoints -n payflow
+kubectl get endpoints -n swiftpay
 
 # Test from pod
-kubectl exec -it <pod-name> -n payflow -- wget -qO- http://<service-name>:<port>/health
+kubectl exec -it <pod-name> -n swiftpay -- wget -qO- http://<service-name>:<port>/health
 ```
 
 **Common Causes:**
@@ -693,13 +693,13 @@ kubectl exec -it <pod-name> -n payflow -- wget -qO- http://<service-name>:<port>
 **Solution:**
 ```bash
 # Check pods
-kubectl get pods -n payflow -l app=<service-name>
+kubectl get pods -n swiftpay -l app=<service-name>
 
 # Check service configuration
-kubectl get svc <service-name> -n payflow -o yaml
+kubectl get svc <service-name> -n swiftpay -o yaml
 
 # Check network policies
-kubectl get networkpolicies -n payflow
+kubectl get networkpolicies -n swiftpay
 ```
 
 ---
@@ -715,10 +715,10 @@ ErrImagePull
 **Diagnosis:**
 ```bash
 # Check image name
-kubectl describe pod <pod-name> -n payflow | grep Image
+kubectl describe pod <pod-name> -n swiftpay | grep Image
 
 # Check image pull policy
-kubectl get deployment <deployment-name> -n payflow -o yaml | grep imagePullPolicy
+kubectl get deployment <deployment-name> -n swiftpay -o yaml | grep imagePullPolicy
 ```
 
 **Common Causes:**
@@ -742,7 +742,7 @@ docker build -t <image-name> .
 docker push <image-name>
 
 # Update deployment
-kubectl set image deployment/<deployment-name> <container-name>=<image-name> -n payflow
+kubectl set image deployment/<deployment-name> <container-name>=<image-name> -n swiftpay
 ```
 
 ---
@@ -761,10 +761,10 @@ kubectl set image deployment/<deployment-name> <container-name>=<image-name> -n 
 # Check auth service logs
 docker-compose logs auth-service
 # or
-kubectl logs -l app=auth-service -n payflow
+kubectl logs -l app=auth-service -n swiftpay
 
 # Check database
-docker-compose exec postgres psql -U payflow -d payflow -c "SELECT * FROM users;"
+docker-compose exec postgres psql -U swiftpay -d swiftpay -c "SELECT * FROM users;"
 ```
 
 **Common Causes:**
@@ -789,7 +789,7 @@ curl -X POST http://localhost:3000/api/auth/register \
   -d '{"email":"test@test.com","password":"Test123!","name":"Test User"}'
 
 # Check if user exists
-docker-compose exec postgres psql -U payflow -d payflow -c "SELECT email FROM users;"
+docker-compose exec postgres psql -U swiftpay -d swiftpay -c "SELECT email FROM users;"
 ```
 
 ---
@@ -806,17 +806,17 @@ docker-compose exec postgres psql -U payflow -d payflow -c "SELECT email FROM us
 # Check transaction service logs
 docker-compose logs transaction-service
 # or
-kubectl logs -l app=transaction-service -n payflow
+kubectl logs -l app=transaction-service -n swiftpay
 
 # Check wallet service logs
 docker-compose logs wallet-service
 # or
-kubectl logs -l app=wallet-service -n payflow
+kubectl logs -l app=wallet-service -n swiftpay
 
 # Check RabbitMQ
 docker-compose logs rabbitmq
 # or
-kubectl logs -l app=rabbitmq -n payflow
+kubectl logs -l app=rabbitmq -n swiftpay
 ```
 
 **Common Causes:**
@@ -842,7 +842,7 @@ docker-compose exec transaction-service wget -qO- http://wallet-service:3001/hea
 docker-compose exec rabbitmq rabbitmqctl status
 
 # Check database
-docker-compose exec postgres psql -U payflow -d payflow -c "SELECT * FROM transactions ORDER BY created_at DESC LIMIT 5;"
+docker-compose exec postgres psql -U swiftpay -d swiftpay -c "SELECT * FROM transactions ORDER BY created_at DESC LIMIT 5;"
 ```
 
 ---
@@ -859,12 +859,12 @@ docker-compose exec postgres psql -U payflow -d payflow -c "SELECT * FROM transa
 # Check frontend logs
 docker-compose logs frontend
 # or
-kubectl logs -l app=frontend -n payflow
+kubectl logs -l app=frontend -n swiftpay
 
 # Check API Gateway
 docker-compose logs api-gateway
 # or
-kubectl logs -l app=api-gateway -n payflow
+kubectl logs -l app=api-gateway -n swiftpay
 
 # Test API directly
 curl http://localhost:3000/api/health
@@ -889,7 +889,7 @@ curl http://localhost:3000/api/health
 # Check API Gateway
 docker-compose ps api-gateway
 # or
-kubectl get pods -n payflow -l app=api-gateway
+kubectl get pods -n swiftpay -l app=api-gateway
 
 # Test API
 curl http://localhost:3000/api/health
@@ -939,10 +939,10 @@ docker-compose ps
 **Diagnosis:**
 ```bash
 # Check network policies
-kubectl get networkpolicies -n payflow
+kubectl get networkpolicies -n swiftpay
 
 # Test connectivity
-kubectl exec -it <pod-1> -n payflow -- wget -qO- http://<service-2>:<port>/health
+kubectl exec -it <pod-1> -n swiftpay -- wget -qO- http://<service-2>:<port>/health
 ```
 
 **Common Causes:**
@@ -958,10 +958,10 @@ kubectl exec -it <pod-1> -n payflow -- wget -qO- http://<service-2>:<port>/healt
 **Solution:**
 ```bash
 # Check network policies
-kubectl describe networkpolicy <policy-name> -n payflow
+kubectl describe networkpolicy <policy-name> -n swiftpay
 
 # Temporarily remove network policies (for testing)
-kubectl delete networkpolicies --all -n payflow
+kubectl delete networkpolicies --all -n swiftpay
 
 # Re-apply network policies
 kubectl apply -f k8s/policies/network-policies.yaml

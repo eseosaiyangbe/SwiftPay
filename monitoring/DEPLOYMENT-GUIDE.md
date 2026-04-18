@@ -42,7 +42,7 @@ From your laptop (with AWS CLI and Session Manager plugin):
 export AWS_REGION=us-east-1
 
 # Get bastion instance ID (from Terraform state)
-cd /path/to/payflow-wallet-2
+cd /path/to/swiftpay-wallet-2
 BASTION_ID=$(terraform -chdir=terraform/aws/bastion output -raw bastion_instance_id 2>/dev/null || echo "")
 
 if [ -z "$BASTION_ID" ]; then
@@ -75,19 +75,19 @@ which kubectl aws
 
 # 2. Configure kubectl for EKS (if not already done)
 # Replace CLUSTER_NAME and REGION with your values (from Terraform spoke output)
-aws eks update-kubeconfig --region us-east-1 --name payflow-eks-cluster
+aws eks update-kubeconfig --region us-east-1 --name swiftpay-eks-cluster
 
 # 3. Verify cluster access
 kubectl cluster-info
 kubectl get nodes
-kubectl get ns payflow
+kubectl get ns swiftpay
 
 # 4. Get the repo (clone or copy). Option A: clone (if bastion has git and network)
-git clone https://github.com/your-org/payflow-wallet-2.git
-cd payflow-wallet-2
+git clone https://github.com/your-org/swiftpay-wallet-2.git
+cd swiftpay-wallet-2
 
 # Option B: copy from laptop (from a second terminal on your laptop)
-# From laptop: scp -r monitoring k8s/monitoring user@<bastion-ip>:~/payflow-wallet-2/
+# From laptop: scp -r monitoring k8s/monitoring user@<bastion-ip>:~/swiftpay-wallet-2/
 # Or use rsync over SSM: see "Copy files to bastion" below
 
 # 5. Run the monitoring deploy script
@@ -117,15 +117,15 @@ If the bastion can’t clone the repo, copy only what’s needed from your lapto
 ```bash
 # From your laptop (new terminal), with BASTION_ID and AWS_REGION set:
 # Create a tarball of monitoring + k8s/monitoring
-cd /path/to/payflow-wallet-2
-tar czf /tmp/payflow-monitoring.tar.gz monitoring k8s/monitoring
+cd /path/to/swiftpay-wallet-2
+tar czf /tmp/swiftpay-monitoring.tar.gz monitoring k8s/monitoring
 
 # Copy via S3 (bastion has AWS CLI)
-aws s3 cp /tmp/payflow-monitoring.tar.gz s3://YOUR_BUCKET/payflow-monitoring.tar.gz --region "$AWS_REGION"
+aws s3 cp /tmp/swiftpay-monitoring.tar.gz s3://YOUR_BUCKET/swiftpay-monitoring.tar.gz --region "$AWS_REGION"
 
 # On bastion (inside SSM session):
-aws s3 cp s3://YOUR_BUCKET/payflow-monitoring.tar.gz /tmp/
-mkdir -p payflow-wallet-2 && cd payflow-wallet-2 && tar xzf /tmp/payflow-monitoring.tar.gz
+aws s3 cp s3://YOUR_BUCKET/swiftpay-monitoring.tar.gz /tmp/
+mkdir -p swiftpay-wallet-2 && cd swiftpay-wallet-2 && tar xzf /tmp/swiftpay-monitoring.tar.gz
 ./monitoring/deploy-monitoring.sh
 ```
 
@@ -137,11 +137,11 @@ After the script finishes:
 
 ```bash
 # Namespaces
-kubectl get ns monitoring payflow
+kubectl get ns monitoring swiftpay
 
 # Monitoring pods
 kubectl get pods -n monitoring
-kubectl get pods -n payflow -l 'app in (postgres-exporter,redis-exporter)'
+kubectl get pods -n swiftpay -l 'app in (postgres-exporter,redis-exporter)'
 
 # Storage class in use (script prints this)
 kubectl get storageclass
@@ -157,7 +157,7 @@ kubectl logs -n monitoring <pod-name> --tail=100
   Check `kubectl get pvc -n monitoring`. If `storageClassName` is wrong for your cluster, set `STORAGE_CLASS` and re-run the script (or fix PVCs and redeploy).
 
 - **postgres-exporter/redis-exporter not ready**  
-  They need `db-secrets` (or ESO) and correct DSN. Check `kubectl get secret -n payflow` and exporter logs.
+  They need `db-secrets` (or ESO) and correct DSN. Check `kubectl get secret -n swiftpay` and exporter logs.
 
 - **Script fails at “Waiting for … to be ready”**  
   Inspect the resource: `kubectl describe pod -n <ns> -l app=<name>` and `kubectl logs ...`. Fix the underlying issue (e.g. image pull, secrets, probes) then re-run the script.
@@ -167,12 +167,12 @@ kubectl logs -n monitoring <pod-name> --tail=100
 You can’t run the script *on* the bastion from your laptop in one command without extra tooling. The intended flow is:
 
 1. **Terminal 1:** `aws ssm start-session --target $BASTION_ID --region $AWS_REGION`  
-2. **In that session:** `cd payflow-wallet-2 && ./monitoring/deploy-monitoring.sh`
+2. **In that session:** `cd swiftpay-wallet-2 && ./monitoring/deploy-monitoring.sh`
 
 To only test connectivity from the laptop (e.g. with a public EKS endpoint):
 
 ```bash
-aws eks update-kubeconfig --region us-east-1 --name payflow-eks-cluster
+aws eks update-kubeconfig --region us-east-1 --name swiftpay-eks-cluster
 kubectl cluster-info
 # If that works, you can run from laptop:
 ./monitoring/deploy-monitoring.sh
@@ -251,7 +251,7 @@ open http://localhost:9090
 - ❌ **DOWN** = Prometheus can't reach the service (problem!)
 
 **What to check:**
-- All PayFlow services should be UP
+- All SwiftPay services should be UP
 - If DOWN, check:
   - Is the service running? (`kubectl get pods`)
   - Is the `/metrics` endpoint working? (`curl http://service:port/metrics`)
@@ -277,7 +277,7 @@ avg(http_request_duration_seconds)
 cpu_usage_percent
 
 # Pending transactions (business metric)
-payflow_pending_transactions_total
+swiftpay_pending_transactions_total
 
 # Error rate (errors per second)
 rate(http_requests_total{status="500"}[5m])
@@ -330,13 +330,13 @@ histogram_quantile(0.95,
 
 ```promql
 # Active connections
-pg_stat_database_numbackends{datname="payflow"}
+pg_stat_database_numbackends{datname="swiftpay"}
 
 # Query duration
 pg_stat_statements_mean_exec_time
 
 # Transaction count
-pg_stat_database_xact_commit{datname="payflow"}
+pg_stat_database_xact_commit{datname="swiftpay"}
 ```
 
 **Example: Check CronJob**
@@ -356,17 +356,17 @@ kube_job_status_completion_time - kube_job_status_start_time
 
 ```promql
 # Pending transactions (should be 0)
-payflow_pending_transactions_total
+swiftpay_pending_transactions_total
 
 # Money stuck in pending (should be $0)
-payflow_pending_transaction_amount_total
+swiftpay_pending_transaction_amount_total
 
 # Oldest pending transaction age (should be 0s)
-time() - payflow_transactions_oldest_pending_timestamp
+time() - swiftpay_transactions_oldest_pending_timestamp
 
 # Transaction success rate
-sum(rate(payflow_transactions_total{status="COMPLETED"}[5m])) / 
-sum(rate(payflow_transactions_total[5m])) * 100
+sum(rate(swiftpay_transactions_total{status="COMPLETED"}[5m])) / 
+sum(rate(swiftpay_transactions_total[5m])) * 100
 ```
 
 #### **6. Check Alerts**
@@ -383,11 +383,11 @@ sum(rate(payflow_transactions_total[5m])) * 100
 - `CronJobFailures` - CronJob is failing
 - `ServiceDown` - Service is not responding
 
-### **Common Prometheus Queries for PayFlow**
+### **Common Prometheus Queries for SwiftPay**
 
 ```promql
 # 1. Service Health Check
-up{namespace="payflow"}
+up{namespace="swiftpay"}
 
 # 2. Request Rate (requests per second)
 sum(rate(http_requests_total[5m])) by (service)
@@ -401,10 +401,10 @@ histogram_quantile(0.95,
 )
 
 # 5. Pending Transactions
-payflow_pending_transactions_total
+swiftpay_pending_transactions_total
 
 # 6. Database Connections
-pg_stat_database_numbackends{datname="payflow"}
+pg_stat_database_numbackends{datname="swiftpay"}
 
 # 7. RabbitMQ Queue Depth
 rabbitmq_queue_messages_ready{queue="transaction-queue"}
@@ -482,7 +482,7 @@ Labels help filter metrics (e.g., by service, status, etc.)
 This provides metrics about Kubernetes objects (Jobs, CronJobs, ResourceQuotas).
 
 ```bash
-cd /Users/mac/Desktop/Coaching/PayFlow\ Wallet\ 2
+cd /Users/mac/Desktop/Coaching/SwiftPay\ Wallet\ 2
 
 # Deploy kube-state-metrics
 kubectl apply -f k8s/monitoring/kube-state-metrics.yaml
@@ -515,10 +515,10 @@ Provides database metrics including our critical business metrics.
 kubectl apply -f k8s/monitoring/postgres-exporter.yaml
 
 # Verify deployment
-kubectl get pods -n payflow -l app=postgres-exporter
+kubectl get pods -n swiftpay -l app=postgres-exporter
 
 # Check metrics
-kubectl port-forward -n payflow svc/postgres-exporter 9187:9187 &
+kubectl port-forward -n swiftpay svc/postgres-exporter 9187:9187 &
 curl localhost:9187/metrics | grep pg_transactions
 
 # You should see:
@@ -539,13 +539,13 @@ RabbitMQ has a built-in Prometheus exporter that needs to be enabled.
 
 ```bash
 # Enable prometheus plugin
-kubectl exec -n payflow rabbitmq-0 -- rabbitmq-plugins enable rabbitmq_prometheus
+kubectl exec -n swiftpay rabbitmq-0 -- rabbitmq-plugins enable rabbitmq_prometheus
 
 # Verify plugin enabled
-kubectl exec -n payflow rabbitmq-0 -- rabbitmq-plugins list | grep prometheus
+kubectl exec -n swiftpay rabbitmq-0 -- rabbitmq-plugins list | grep prometheus
 
 # Check metrics endpoint
-kubectl port-forward -n payflow svc/rabbitmq 15692:15692 &
+kubectl port-forward -n swiftpay svc/rabbitmq 15692:15692 &
 curl localhost:15692/metrics | grep rabbitmq_queue
 
 # Stop port-forward
@@ -620,7 +620,7 @@ kubectl get pods -n monitoring -l app=alertmanager
 #### **Slack Setup:**
 
 1. Go to https://api.slack.com/apps
-2. Create new app → "PayFlow Alerts"
+2. Create new app → "SwiftPay Alerts"
 3. Add Incoming Webhooks
 4. Create webhooks for:
    - `#alerts` (warnings)
@@ -643,7 +643,7 @@ kubectl delete pod -n monitoring alertmanager-0
 #### **PagerDuty Setup:**
 
 1. Go to PagerDuty → Services
-2. Create service: "PayFlow Production"
+2. Create service: "SwiftPay Production"
 3. Integration type: "Events API v2"
 4. Copy Integration Key
 
@@ -725,7 +725,7 @@ GRAFANA_API_KEY="your-api-key"
 curl -X POST "$GRAFANA_URL/api/dashboards/db" \
   -H "Authorization: Bearer $GRAFANA_API_KEY" \
   -H "Content-Type: application/json" \
-  -d @k8s/monitoring/grafana-dashboards/payflow-complete-dashboard.json
+  -d @k8s/monitoring/grafana-dashboards/swiftpay-complete-dashboard.json
 
 # Option 2: Manual import (recommended for first time)
 kubectl port-forward -n monitoring svc/grafana 3000:3000 &
@@ -735,7 +735,7 @@ open http://localhost:3000
 
 # Login: admin / admin (change on first login)
 # Go to: + → Import Dashboard
-# Upload: k8s/monitoring/grafana-dashboards/payflow-complete-dashboard.json
+# Upload: k8s/monitoring/grafana-dashboards/swiftpay-complete-dashboard.json
 # Click: Import
 ```
 
@@ -762,11 +762,11 @@ INGRESS_IP=$(kubectl get ingress -n monitoring monitoring-ingress -o jsonpath='{
 INGRESS_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
 
 # Add to /etc/hosts:
-echo "${INGRESS_IP} grafana.payflow.local prometheus.payflow.local" | sudo tee -a /etc/hosts
+echo "${INGRESS_IP} grafana.swiftpay.local prometheus.swiftpay.local" | sudo tee -a /etc/hosts
 ```
 
 **Access Grafana:**
-- Via Ingress: `http://grafana.payflow.local`
+- Via Ingress: `http://grafana.swiftpay.local`
 - Via Port-forward: `http://localhost:3000`
 
 ---
@@ -804,7 +804,7 @@ This section documents the actual issues we encountered when deploying Grafana a
 kubectl port-forward -n monitoring svc/prometheus 9090:9090 &
 open http://localhost:9090/graph
 
-# Query: up{namespace="payflow"}
+# Query: up{namespace="swiftpay"}
 # Result: Shows 1 (services are up) ✅
 ```
 
@@ -823,7 +823,7 @@ open http://localhost:3000
 # Why: The dashboard queries might be looking for metrics that don't exist
 # Go to Prometheus UI: http://localhost:9090
 # Go to: Graph
-# Query: {__name__=~"payflow.*"}
+# Query: {__name__=~"swiftpay.*"}
 # Result: No metrics found! ❌
 
 # Try: {__name__=~"pg.*"}
@@ -836,15 +836,15 @@ open http://localhost:3000
 **Step 4: Check dashboard queries**
 ```bash
 # Why: We need to see what the dashboard is querying
-cat k8s/monitoring/grafana-dashboards/payflow-complete-dashboard.json | grep -A 5 "expr"
+cat k8s/monitoring/grafana-dashboards/swiftpay-complete-dashboard.json | grep -A 5 "expr"
 
 # Result: Found queries like:
-# - payflow_pending_transactions_total
-# - payflow_transactions_oldest_pending_timestamp
-# - payflow_pending_transaction_amount_total
+# - swiftpay_pending_transactions_total
+# - swiftpay_transactions_oldest_pending_timestamp
+# - swiftpay_pending_transaction_amount_total
 ```
 
-**Root Cause:** The dashboard was created expecting custom `payflow_*` metrics from the application services, but:
+**Root Cause:** The dashboard was created expecting custom `swiftpay_*` metrics from the application services, but:
 - The application services weren't emitting these metrics yet
 - The `postgres-exporter` was exposing `pg_*` metrics instead
 - The dashboard queries didn't match the actual metric names
@@ -855,7 +855,7 @@ We updated the dashboard JSON to use the actual metrics from `postgres-exporter`
 ```json
 // BEFORE (wrong):
 {
-  "expr": "payflow_pending_transactions_total",
+  "expr": "swiftpay_pending_transactions_total",
   "refId": "A"
 }
 
@@ -869,19 +869,19 @@ We updated the dashboard JSON to use the actual metrics from `postgres-exporter`
 **Specific Changes Made:**
 
 1. **Pending Transactions:**
-   - Before: `payflow_pending_transactions_total`
+   - Before: `swiftpay_pending_transactions_total`
    - After: `pg_transactions_by_status_count{status="PENDING"}`
 
 2. **Money Stuck:**
-   - Before: `payflow_pending_transaction_amount_total`
+   - Before: `swiftpay_pending_transaction_amount_total`
    - After: `pg_pending_transaction_amount_total` (if available) or calculated from `pg_transactions_by_status_count`
 
 3. **Oldest Pending Age:**
-   - Before: `time() - payflow_transactions_oldest_pending_timestamp`
+   - Before: `time() - swiftpay_transactions_oldest_pending_timestamp`
    - After: `time() - pg_oldest_pending_transaction_timestamp` (if available)
 
 4. **Transaction Rates:**
-   - Before: `rate(payflow_transactions_total[5m])`
+   - Before: `rate(swiftpay_transactions_total[5m])`
    - After: `rate(pg_stat_database_xact_commit[5m])` or `rate(pg_transactions_by_status_count[5m])`
 
 **Why This Works:**
@@ -892,7 +892,7 @@ We updated the dashboard JSON to use the actual metrics from `postgres-exporter`
 **Command to Apply:**
 ```bash
 # Update dashboard file
-# (Edit k8s/monitoring/grafana-dashboards/payflow-complete-dashboard.json)
+# (Edit k8s/monitoring/grafana-dashboards/swiftpay-complete-dashboard.json)
 
 # Re-import dashboard in Grafana
 # Go to: Dashboards → Import → Upload updated JSON
@@ -922,7 +922,7 @@ open http://localhost:9090/graph
 ```bash
 # Why: We need to generate activity to see if dashboard works
 # Create test transactions via API
-kubectl port-forward -n payflow svc/api-gateway 3000:3000 &
+kubectl port-forward -n swiftpay svc/api-gateway 3000:3000 &
 
 # Make API calls to generate metrics
 curl -X POST http://localhost:3000/api/auth/register \
@@ -1067,14 +1067,14 @@ kubectl get networkpolicy -n monitoring
    - Configured datasource to point to Prometheus
 
 2. **Fixed Dashboard Queries:**
-   - Updated all queries from `payflow_*` to `pg_*` metrics
+   - Updated all queries from `swiftpay_*` to `pg_*` metrics
    - Matched queries to actual metrics from `postgres-exporter`
    - Tested queries in Prometheus before updating dashboard
 
 3. **Set Up Ingress:**
    - Created `monitoring-ingress.yaml` for Grafana and Prometheus
    - Added entries to `/etc/hosts` for friendly URLs
-   - Accessible via `http://grafana.payflow.local`
+   - Accessible via `http://grafana.swiftpay.local`
 
 4. **Fixed Readiness Probes:**
    - Increased `initialDelaySeconds` to 30s
@@ -1096,7 +1096,7 @@ open http://localhost:3000
 
 **Method 2: Ingress (Production-Like)**
 ```bash
-# Access via: http://grafana.payflow.local
+# Access via: http://grafana.swiftpay.local
 # (Requires /etc/hosts entry)
 ```
 
@@ -1130,7 +1130,7 @@ curl http://localhost:3000/api/health
 
 # 4. Dashboard is imported
 # Go to: http://localhost:3000 → Dashboards
-# Expected: "PayFlow Production Dashboard - Complete"
+# Expected: "SwiftPay Production Dashboard - Complete"
 
 # 5. Dashboard shows data (after generating activity)
 # Go to: Dashboard → Check panels
@@ -1242,13 +1242,13 @@ setInterval(async () => {
 ```bash
 # Rebuild services
 cd services/transaction-service
-docker build -t payflow/transaction-service:latest .
+docker build -t swiftpay/transaction-service:latest .
 
 # Push to registry (if using)
-docker push payflow/transaction-service:latest
+docker push swiftpay/transaction-service:latest
 
 # Restart deployment
-kubectl rollout restart deployment transaction-service -n payflow
+kubectl rollout restart deployment transaction-service -n swiftpay
 ```
 
 ---
@@ -1259,7 +1259,7 @@ kubectl rollout restart deployment transaction-service -n payflow
 
 ```bash
 # Create a test pending transaction
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "
   INSERT INTO transactions (id, from_user_id, to_user_id, amount, status, created_at) 
   VALUES ('TEST-ALERT-' || floor(random() * 10000)::text, 'test', 'test', 100.00, 
           'PENDING', NOW() - INTERVAL '5 minutes');
@@ -1277,7 +1277,7 @@ open http://localhost:9093
 # Check Slack #alerts channel for notification
 
 # Cleanup test transaction
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "
   DELETE FROM transactions WHERE id LIKE 'TEST-ALERT%';
 "
 ```
@@ -1286,7 +1286,7 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "
 
 ```bash
 # Suspend CronJob
-kubectl patch cronjob transaction-timeout-handler -n payflow -p '{"spec":{"suspend":true}}'
+kubectl patch cronjob transaction-timeout-handler -n swiftpay -p '{"spec":{"suspend":true}}'
 
 # Wait 3 minutes
 sleep 180
@@ -1294,14 +1294,14 @@ sleep 180
 # Check for alert: TransactionTimeoutCronJobNotRunning
 
 # Unsuspend
-kubectl patch cronjob transaction-timeout-handler -n payflow -p '{"spec":{"suspend":false}}'
+kubectl patch cronjob transaction-timeout-handler -n swiftpay -p '{"spec":{"suspend":false}}'
 ```
 
 #### **Test 3: Service Down Alert**
 
 ```bash
 # Scale down a service
-kubectl scale deployment wallet-service -n payflow --replicas=0
+kubectl scale deployment wallet-service -n swiftpay --replicas=0
 
 # Wait 1 minute
 sleep 60
@@ -1309,7 +1309,7 @@ sleep 60
 # Check for alert: ServiceDown
 
 # Scale back up
-kubectl scale deployment wallet-service -n payflow --replicas=2
+kubectl scale deployment wallet-service -n swiftpay --replicas=2
 ```
 
 ---
@@ -1322,7 +1322,7 @@ After deployment, verify everything works:
 # 1. All monitoring pods running
 kubectl get pods -n monitoring
 kubectl get pods -n kube-system -l app=kube-state-metrics
-kubectl get pods -n payflow -l app=postgres-exporter
+kubectl get pods -n swiftpay -l app=postgres-exporter
 
 # 2. Prometheus scraping all targets
 kubectl port-forward -n monitoring svc/prometheus 9090:9090 &
@@ -1330,7 +1330,7 @@ open http://localhost:9090/targets
 # All should show "UP"
 
 # 3. Check Prometheus has business metrics
-curl http://localhost:9090/api/v1/query?query=payflow_pending_transactions_total
+curl http://localhost:9090/api/v1/query?query=swiftpay_pending_transactions_total
 
 # 4. AlertManager configured
 kubectl port-forward -n monitoring svc/alertmanager 9093:9093 &
@@ -1340,7 +1340,7 @@ open http://localhost:9093
 kubectl port-forward -n monitoring svc/grafana 3000:3000 &
 open http://localhost:3000
 
-# Navigate to: Dashboards → PayFlow Production Dashboard - Complete
+# Navigate to: Dashboards → SwiftPay Production Dashboard - Complete
 ```
 
 ---
@@ -1418,34 +1418,34 @@ This section documents actual issues we encountered during deployment and how we
 
 **What We Saw:**
 ```
-Error scraping target: Get "http://api-gateway.payflow.svc.cluster.local:3000/metrics": context deadline exceeded
+Error scraping target: Get "http://api-gateway.swiftpay.svc.cluster.local:3000/metrics": context deadline exceeded
 ```
 
 **Step 1: Check if the service is running**
 ```bash
 # Why: First rule of debugging - verify the service exists
-kubectl get pods -n payflow -l app=api-gateway
+kubectl get pods -n swiftpay -l app=api-gateway
 ```
 **Result:** Pods were running ✅
 
 **Step 2: Test from inside the pod**
 ```bash
 # Why: If it works from inside, the endpoint exists. If not, the service code is broken.
-kubectl exec -n payflow $(kubectl get pods -n payflow -l app=api-gateway -o jsonpath='{.items[0].metadata.name}') -- wget -qO- --timeout=5 http://localhost:3000/metrics | head -5
+kubectl exec -n swiftpay $(kubectl get pods -n swiftpay -l app=api-gateway -o jsonpath='{.items[0].metadata.name}') -- wget -qO- --timeout=5 http://localhost:3000/metrics | head -5
 ```
 **Result:** Metrics endpoint worked from inside the pod ✅
 
 **Step 3: Test from Prometheus pod**
 ```bash
 # Why: This tests if Prometheus can reach the service (network policy, DNS, routing)
-kubectl exec -n monitoring $(kubectl get pods -n monitoring -l app=prometheus -o jsonpath='{.items[0].metadata.name}') -- wget -qO- --timeout=10 http://api-gateway.payflow.svc.cluster.local:3000/metrics
+kubectl exec -n monitoring $(kubectl get pods -n monitoring -l app=prometheus -o jsonpath='{.items[0].metadata.name}') -- wget -qO- --timeout=10 http://api-gateway.swiftpay.svc.cluster.local:3000/metrics
 ```
 **Result:** Connection timed out ❌
 
 **Step 4: Test direct pod IP (bypass service)**
 ```bash
 # Why: If pod IP works but service doesn't, the issue is with the Service configuration
-API_GW_IP=$(kubectl get pods -n payflow -l app=api-gateway -o jsonpath='{.items[0].status.podIP}')
+API_GW_IP=$(kubectl get pods -n swiftpay -l app=api-gateway -o jsonpath='{.items[0].status.podIP}')
 kubectl exec -n monitoring $(kubectl get pods -n monitoring -l app=prometheus -o jsonpath='{.items[0].metadata.name}') -- wget -qO- --timeout=10 http://${API_GW_IP}:3000/metrics
 ```
 **Result:** Direct pod IP worked! ✅ This told us the network policy was fine, but the Service was the problem.
@@ -1453,7 +1453,7 @@ kubectl exec -n monitoring $(kubectl get pods -n monitoring -l app=prometheus -o
 **Step 5: Check Service configuration**
 ```bash
 # Why: We need to see what ports the service exposes
-kubectl get svc api-gateway -n payflow -o yaml | grep -A 5 "ports:"
+kubectl get svc api-gateway -n swiftpay -o yaml | grep -A 5 "ports:"
 ```
 **Result:** Service only exposed port 80, not port 3000! 🎯
 
@@ -1490,49 +1490,49 @@ kubectl apply -f k8s/deployments/api-gateway.yaml
 
 **What We Saw:**
 ```
-Error scraping target: Get "http://postgres-exporter.payflow.svc.cluster.local:9187/metrics": context deadline exceeded
+Error scraping target: Get "http://postgres-exporter.swiftpay.svc.cluster.local:9187/metrics": context deadline exceeded
 ```
 
 **Step 1: Check postgres-exporter logs**
 ```bash
 # Why: Logs tell us what the exporter is doing (or failing to do)
-kubectl logs -n payflow -l app=postgres-exporter --tail=20
+kubectl logs -n swiftpay -l app=postgres-exporter --tail=20
 ```
 **Result:** We saw password authentication errors:
 ```
-pq: password authentication failed for user "payflow"
+pq: password authentication failed for user "swiftpay"
 ```
 
 **Step 2: Check what password is in the secret**
 ```bash
 # Why: The exporter uses a secret for database credentials. Wrong password = can't connect.
-kubectl get secret postgres-exporter-secret -n payflow -o jsonpath='{.data.DATA_SOURCE_NAME}' | base64 -d
+kubectl get secret postgres-exporter-secret -n swiftpay -o jsonpath='{.data.DATA_SOURCE_NAME}' | base64 -d
 ```
-**Result:** Secret had `payflowpass` but database expected `payflow123`
+**Result:** Secret had `swiftpaypass` but database expected `swiftpay123`
 
 **Step 3: Check actual database password**
 ```bash
 # Why: We need to know the correct password to fix the secret
-kubectl get secret db-secrets -n payflow -o jsonpath='{.data.DB_PASSWORD}' | base64 -d
+kubectl get secret db-secrets -n swiftpay -o jsonpath='{.data.DB_PASSWORD}' | base64 -d
 ```
-**Result:** Database password was `payflow123`
+**Result:** Database password was `swiftpay123`
 
-**Root Cause:** The postgres-exporter secret was created with a hardcoded password (`payflowpass`) that didn't match the actual database password (`payflow123`).
+**Root Cause:** The postgres-exporter secret was created with a hardcoded password (`swiftpaypass`) that didn't match the actual database password (`swiftpay123`).
 
 **The Fix:**
 ```bash
 # Get the correct password from db-secrets
-DB_PASS=$(kubectl get secret db-secrets -n payflow -o jsonpath='{.data.DB_PASSWORD}' | base64 -d)
+DB_PASS=$(kubectl get secret db-secrets -n swiftpay -o jsonpath='{.data.DB_PASSWORD}' | base64 -d)
 
 # Delete old secret
-kubectl delete secret postgres-exporter-secret -n payflow
+kubectl delete secret postgres-exporter-secret -n swiftpay
 
 # Create new secret with correct password
-kubectl create secret generic postgres-exporter-secret -n payflow \
-  --from-literal=DATA_SOURCE_NAME="postgresql://payflow:${DB_PASS}@postgres.payflow.svc.cluster.local:5432/payflow?sslmode=disable"
+kubectl create secret generic postgres-exporter-secret -n swiftpay \
+  --from-literal=DATA_SOURCE_NAME="postgresql://swiftpay:${DB_PASS}@postgres.swiftpay.svc.cluster.local:5432/swiftpay?sslmode=disable"
 
 # Restart exporter to pick up new secret
-kubectl delete pod -n payflow -l app=postgres-exporter
+kubectl delete pod -n swiftpay -l app=postgres-exporter
 ```
 
 **Why This Works:**
@@ -1561,27 +1561,27 @@ We also discovered postgres-exporter couldn't reach postgres due to network poli
 
 **What We Saw:**
 ```
-Error scraping target: Get "http://rabbitmq.payflow.svc.cluster.local:15692/metrics": context deadline exceeded
+Error scraping target: Get "http://rabbitmq.swiftpay.svc.cluster.local:15692/metrics": context deadline exceeded
 ```
 
 **Step 1: Check if RabbitMQ plugin is enabled**
 ```bash
 # Why: RabbitMQ needs a plugin to expose Prometheus metrics
-kubectl exec -n payflow rabbitmq-0 -- rabbitmq-plugins list | grep prometheus
+kubectl exec -n swiftpay rabbitmq-0 -- rabbitmq-plugins list | grep prometheus
 ```
 **Result:** Plugin was enabled ✅
 
 **Step 2: Check if port 15692 is listening**
 ```bash
 # Why: Even if plugin is enabled, we need to verify the port is open
-kubectl exec -n payflow rabbitmq-0 -- netstat -tlnp 2>/dev/null | grep 15692
+kubectl exec -n swiftpay rabbitmq-0 -- netstat -tlnp 2>/dev/null | grep 15692
 ```
 **Result:** Port 15692 was listening ✅
 
 **Step 3: Check Service configuration**
 ```bash
 # Why: The service needs to expose port 15692 for Prometheus to reach it
-kubectl get svc rabbitmq -n payflow -o yaml | grep -A 5 "15692"
+kubectl get svc rabbitmq -n swiftpay -o yaml | grep -A 5 "15692"
 ```
 **Result:** Port 15692 was NOT in the service! ❌
 
@@ -1615,7 +1615,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-rabbitmq
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -1732,26 +1732,26 @@ kubectl auth can-i list jobs --as=system:serviceaccount:kube-system:kube-state-m
 
 ```bash
 # Check logs
-kubectl logs -n payflow -l app=postgres-exporter
+kubectl logs -n swiftpay -l app=postgres-exporter
 
 # Test database connection
-kubectl exec -n payflow postgres-exporter-xxx -- psql $DATA_SOURCE_NAME -c "SELECT 1"
+kubectl exec -n swiftpay postgres-exporter-xxx -- psql $DATA_SOURCE_NAME -c "SELECT 1"
 
 # Check secret
-kubectl get secret postgres-exporter-secret -n payflow -o yaml
+kubectl get secret postgres-exporter-secret -n swiftpay -o yaml
 ```
 
 ### **Issue: RabbitMQ metrics not appearing**
 
 ```bash
 # Check if plugin enabled
-kubectl exec -n payflow rabbitmq-0 -- rabbitmq-plugins list | grep prometheus
+kubectl exec -n swiftpay rabbitmq-0 -- rabbitmq-plugins list | grep prometheus
 
 # Re-enable plugin
-kubectl exec -n payflow rabbitmq-0 -- rabbitmq-plugins enable rabbitmq_prometheus
+kubectl exec -n swiftpay rabbitmq-0 -- rabbitmq-plugins enable rabbitmq_prometheus
 
 # Restart RabbitMQ
-kubectl delete pod -n payflow rabbitmq-0
+kubectl delete pod -n swiftpay rabbitmq-0
 ```
 
 ### **Issue: Alerts not firing**
@@ -1826,8 +1826,8 @@ If you encounter issues:
 
 **Production Support:**
 - Slack: #monitoring-help
-- Runbook: https://github.com/payflow/docs/monitoring
-- On-call: page-monitoring@payflow.com
+- Runbook: https://github.com/swiftpay/docs/monitoring
+- On-call: page-monitoring@swiftpay.com
 
 ---
 

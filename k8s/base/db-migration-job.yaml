@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: db-migration-job
-  namespace: payflow
+  namespace: swiftpay
   annotations:
     # Run after External Secrets Operator has synced db-secrets (ArgoCD sync-wave).
     # Ensures secret exists before pod is created; otherwise job pod stays Pending and backoffLimit can be exhausted.

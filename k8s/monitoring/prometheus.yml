@@ -1,5 +1,5 @@
 # #### Prometheus Configuration ####
-# #### This file configures Prometheus to scrape metrics from PayFlow services ####
+# #### This file configures Prometheus to scrape metrics from SwiftPay services ####
 
 # #### Global Configuration ####
 # #### These settings apply to all scrape jobs ####
@@ -11,9 +11,9 @@ global:
 # #### Define which services to monitor and how ####
 scrape_configs:
   # ============================================
-  # PAYFLOW SERVICES (Using FQDN for cross-namespace access)
+  # SWIFTPAY SERVICES (Using FQDN for cross-namespace access)
   # ============================================
-  # Prometheus runs in 'monitoring' namespace, services in 'payflow' namespace
+  # Prometheus runs in 'monitoring' namespace, services in 'swiftpay' namespace
   # Must use FQDN: service-name.namespace.svc.cluster.local
   
   # api-gateway K8s Service exposes port 80 (→ container 3000); scrape via port 80
@@ -21,23 +21,23 @@ scrape_configs:
     scrape_interval: 30s
     scrape_timeout: 25s
     static_configs:
-    - targets: ['api-gateway.payflow.svc.cluster.local:80']
+    - targets: ['api-gateway.swiftpay.svc.cluster.local:80']
   
   - job_name: 'wallet-service'
     static_configs:
-    - targets: ['wallet-service.payflow.svc.cluster.local:3001']
+    - targets: ['wallet-service.swiftpay.svc.cluster.local:3001']
   
   - job_name: 'transaction-service'
     static_configs:
-    - targets: ['transaction-service.payflow.svc.cluster.local:3002']
+    - targets: ['transaction-service.swiftpay.svc.cluster.local:3002']
   
   - job_name: 'auth-service'
     static_configs:
-    - targets: ['auth-service.payflow.svc.cluster.local:3004']
+    - targets: ['auth-service.swiftpay.svc.cluster.local:3004']
   
   - job_name: 'notification-service'
     static_configs:
-    - targets: ['notification-service.payflow.svc.cluster.local:3003']
+    - targets: ['notification-service.swiftpay.svc.cluster.local:3003']
   
   # ============================================
   # KUBERNETES INFRASTRUCTURE MONITORING
@@ -85,9 +85,9 @@ scrape_configs:
     static_configs:
     - targets: ['kube-state-metrics.kube-system.svc.cluster.local:8080']
     metric_relabel_configs:
-    # Keep only PayFlow namespace metrics to reduce cardinality
+    # Keep only SwiftPay namespace metrics to reduce cardinality
     - source_labels: [namespace]
-      regex: 'payflow|monitoring'
+      regex: 'swiftpay|monitoring'
       action: keep
   
   # ============================================
@@ -100,7 +100,7 @@ scrape_configs:
     scrape_interval: 45s  # Exporter can be slow on small nodes; keep > scrape_timeout
     scrape_timeout: 40s
     static_configs:
-    - targets: ['postgres-exporter.payflow.svc.cluster.local:9187']
+    - targets: ['postgres-exporter.swiftpay.svc.cluster.local:9187']
     relabel_configs:
     - target_label: instance
       replacement: 'postgres'
@@ -117,7 +117,7 @@ scrape_configs:
     scrape_interval: 30s  # Longer interval for RabbitMQ
     scrape_timeout: 25s   # Timeout must be < interval (30s), so 25s max
     static_configs:
-    - targets: ['rabbitmq.payflow.svc.cluster.local:15692']
+    - targets: ['rabbitmq.swiftpay.svc.cluster.local:15692']
     metric_relabel_configs:
     # Focus on transaction-related queues
     - source_labels: [queue]
@@ -134,7 +134,7 @@ scrape_configs:
     scrape_interval: 30s
     scrape_timeout: 25s
     static_configs:
-    - targets: ['redis-exporter.payflow.svc.cluster.local:9121']
+    - targets: ['redis-exporter.swiftpay.svc.cluster.local:9121']
   
   # ============================================
   # NODE METRICS (Optional but recommended)

@@ -3,8 +3,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: payflow-ingress
-  namespace: payflow
+  name: swiftpay-ingress
+  namespace: swiftpay
   annotations:
     # NGINX Ingress Controller annotations
     kubernetes.io/ingress.class: nginx
@@ -14,15 +14,15 @@ metadata:
     # Or use Azure Application Gateway
     # kubernetes.io/ingress.class: azure/application-gateway
     # appgw.ingress.kubernetes.io/ssl-redirect: "true"
-    # appgw.ingress.kubernetes.io/appgw-ssl-certificate: "payflow-tls-cert"
+    # appgw.ingress.kubernetes.io/appgw-ssl-certificate: "swiftpay-tls-cert"
 spec:
   ingressClassName: nginx  # or azure-application-gateway
   tls:
   - hosts:
-    - api.payflow.com
-    secretName: payflow-tls-cert
+    - api.swiftpay.com
+    secretName: swiftpay-tls-cert
   rules:
-  - host: api.payflow.com
+  - host: api.swiftpay.com
     http:
       paths:
       - path: /

@@ -9,10 +9,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: payflow-ingress-api
-  namespace: payflow
+  name: swiftpay-ingress-api
+  namespace: swiftpay
   annotations:
-    alb.ingress.kubernetes.io/group.name: payflow
+    alb.ingress.kubernetes.io/group.name: swiftpay
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
@@ -48,10 +48,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: payflow-ingress-frontend
-  namespace: payflow
+  name: swiftpay-ingress-frontend
+  namespace: swiftpay
   annotations:
-    alb.ingress.kubernetes.io/group.name: payflow
+    alb.ingress.kubernetes.io/group.name: swiftpay
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'

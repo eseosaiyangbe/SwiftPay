@@ -19,7 +19,7 @@
 
 ```bash
 # Replace with your Bastion IP and key path
-ssh -i ~/.ssh/payflow-bastion-key.pem ec2-user@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-bastion-key.pem ec2-user@<bastion-ip>
 ```
 
 **Note**: If you're using Windows, use PuTTY or WSL.
@@ -32,7 +32,7 @@ Once connected to Bastion:
 # Configure kubectl to connect to EKS cluster
 aws eks update-kubeconfig \
   --region us-east-1 \
-  --name payflow-eks-cluster
+  --name swiftpay-eks-cluster
 
 # Verify access
 kubectl get nodes
@@ -51,17 +51,17 @@ ip-10-10-2-xxx.ec2.internal   Ready    <none>   5m    v1.28.x
 # List all namespaces
 kubectl get namespaces
 
-# List pods in payflow namespace
-kubectl get pods -n payflow
+# List pods in swiftpay namespace
+kubectl get pods -n swiftpay
 
 # View logs
-kubectl logs -n payflow <pod-name>
+kubectl logs -n swiftpay <pod-name>
 
 # Execute commands in pod
-kubectl exec -it -n payflow <pod-name> -- /bin/sh
+kubectl exec -it -n swiftpay <pod-name> -- /bin/sh
 
 # Port forward (access service locally)
-kubectl port-forward -n payflow svc/api-gateway 8080:80
+kubectl port-forward -n swiftpay svc/api-gateway 8080:80
 ```
 
 ---
@@ -71,7 +71,7 @@ kubectl port-forward -n payflow svc/api-gateway 8080:80
 ### Step 1: SSH to Azure Bastion
 
 ```bash
-ssh -i ~/.ssh/payflow-azure-key.pem azureuser@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-azure-key.pem azureuser@<bastion-ip>
 ```
 
 ### Step 2: Configure kubectl for AKS
@@ -82,8 +82,8 @@ az login
 
 # Get AKS credentials
 az aks get-credentials \
-  --resource-group payflow-rg \
-  --name payflow-aks-cluster
+  --resource-group swiftpay-rg \
+  --name swiftpay-aks-cluster
 
 # Verify access
 kubectl get nodes
@@ -99,7 +99,7 @@ If you prefer to use kubectl from your local machine:
 
 ```bash
 # Forward local port 6443 to EKS API endpoint via Bastion
-ssh -i ~/.ssh/payflow-bastion-key.pem \
+ssh -i ~/.ssh/swiftpay-bastion-key.pem \
   -L 6443:<eks-api-endpoint>:443 \
   ec2-user@<bastion-ip> -N
 ```
@@ -109,13 +109,13 @@ ssh -i ~/.ssh/payflow-bastion-key.pem \
 ```bash
 # Get EKS API endpoint
 aws eks describe-cluster \
-  --name payflow-eks-cluster \
+  --name swiftpay-eks-cluster \
   --region us-east-1 \
   --query 'cluster.endpoint' \
   --output text
 
 # Update kubeconfig to use localhost:6443
-kubectl config set-cluster payflow-eks-cluster \
+kubectl config set-cluster swiftpay-eks-cluster \
   --server=https://127.0.0.1:6443 \
   --insecure-skip-tls-verify
 ```
@@ -168,7 +168,7 @@ kubectl config set-cluster payflow-eks-cluster \
 **Check**:
 1. Security Group allows your IP on port 22
 2. Bastion instance is running
-3. SSH key has correct permissions: `chmod 400 ~/.ssh/payflow-key.pem`
+3. SSH key has correct permissions: `chmod 400 ~/.ssh/swiftpay-key.pem`
 
 ### Issue: kubectl Connection Refused
 
@@ -187,7 +187,7 @@ kubectl config set-cluster payflow-eks-cluster \
 ### Issue: Cannot Access Pods
 
 **Check**:
-1. Pods are running: `kubectl get pods -n payflow`
+1. Pods are running: `kubectl get pods -n swiftpay`
 2. Network policies allow traffic
 3. Service account has proper RBAC permissions
 
@@ -197,28 +197,28 @@ kubectl config set-cluster payflow-eks-cluster \
 
 ```bash
 # Connect to EKS
-aws eks update-kubeconfig --region us-east-1 --name payflow-eks-cluster
+aws eks update-kubeconfig --region us-east-1 --name swiftpay-eks-cluster
 
 # View cluster info
 kubectl cluster-info
 
 # Get all resources
-kubectl get all -n payflow
+kubectl get all -n swiftpay
 
 # Describe pod
-kubectl describe pod <pod-name> -n payflow
+kubectl describe pod <pod-name> -n swiftpay
 
 # View events
-kubectl get events -n payflow --sort-by='.lastTimestamp'
+kubectl get events -n swiftpay --sort-by='.lastTimestamp'
 
 # Check node resources
 kubectl top nodes
 
 # Check pod resources
-kubectl top pods -n payflow
+kubectl top pods -n swiftpay
 
 # View service endpoints
-kubectl get endpoints -n payflow
+kubectl get endpoints -n swiftpay
 
 # Debug network connectivity
 kubectl run -it --rm debug --image=busybox --restart=Never -- nslookup postgres
@@ -230,7 +230,7 @@ kubectl run -it --rm debug --image=busybox --restart=Never -- nslookup postgres
 
 After accessing the cluster:
 
-1. **Deploy PayFlow Services**: Use manifests from `k8s/` directory
+1. **Deploy SwiftPay Services**: Use manifests from `k8s/` directory
 2. **Install Ingress Controller**: AWS Load Balancer Controller
 3. **Configure Monitoring**: Prometheus, Grafana
 4. **Set Up CI/CD**: ArgoCD or Flux for GitOps

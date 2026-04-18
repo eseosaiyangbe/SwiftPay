@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ============================================
-# PayFlow Monitoring Stack Deployment Script
+# SwiftPay Monitoring Stack Deployment Script
 # ============================================
 # This script upgrades monitoring from 60% → 100%
 #
@@ -25,7 +25,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${GREEN}================================================${NC}"
-echo -e "${GREEN}PayFlow Monitoring Stack Deployment${NC}"
+echo -e "${GREEN}SwiftPay Monitoring Stack Deployment${NC}"
 echo -e "${GREEN}Upgrading from 60% → 100% Production-Ready${NC}"
 echo -e "${GREEN}================================================${NC}"
 
@@ -109,9 +109,9 @@ fi
 # When only this ConfigMap changes, Grafana often keeps serving stale JSON until the pod restarts.
 RESTART_GRAFANA_DASHBOARDS=0
 OLD_DASH_CM_RV=$(kubectl get configmap grafana-dashboards-json -n monitoring -o jsonpath='{.metadata.resourceVersion}' 2>/dev/null || true)
-if [ -f k8s/monitoring/grafana-dashboards/payflow-complete-dashboard.json ]; then
+if [ -f k8s/monitoring/grafana-dashboards/swiftpay-complete-dashboard.json ]; then
   kubectl create configmap grafana-dashboards-json -n monitoring \
-    --from-file=payflow-dashboard.json=k8s/monitoring/grafana-dashboards/payflow-complete-dashboard.json \
+    --from-file=swiftpay-dashboard.json=k8s/monitoring/grafana-dashboards/swiftpay-complete-dashboard.json \
     --dry-run=client -o yaml | kubectl apply -f -
   NEW_DASH_CM_RV=$(kubectl get configmap grafana-dashboards-json -n monitoring -o jsonpath='{.metadata.resourceVersion}')
   if [ "$OLD_DASH_CM_RV" != "$NEW_DASH_CM_RV" ]; then
@@ -162,23 +162,23 @@ echo -e "${GREEN}✓ kube-state-metrics deployed${NC}"
 # ============================================
 echo -e "\n${YELLOW}[3/9] Deploying postgres-exporter...${NC}"
 
-# Local overlay capped payflow at services=10; app + infra fills that. Exporters add 2 Services.
+# Local overlay capped swiftpay at services=10; app + infra fills that. Exporters add 2 Services.
 # Patch live quota so apply succeeds; k8s YAML was also raised for new clusters.
-if kubectl get resourcequota payflow-resource-quota -n payflow &>/dev/null; then
-  kubectl patch resourcequota payflow-resource-quota -n payflow --type=merge \
+if kubectl get resourcequota swiftpay-resource-quota -n swiftpay &>/dev/null; then
+  kubectl patch resourcequota swiftpay-resource-quota -n swiftpay --type=merge \
     -p '{"spec":{"hard":{"services":"20"}}}' &>/dev/null \
-    && echo -e "${GREEN}✓ payflow ResourceQuota services ≥ 20 (for exporters)${NC}" \
-    || echo -e "${YELLOW}⚠ Could not patch payflow-resource-quota (missing RBAC?); apply k8s/overlays/local if Service quota errors persist.${NC}"
+    && echo -e "${GREEN}✓ swiftpay ResourceQuota services ≥ 20 (for exporters)${NC}" \
+    || echo -e "${YELLOW}⚠ Could not patch swiftpay-resource-quota (missing RBAC?); apply k8s/overlays/local if Service quota errors persist.${NC}"
 fi
 
 kubectl apply -f k8s/monitoring/postgres-exporter.yaml
 
 # Avoid `kubectl wait pod -l ...` immediately after apply: the Pod may not exist yet
 # (brief window) → "no matching resources found". Rollout waits on the Deployment.
-echo -e "${GREEN}Waiting for postgres-exporter rollout (payflow, up to 3m)...${NC}"
-if ! kubectl rollout status deployment/postgres-exporter -n payflow --timeout=180s; then
+echo -e "${GREEN}Waiting for postgres-exporter rollout (swiftpay, up to 3m)...${NC}"
+if ! kubectl rollout status deployment/postgres-exporter -n swiftpay --timeout=180s; then
   echo -e "${RED}postgres-exporter rollout failed.${NC}"
-  echo -e "${YELLOW}kubectl get pods -n payflow -l app=postgres-exporter; kubectl describe deploy postgres-exporter -n payflow${NC}"
+  echo -e "${YELLOW}kubectl get pods -n swiftpay -l app=postgres-exporter; kubectl describe deploy postgres-exporter -n swiftpay${NC}"
   exit 1
 fi
 
@@ -191,10 +191,10 @@ echo -e "\n${YELLOW}[3b/9] Deploying redis-exporter...${NC}"
 
 kubectl apply -f k8s/monitoring/redis-exporter.yaml
 
-echo -e "${GREEN}Waiting for redis-exporter rollout (payflow, up to 3m)...${NC}"
-if ! kubectl rollout status deployment/redis-exporter -n payflow --timeout=180s; then
+echo -e "${GREEN}Waiting for redis-exporter rollout (swiftpay, up to 3m)...${NC}"
+if ! kubectl rollout status deployment/redis-exporter -n swiftpay --timeout=180s; then
   echo -e "${RED}redis-exporter rollout failed.${NC}"
-  echo -e "${YELLOW}kubectl get pods -n payflow -l app=redis-exporter; kubectl describe deploy redis-exporter -n payflow${NC}"
+  echo -e "${YELLOW}kubectl get pods -n swiftpay -l app=redis-exporter; kubectl describe deploy redis-exporter -n swiftpay${NC}"
   exit 1
 fi
 
@@ -206,8 +206,8 @@ echo -e "${GREEN}✓ redis-exporter deployed${NC}"
 echo -e "\n${YELLOW}[4/8] Enabling RabbitMQ Prometheus plugin...${NC}"
 
 # Check if RabbitMQ pod exists
-if kubectl get pod rabbitmq-0 -n payflow &> /dev/null; then
-    kubectl exec -n payflow rabbitmq-0 -- rabbitmq-plugins enable rabbitmq_prometheus
+if kubectl get pod rabbitmq-0 -n swiftpay &> /dev/null; then
+    kubectl exec -n swiftpay rabbitmq-0 -- rabbitmq-plugins enable rabbitmq_prometheus
     echo -e "${GREEN}✓ RabbitMQ Prometheus plugin enabled${NC}"
 else
     echo -e "${YELLOW}⚠ RabbitMQ pod not found. Skipping plugin enablement.${NC}"
@@ -272,14 +272,14 @@ else
 fi
 
 # Check postgres-exporter
-if kubectl get pod -n payflow -l app=postgres-exporter | grep Running &> /dev/null; then
+if kubectl get pod -n swiftpay -l app=postgres-exporter | grep Running &> /dev/null; then
     echo -e "${GREEN}✓ postgres-exporter running${NC}"
 else
     echo -e "${RED}✗ postgres-exporter not running${NC}"
 fi
 
 # Check redis-exporter
-if kubectl get pod -n payflow -l app=redis-exporter | grep Running &> /dev/null; then
+if kubectl get pod -n swiftpay -l app=redis-exporter | grep Running &> /dev/null; then
     echo -e "${GREEN}✓ redis-exporter running${NC}"
 else
     echo -e "${RED}✗ redis-exporter not running${NC}"
@@ -326,12 +326,12 @@ echo -e "${GREEN}Next Steps${NC}"
 echo -e "${GREEN}================================================${NC}"
 
 echo -e "\n1. ${YELLOW}Grafana dashboards:${NC}"
-echo -e "   - PayFlow dashboards are provisioned automatically (folder: PayFlow)."
+echo -e "   - SwiftPay dashboards are provisioned automatically (folder: SwiftPay)."
 echo -e "   - Re-run this script after editing JSON under k8s/monitoring/grafana-dashboards/"
 
 echo -e "\n2. ${YELLOW}Configure Slack/PagerDuty (Production):${NC}"
 echo -e "   - Edit: k8s/monitoring/alertmanager-deployment.yaml (Secret stringData)"
-echo -e "   - Or for EKS: Store config in AWS Secrets Manager at payflow/ENV/alertmanager"
+echo -e "   - Or for EKS: Store config in AWS Secrets Manager at swiftpay/ENV/alertmanager"
 echo -e "   - Then apply: kubectl apply -f k8s/monitoring/alertmanager-external-secret.yaml"
 
 echo -e "\n4. ${YELLOW}Test Alerts:${NC}"

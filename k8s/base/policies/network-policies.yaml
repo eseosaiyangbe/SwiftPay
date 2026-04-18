@@ -1,5 +1,5 @@
 # ============================================
-# Network Policies for PayFlow
+# Network Policies for SwiftPay
 # ============================================
 # Purpose: Implement network segmentation and security controls
 # Controls traffic flow between pods based on labels and namespaces
@@ -31,7 +31,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-all
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector: {}  # Match all pods in namespace
   policyTypes:
@@ -44,13 +44,13 @@ spec:
 # ============================================
 # Purpose: Allow API Gateway to receive traffic from external sources
 # (LoadBalancer, Ingress Controller, port-forward, etc.)
-# CRITICAL: Ingress controller is in kube-system namespace, NOT payflow namespace
+# CRITICAL: Ingress controller is in kube-system namespace, NOT swiftpay namespace
 # So we can't use podSelector (same namespace only), must allow from all namespaces
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: api-gateway-allow-ingress
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -71,7 +71,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: frontend-allow-ingress
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -93,7 +93,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: api-gateway-allow-egress
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -150,7 +150,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: services-allow-db
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchExpressions:
@@ -214,7 +214,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: databases-allow-ingress-from-services
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchExpressions:
@@ -273,7 +273,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: transaction-service-allow-wallet
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -317,7 +317,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: backend-services-allow-ingress-from-api-gateway
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchExpressions:
@@ -356,7 +356,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: wallet-service-allow-ingress-from-transaction
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -382,7 +382,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: cronjob-allow-dns-and-db
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -419,7 +419,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: postgres-exporter-allow-dns-and-db
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -463,7 +463,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: redis-exporter-allow-dns-and-redis
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -497,17 +497,17 @@ spec:
 # Allow Prometheus to Scrape Metrics
 # ============================================
 # PURPOSE: Prometheus runs in 'monitoring' namespace and needs to scrape
-# metrics from services in 'payflow' namespace
+# metrics from services in 'swiftpay' namespace
 # Without this, Prometheus cannot access /metrics endpoints
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-scraping
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
-      # Match all PayFlow services that expose metrics
+      # Match all SwiftPay services that expose metrics
       # Services use metricsMiddleware from shared/metrics.js
       # This matches: api-gateway, wallet-service, transaction-service, etc.
       app: api-gateway
@@ -531,7 +531,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-wallet
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -555,7 +555,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-transaction
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -579,7 +579,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-auth
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -603,7 +603,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-notification
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -627,7 +627,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-postgres-exporter
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -651,7 +651,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-redis-exporter
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -675,7 +675,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-rabbitmq
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:
@@ -700,7 +700,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: db-migration-allow-egress
-  namespace: payflow
+  namespace: swiftpay
 spec:
   podSelector:
     matchLabels:

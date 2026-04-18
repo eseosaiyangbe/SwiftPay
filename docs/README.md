@@ -58,6 +58,8 @@ Read in this **order** (do not parallel-read every deploy guide):
 | Topic | Doc |
 |-------|-----|
 | Big picture | [architecture.md](architecture.md), [system-flow.md](system-flow.md) |
+| Verified Send Money runbook | [send-money-runbook.md](send-money-runbook.md) |
+| SwiftPay observability runbook | [observability-runbook.md](observability-runbook.md) |
 | Why these technologies | [technology-choices.md](technology-choices.md) |
 | APIs, ports, env | [SERVICES.md](SERVICES.md) |
 | Ingress | [understanding-ingress.md](understanding-ingress.md) |
@@ -101,11 +103,11 @@ Read in this **order** (do not parallel-read every deploy guide):
 
 ## Historical / coaching (optional)
 
-These are **not** required to run or deploy PayFlow:
+These are **not** required to run or deploy SwiftPay:
 
 - [AUDIT-FOLLOW-UP-6.md](AUDIT-FOLLOW-UP-6.md) — audit follow-up notes  
 - [EKS-MIGRATION-MENTEE-INSTRUCTIONS.md](EKS-MIGRATION-MENTEE-INSTRUCTIONS.md) — mentee migration steps  
-- [payflow-platform-design.md](payflow-platform-design.md) — design narrative (may overlap architecture docs)
+- [swiftpay-platform-design.md](swiftpay-platform-design.md) — design narrative (may overlap architecture docs)
 
 ---
 

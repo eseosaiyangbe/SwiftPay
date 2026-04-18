@@ -13,13 +13,13 @@ variable "environment" {
 variable "resource_group_name" {
   description = "Resource group name (created by AKS deployment)"
   type        = string
-  default     = "payflow-rg"
+  default     = "swiftpay-rg"
 }
 
 variable "vnet_name" {
   description = "Virtual network name (created by AKS deployment)"
   type        = string
-  default     = "payflow-aks-vnet"
+  default     = "swiftpay-aks-vnet"
 }
 
 # PostgreSQL Variables
@@ -44,13 +44,13 @@ variable "postgres_subnet_cidr" {
 variable "db_name" {
   description = "Database name"
   type        = string
-  default     = "payflow"
+  default     = "swiftpay"
 }
 
 variable "db_username" {
   description = "Database administrator username"
   type        = string
-  default     = "payflow"
+  default     = "swiftpay"
 }
 
 variable "db_password" {

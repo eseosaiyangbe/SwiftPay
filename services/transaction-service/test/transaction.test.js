@@ -8,9 +8,9 @@ describe('Transaction Service', () => {
   beforeAll(async () => {
     pool = new Pool({
       host: 'localhost',
-      database: 'payflow_test',
-      user: 'payflow',
-      password: 'payflow123'
+      database: 'swiftpay_test',
+      user: 'swiftpay',
+      password: 'swiftpay123'
     });
   });
 

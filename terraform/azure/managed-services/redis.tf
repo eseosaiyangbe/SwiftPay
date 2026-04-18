@@ -15,15 +15,15 @@ provider "azurerm" {
 }
 
 # Get existing Resource Group
-data "azurerm_resource_group" "payflow" {
+data "azurerm_resource_group" "swiftpay" {
   name = var.resource_group_name
 }
 
 # Redis Cache
-resource "azurerm_redis_cache" "payflow" {
-  name                = "payflow-redis-${var.environment}"
-  location            = data.azurerm_resource_group.payflow.location
-  resource_group_name = data.azurerm_resource_group.payflow.name
+resource "azurerm_redis_cache" "swiftpay" {
+  name                = "swiftpay-redis-${var.environment}"
+  location            = data.azurerm_resource_group.swiftpay.location
+  resource_group_name = data.azurerm_resource_group.swiftpay.name
   capacity            = var.redis_capacity
   family              = var.redis_family
   sku_name            = var.redis_sku_name
@@ -57,7 +57,7 @@ resource "azurerm_redis_cache" "payflow" {
   # Note: Non-SSL port is automatically disabled when minimum_tls_version is set
 
   tags = {
-    Name        = "payflow-redis"
+    Name        = "swiftpay-redis"
     Environment = var.environment
   }
 }
@@ -65,8 +65,8 @@ resource "azurerm_redis_cache" "payflow" {
 # Firewall Rule (allow AKS subnet)
 resource "azurerm_redis_firewall_rule" "aks" {
   name                = "allow-aks-subnet"
-  redis_cache_name    = azurerm_redis_cache.payflow.name
-  resource_group_name = azurerm_resource_group.payflow.name
+  redis_cache_name    = azurerm_redis_cache.swiftpay.name
+  resource_group_name = azurerm_resource_group.swiftpay.name
   start_ip            = var.aks_subnet_cidr_start
   end_ip              = var.aks_subnet_cidr_end
 }

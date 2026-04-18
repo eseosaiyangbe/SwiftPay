@@ -1,5 +1,5 @@
 #!/bin/bash
-# PayFlow infrastructure teardown — destroys all Terraform-managed resources.
+# SwiftPay infrastructure teardown — destroys all Terraform-managed resources.
 # Run from repo root. Uses same cloud/workspace as spinup (dev or prod).
 # Destroy order is reverse of spinup: FinOps → Bastion → Managed services → EKS → Hub VPC.
 #
@@ -51,7 +51,7 @@ unset TF_WORKSPACE
 
 if [ "$CLOUD" = "aws" ]; then
   ACCOUNT=$(aws sts get-caller-identity --query Account --output text --region "$REGION" 2>/dev/null) || { echo "[teardown] AWS CLI not configured"; exit 1; }
-  TFSTATE_BUCKET="payflow-tfstate-${ACCOUNT}"
+  TFSTATE_BUCKET="swiftpay-tfstate-${ACCOUNT}"
 fi
 
 log()   { echo "[teardown] $1"; }
@@ -97,7 +97,7 @@ destroy_module() {
 
 echo ""
 echo "  ═══════════════════════════════════════════════════════════"
-echo "  PayFlow Teardown  |  cloud: $CLOUD  |  env: $ENVIRONMENT"
+echo "  SwiftPay Teardown  |  cloud: $CLOUD  |  env: $ENVIRONMENT"
 echo "  ═══════════════════════════════════════════════════════════"
 echo ""
 read -p "  Destroy ALL resources in $CLOUD / $ENVIRONMENT? Type 'yes' to continue: " CONFIRM
@@ -134,7 +134,7 @@ destroy_module "terraform/aws/managed-services" "RDS, ElastiCache, Amazon MQ" "-
 # 4) EKS spoke - cluster, node groups, ECR
 #    Pre-delete EKS S3 buckets via CLI and remove from state (Terraform force_destroy can still fail on versioned buckets).
 EKS_DIR="$REPO_ROOT/terraform/aws/spoke-vpc-eks"
-EKS_BUCKETS="payflow-eks-cluster-cloudtrail-${ACCOUNT} payflow-eks-cluster-config-${ACCOUNT}"
+EKS_BUCKETS="swiftpay-eks-cluster-cloudtrail-${ACCOUNT} swiftpay-eks-cluster-config-${ACCOUNT}"
 for b in $EKS_BUCKETS; do
   aws s3 rb "s3://${b}" --force --region "$REGION" 2>/dev/null || true
 done
@@ -161,7 +161,7 @@ echo ""
 if [ "${DESTROY_BACKEND:-0}" = "1" ]; then
   log "DESTROY_BACKEND=1 — emptying S3 state bucket and deleting DynamoDB lock table..."
   aws s3 rm "s3://${TFSTATE_BUCKET}/" --recursive --region "$REGION" 2>/dev/null || true
-  aws dynamodb delete-table --table-name payflow-tfstate-lock --region "$REGION" 2>/dev/null || true
+  aws dynamodb delete-table --table-name swiftpay-tfstate-lock --region "$REGION" 2>/dev/null || true
   log "Backend resources removed. Next spinup will recreate bucket and table if missing."
 else
   log "State bucket and DynamoDB table kept. To remove them too: DESTROY_BACKEND=1 ./teardown.sh"

@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "Single PayFlow dashboard. PromQL targets match k8s/monitoring/prometheus.yml: api-gateway, auth/wallet/transaction/notification services, postgres-exporter, redis, rabbitmq, kube-state-metrics (kube_*), kube-dns (CoreDNS).",
+  "description": "Single SwiftPay dashboard. PromQL targets match k8s/monitoring/prometheus.yml: api-gateway, auth/wallet/transaction/notification services, postgres-exporter, redis, rabbitmq, kube-state-metrics (kube_*), kube-dns (CoreDNS).",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 1,
@@ -81,7 +81,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "sum(pg_transactions_by_status_count{status=\"PENDING\"}) or sum(payflow_pending_transactions_total) or vector(0)",
+          "expr": "sum(pg_transactions_by_status_count{status=\"PENDING\"}) or sum(swiftpay_pending_transactions_total) or vector(0)",
           "refId": "A"
         }
       ],
@@ -141,7 +141,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "sum(pg_pending_transaction_amount_total_amount) or sum(payflow_pending_transaction_amount_total) or vector(0)",
+          "expr": "sum(pg_pending_transaction_amount_total_amount) or sum(swiftpay_pending_transaction_amount_total) or vector(0)",
           "refId": "A"
         }
       ],
@@ -471,7 +471,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "time() - max(kube_job_status_completion_time{namespace=\"payflow\",job_name=~\"transaction-timeout-handler.*\"})",
+          "expr": "time() - max(kube_job_status_completion_time{namespace=\"swiftpay\",job_name=~\"transaction-timeout-handler.*\"})",
           "refId": "A"
         }
       ],
@@ -527,7 +527,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "sum(kube_job_status_failed{namespace=\"payflow\",job_name=~\"transaction-timeout-handler.*\"})",
+          "expr": "sum(kube_job_status_failed{namespace=\"swiftpay\",job_name=~\"transaction-timeout-handler.*\"})",
           "refId": "A"
         }
       ],
@@ -604,7 +604,7 @@
       },
       "targets": [
         {
-          "expr": "kube_job_status_completion_time{namespace=\"payflow\",job_name=~\"transaction-timeout-handler.*\"} - kube_job_status_start_time{namespace=\"payflow\",job_name=~\"transaction-timeout-handler.*\"}",
+          "expr": "kube_job_status_completion_time{namespace=\"swiftpay\",job_name=~\"transaction-timeout-handler.*\"} - kube_job_status_start_time{namespace=\"swiftpay\",job_name=~\"transaction-timeout-handler.*\"}",
           "legendFormat": "{{job_name}}",
           "refId": "A"
         }
@@ -679,7 +679,7 @@
       },
       "targets": [
         {
-          "expr": "sum(kube_job_status_succeeded{namespace=\"payflow\",job_name=~\"transaction-timeout-handler.*\"})",
+          "expr": "sum(kube_job_status_succeeded{namespace=\"swiftpay\",job_name=~\"transaction-timeout-handler.*\"})",
           "legendFormat": "Succeeded job count (kube-state-metrics)",
           "refId": "A"
         }
@@ -998,17 +998,17 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "kube_resourcequota{namespace=\"payflow\", type=\"used\", resource=\"pods\"} / kube_resourcequota{namespace=\"payflow\", type=\"hard\", resource=\"pods\"}",
+          "expr": "kube_resourcequota{namespace=\"swiftpay\", type=\"used\", resource=\"pods\"} / kube_resourcequota{namespace=\"swiftpay\", type=\"hard\", resource=\"pods\"}",
           "legendFormat": "Pod Quota",
           "refId": "A"
         },
         {
-          "expr": "kube_resourcequota{namespace=\"payflow\", type=\"used\", resource=\"requests.cpu\"} / kube_resourcequota{namespace=\"payflow\", type=\"hard\", resource=\"requests.cpu\"}",
+          "expr": "kube_resourcequota{namespace=\"swiftpay\", type=\"used\", resource=\"requests.cpu\"} / kube_resourcequota{namespace=\"swiftpay\", type=\"hard\", resource=\"requests.cpu\"}",
           "legendFormat": "CPU Quota",
           "refId": "B"
         },
         {
-          "expr": "kube_resourcequota{namespace=\"payflow\", type=\"used\", resource=\"requests.memory\"} / kube_resourcequota{namespace=\"payflow\", type=\"hard\", resource=\"requests.memory\"}",
+          "expr": "kube_resourcequota{namespace=\"swiftpay\", type=\"used\", resource=\"requests.memory\"} / kube_resourcequota{namespace=\"swiftpay\", type=\"hard\", resource=\"requests.memory\"}",
           "legendFormat": "Memory Quota",
           "refId": "C"
         }
@@ -1347,17 +1347,17 @@
       },
       "targets": [
         {
-          "expr": "sum by (job) (payflow_db_connection_pool_size{state=\"active\"})",
+          "expr": "sum by (job) (swiftpay_db_connection_pool_size{state=\"active\"})",
           "legendFormat": "active {{job}}",
           "refId": "A"
         },
         {
-          "expr": "sum by (job) (payflow_db_connection_pool_size{state=\"idle\"})",
+          "expr": "sum by (job) (swiftpay_db_connection_pool_size{state=\"idle\"})",
           "legendFormat": "idle {{job}}",
           "refId": "B"
         },
         {
-          "expr": "sum by (job) (payflow_db_connection_pool_size{state=\"waiting\"})",
+          "expr": "sum by (job) (swiftpay_db_connection_pool_size{state=\"waiting\"})",
           "legendFormat": "waiting {{job}}",
           "refId": "C"
         }
@@ -1453,7 +1453,7 @@
   "schemaVersion": 27,
   "style": "dark",
   "tags": [
-    "payflow",
+    "swiftpay",
     "monitoring"
   ],
   "templating": {
@@ -1465,7 +1465,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "PayFlow overview",
-  "uid": "payflow",
+  "title": "SwiftPay overview",
+  "uid": "swiftpay",
   "version": 1
 }

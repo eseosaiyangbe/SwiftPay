@@ -46,10 +46,10 @@ output "kubectl_command" {
 
 output "acr_login_server" {
   description = "ACR login server URL (use as image prefix in aks-deploy.sh)"
-  value       = azurerm_container_registry.payflow.login_server
+  value       = azurerm_container_registry.swiftpay.login_server
 }
 
 output "acr_name" {
   description = "ACR name (for az acr build / docker push)"
-  value       = azurerm_container_registry.payflow.name
+  value       = azurerm_container_registry.swiftpay.name
 }

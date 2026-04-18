@@ -1,9 +1,9 @@
-# #### PayFlow Kubernetes Namespace ####
-# #### This creates a separate namespace for all PayFlow resources ####
+# #### SwiftPay Kubernetes Namespace ####
+# #### This creates a separate namespace for all SwiftPay resources ####
 # #### Namespaces provide isolation and organization in Kubernetes ####
 
 apiVersion: v1  # #### Kubernetes API version ####
 kind: Namespace  # #### Resource type - creates a namespace ####
 metadata:
-  name: payflow  # #### Namespace name - all PayFlow resources will be in this namespace ####
+  name: swiftpay  # #### Namespace name - all SwiftPay resources will be in this namespace ####
 

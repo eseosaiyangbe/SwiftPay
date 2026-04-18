@@ -1,5 +1,5 @@
 # ============================================
-# Promtail DaemonSet for PayFlow
+# Promtail DaemonSet for SwiftPay
 # ============================================
 # Purpose: Collect container logs from every node and ship to Loki
 # Without this, Loki has no data and Grafana log dashboards are empty.

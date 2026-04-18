@@ -10,7 +10,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: image-scanning-containerd
-  namespace: payflow
+  namespace: swiftpay
 spec:
   schedule: "0 3 * * *"  # Daily at 3 AM UTC
   successfulJobsHistoryLimit: 3
@@ -58,9 +58,9 @@ spec:
               
               # Images to scan (space-separated for POSIX compatibility)
               # Note: Containerd stores images with full registry path
-              # Check actual names with: multipass exec microk8s-vm -- sudo microk8s ctr images ls | grep payflow
+              # Check actual names with: multipass exec microk8s-vm -- sudo microk8s ctr images ls | grep swiftpay
               # Format: <registry>/<namespace>/<image>:<tag>
-              IMAGES="docker.io/payflow/api-gateway:latest docker.io/payflow/auth-service:latest docker.io/payflow/wallet-service:latest docker.io/payflow/transaction-service:latest docker.io/payflow/notification-service:latest localhost:32000/payflow-frontend:latest"
+              IMAGES="docker.io/swiftpay/api-gateway:latest docker.io/swiftpay/auth-service:latest docker.io/swiftpay/wallet-service:latest docker.io/swiftpay/transaction-service:latest docker.io/swiftpay/notification-service:latest localhost:32000/swiftpay-frontend:latest"
               
               # Scan each image using containerd
               for IMAGE in $IMAGES; do

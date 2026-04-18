@@ -1,4 +1,4 @@
-# PAYFLOW — Infrastructure & Deployment Guide
+# SWIFTPAY — Infrastructure & Deployment Guide
 
 **AWS EKS • K8s 1.32 • Node 22 • Terraform 1.5+**  
 March 2026 | v3.0 (post-audit)
@@ -9,7 +9,7 @@ March 2026 | v3.0 (post-audit)
 
 ## 0 Overview
 
-PayFlow runs on private AWS EKS. The cluster endpoint has no public access — all `kubectl` operations go through the bastion host via SSM. Your local machine never touches the Kubernetes API directly.
+SwiftPay runs on private AWS EKS. The cluster endpoint has no public access — all `kubectl` operations go through the bastion host via SSM. Your local machine never touches the Kubernetes API directly.
 
 **INFO** Full deploy from zero takes ~90 minutes. Infrastructure is provisioned once. Subsequent app-only deploys take 3–5 minutes.
 
@@ -80,7 +80,7 @@ Use `spinup.sh` for first-time provisioning. It runs all Terraform modules in or
 ### 2.1 Run spinup.sh
 
 ```bash
-cd /path/to/payflow
+cd /path/to/swiftpay
 
 # Set the three required secrets (see 1.3)
 export TF_VAR_db_password=$(openssl rand -base64 32)
@@ -94,7 +94,7 @@ export TF_VAR_jwt_secret=$(openssl rand -base64 48)
 
 | Step | Module | Duration | Description |
 |------|--------|----------|-------------|
-| 1 | Backend Bootstrap | ~2 min | S3 bucket `payflow-tfstate-ACCOUNT` + DynamoDB lock table. Patches all `backend.tf` files with your account ID. |
+| 1 | Backend Bootstrap | ~2 min | S3 bucket `swiftpay-tfstate-ACCOUNT` + DynamoDB lock table. Patches all `backend.tf` files with your account ID. |
 | 2 | Hub VPC | ~3 min | Transit Gateway, public subnet for bastion, private subnet for shared services. |
 | 3 | Spoke VPC + EKS | ~45 min | VPC, private subnets, NAT, VPC endpoints (ECR/S3/STS/Secrets Manager), EKS 1.32, 2× t3.large SPOT nodes, IRSA, bootstrap node. |
 | 4 | Managed Services | ~25 min | RDS PostgreSQL 16, ElastiCache Redis 7, Amazon MQ RabbitMQ 3.13. EKS security groups resolved by tag. |
@@ -124,7 +124,7 @@ cd ../bastion && terraform output ssm_connect_command
 $(cd terraform/aws/bastion && terraform output -raw ssm_connect_command)
 
 # ── Inside the bastion session ──────────────────────────
-aws eks update-kubeconfig --name payflow-eks-cluster --region us-east-1
+aws eks update-kubeconfig --name swiftpay-eks-cluster --region us-east-1
 
 kubectl get nodes
 # NAME                           STATUS   ROLES    AGE   VERSION
@@ -220,11 +220,11 @@ DEBUG=1 IMAGE_TAG=$IMAGE_TAG ./deploy.sh
 
 ```bash
 $(cd terraform/aws/bastion && terraform output -raw ssm_connect_command)
-aws eks update-kubeconfig --name payflow-eks-cluster --region us-east-1
+aws eks update-kubeconfig --name swiftpay-eks-cluster --region us-east-1
 
-kubectl get pods -n payflow
-kubectl get ingress -n payflow
-ALB=$(kubectl get ingress payflow-ingress -n payflow -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+kubectl get pods -n swiftpay
+kubectl get ingress -n swiftpay
+ALB=$(kubectl get ingress swiftpay-ingress -n swiftpay -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 curl http://$ALB/health
 # Expected: {"status":"ok"}
 ```
@@ -235,15 +235,15 @@ curl http://$ALB/health
 |-------|----------------|----------|
 | API Gateway health | `curl http://$ALB/health` | `{"status":"ok"}` |
 | Frontend | `curl http://$ALB/` | HTML with React app |
-| ESO sync | `kubectl get externalsecret -n payflow` | READY=True, STATUS=SecretSynced |
+| ESO sync | `kubectl get externalsecret -n swiftpay` | READY=True, STATUS=SecretSynced |
 | ClusterSecretStore | `kubectl get clustersecretstore` | READY=True |
-| HPA | `kubectl get hpa -n payflow` | current/target replicas |
+| HPA | `kubectl get hpa -n swiftpay` | current/target replicas |
 | Nodes | `kubectl get nodes` | 2 nodes, STATUS=Ready |
 
 ### 5.3 Verify Secrets Populated
 
 ```bash
-kubectl get secret db-secrets -n payflow -o json | python3 -c \
+kubectl get secret db-secrets -n swiftpay -o json | python3 -c \
   "import sys,json,base64; d=json.load(sys.stdin); [print(k) for k in d['data']]"
 # Expected keys: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, JWT_SECRET,
 #                RABBITMQ_USER, RABBITMQ_PASSWORD, RABBITMQ_URL, REDIS_URL
@@ -283,8 +283,8 @@ ssh -i ~/.ssh/your-key.pem ubuntu@$(cd terraform/aws/bastion && terraform output
 At the start of every bastion session:
 
 ```bash
-aws eks update-kubeconfig --name payflow-eks-cluster --region us-east-1
-kubectl get nodes && kubectl get pods -n payflow
+aws eks update-kubeconfig --name swiftpay-eks-cluster --region us-east-1
+kubectl get nodes && kubectl get pods -n swiftpay
 ```
 
 ### 7.3 Common kubectl Commands
@@ -329,7 +329,7 @@ The bastion is Ubuntu 24.04, SSM-only. For SSM and `kubectl`/AWS CLI to work rel
   kubectl version --client
   ```
 
-  Then run `aws eks update-kubeconfig --name payflow-eks-cluster --region us-east-1` and `kubectl get nodes`.
+  Then run `aws eks update-kubeconfig --name swiftpay-eks-cluster --region us-east-1` and `kubectl get nodes`.
 
 **Helm on the bastion**
 
@@ -371,18 +371,18 @@ After these, SSM sessions can run `aws eks update-kubeconfig`, `kubectl`, and `h
 
 ### 8.1 ImagePullBackOff / ErrImagePull
 
-- Image in ECR: `aws ecr describe-images --repository-name payflow-eks-cluster/api-gateway --image-ids imageTag=$TAG`
-- Manifest tag: `kubectl describe pod <n> -n payflow | grep Image:`
+- Image in ECR: `aws ecr describe-images --repository-name swiftpay-eks-cluster/api-gateway --image-ids imageTag=$TAG`
+- Manifest tag: `kubectl describe pod <n> -n swiftpay | grep Image:`
 - KMS decrypt: ensure node role has `kms:Decrypt` on ECR key.
 - VPC: ensure ECR API/DKR endpoints exist in Spoke VPC.
 
 ### 8.2 Pods Stuck in Pending
 
-`kubectl describe pod <pod-name> -n payflow` — check Events. Typical: insufficient CPU (need 2 nodes), or node taints.
+`kubectl describe pod <pod-name> -n swiftpay` — check Events. Typical: insufficient CPU (need 2 nodes), or node taints.
 
 ### 8.3 CrashLoopBackOff
 
-`kubectl logs deployment/<service> -n payflow --previous`. Common: wrong Docker context (use `./services/`), RDS/Redis unreachable (SG/NetworkPolicy), ESO not synced (db-secrets empty), wrong DB password in Secrets Manager.
+`kubectl logs deployment/<service> -n swiftpay --previous`. Common: wrong Docker context (use `./services/`), RDS/Redis unreachable (SG/NetworkPolicy), ESO not synced (db-secrets empty), wrong DB password in Secrets Manager.
 
 ### 8.4 External Secrets Not Syncing
 
@@ -390,11 +390,11 @@ Check ESO pod, ClusterSecretStore Ready, and IRSA annotation on `external-secret
 
 ### 8.5 DB Migration Job Failed
 
-`kubectl logs job/db-migration-job -n payflow`. Fix RDS/credentials in Secrets Manager if needed. On EKS, **`db-secrets` is created only by External Secrets Operator** (the base placeholder secret is not in the EKS overlay).
+`kubectl logs job/db-migration-job -n swiftpay`. Fix RDS/credentials in Secrets Manager if needed. On EKS, **`db-secrets` is created only by External Secrets Operator** (the base placeholder secret is not in the EKS overlay).
 
-**"CreateContainerConfigError"** — The migration pod cannot start because the Secret `db-secrets` does not exist or is not populated yet. The deploy script now waits for the secret to exist (and for `DB_HOST` to be set) before creating the migration job. If you see this after a deploy, ESO may not have synced: check `kubectl get externalsecret -n payflow`, `kubectl describe externalsecret db-secrets-external -n payflow`, and ESO pod logs; ensure IRSA is set and AWS Secrets Manager has the expected keys (e.g. `payflow/ENV/rds` with `host`, `username`, `password`, `port`).
+**"CreateContainerConfigError"** — The migration pod cannot start because the Secret `db-secrets` does not exist or is not populated yet. The deploy script now waits for the secret to exist (and for `DB_HOST` to be set) before creating the migration job. If you see this after a deploy, ESO may not have synced: check `kubectl get externalsecret -n swiftpay`, `kubectl describe externalsecret db-secrets-external -n swiftpay`, and ESO pod logs; ensure IRSA is set and AWS Secrets Manager has the expected keys (e.g. `swiftpay/ENV/rds` with `host`, `username`, `password`, `port`).
 
-**"postgres:5432 - no response" / "RDS not ready, waiting..."** — The migration pod is using wrong or empty `DB_HOST` (so it tries `postgres:5432` instead of the RDS endpoint). This can happen if the secret was recreated with placeholders and the job started before ESO synced. Re-run deploy **from repo root** so ESO IRSA is set and the script does not delete `db-secrets`; the new job pod will read the synced secret and complete. Then run `kubectl rollout restart deployment -n payflow` so app pods get the correct env.
+**"postgres:5432 - no response" / "RDS not ready, waiting..."** — The migration pod is using wrong or empty `DB_HOST` (so it tries `postgres:5432` instead of the RDS endpoint). This can happen if the secret was recreated with placeholders and the job started before ESO synced. Re-run deploy **from repo root** so ESO IRSA is set and the script does not delete `db-secrets`; the new job pod will read the synced secret and complete. Then run `kubectl rollout restart deployment -n swiftpay` so app pods get the correct env.
 
 ### 8.6 Backend pods CrashLoopBackOff / 503 on health
 
@@ -404,23 +404,23 @@ auth-service, wallet-service, transaction-service, or notification-service show 
 
 ```bash
 # 1. Did the migration job complete?
-kubectl get job db-migration-job -n payflow
-kubectl logs job/db-migration-job -n payflow --tail=30
+kubectl get job db-migration-job -n swiftpay
+kubectl logs job/db-migration-job -n swiftpay --tail=30
 
 # 2. What error is the app hitting?
-kubectl logs deployment/auth-service -n payflow --previous --tail=80
+kubectl logs deployment/auth-service -n swiftpay --previous --tail=80
 ```
 
 **If migration job never completed** (logs show "postgres:5432 - no response" or "RDS not ready, waiting...") — the job had wrong/empty `DB_HOST`. Re-run deploy **from repo root** so the script gets ESO IRSA and does not delete `db-secrets`; the new job will use the synced secret and complete. Then restart app deployments so new pods get correct env:
 
 ```bash
-kubectl rollout restart deployment -n payflow
-kubectl rollout status deployment -n payflow --timeout=300s
+kubectl rollout restart deployment -n swiftpay
+kubectl rollout status deployment -n swiftpay --timeout=300s
 ```
 
-**If migration completed but apps still 503** — check app logs for `ECONNREFUSED`, `password authentication failed`, or `relation "users" does not exist`. Ensure RDS security group (Terraform managed-services) allows ingress from EKS node and cluster SGs; ensure `db-secrets` has the correct keys (see §5.3). Then `kubectl rollout restart deployment -n payflow`.
+**If migration completed but apps still 503** — check app logs for `ECONNREFUSED`, `password authentication failed`, or `relation "users" does not exist`. Ensure RDS security group (Terraform managed-services) allows ingress from EKS node and cluster SGs; ensure `db-secrets` has the correct keys (see §5.3). Then `kubectl rollout restart deployment -n swiftpay`.
 
-**One-time fix if pods still see "postgres"/"redis"/"rabbitmq"** — If you deployed before the EKS overlay stopped shipping the placeholder secret, the in-cluster `db-secrets` may have been created with placeholders and ESO merge may not overwrite all keys. From the bastion: `kubectl delete secret db-secrets -n payflow`. ESO will recreate it from AWS Secrets Manager within a short time. Then `kubectl rollout restart deployment -n payflow` and re-run the migration (delete job and re-apply, or run `deploy.sh` again from repo root).
+**One-time fix if pods still see "postgres"/"redis"/"rabbitmq"** — If you deployed before the EKS overlay stopped shipping the placeholder secret, the in-cluster `db-secrets` may have been created with placeholders and ESO merge may not overwrite all keys. From the bastion: `kubectl delete secret db-secrets -n swiftpay`. ESO will recreate it from AWS Secrets Manager within a short time. Then `kubectl rollout restart deployment -n swiftpay` and re-run the migration (delete job and re-apply, or run `deploy.sh` again from repo root).
 
 ### 8.7 SSM send-command Fails
 
@@ -479,7 +479,7 @@ The deploy script polls SSM every 5 seconds and prints new bastion output as it 
 
 ### 8.9 Ingress has no ADDRESS (ALB never created)
 
-If `kubectl get ingress -n payflow` shows empty **ADDRESS** for several minutes, the AWS Load Balancer Controller may not be running or may be failing to create the ALB.
+If `kubectl get ingress -n swiftpay` shows empty **ADDRESS** for several minutes, the AWS Load Balancer Controller may not be running or may be failing to create the ALB.
 
 **On the bastion** (after `aws ssm start-session --target <BASTION_ID> --region us-east-1`):
 
@@ -497,9 +497,9 @@ kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controll
 - **No controller pods** — The bootstrap node may have failed or self-terminated before the controller was installed. Install it manually (from bastion):
 
   ```bash
-  CLUSTER_NAME="payflow-eks-cluster"
+  CLUSTER_NAME="swiftpay-eks-cluster"
   AWS_REGION="us-east-1"
-  VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=payflow-eks-vpc" --query 'Vpcs[0].VpcId' --output text --region $AWS_REGION)
+  VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=swiftpay-eks-vpc" --query 'Vpcs[0].VpcId' --output text --region $AWS_REGION)
   ALB_IRSA_ARN=$(terraform -chdir=/path/to/terraform/aws/spoke-vpc-eks output -raw alb_controller_irsa_arn 2>/dev/null || aws iam list-roles --query "Roles[?contains(RoleName,'alb-controller')].Arn" --output text --region $AWS_REGION | awk '{print $1}')
 
   helm repo add eks https://aws.github.io/eks-charts

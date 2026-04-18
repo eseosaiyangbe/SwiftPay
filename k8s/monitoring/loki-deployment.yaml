@@ -1,12 +1,12 @@
 # ============================================
-# Loki Deployment for PayFlow
+# Loki Deployment for SwiftPay
 # ============================================
 # Purpose: Centralized log aggregation system
 # Why: Collects logs from all services for querying and analysis
 # Storage: Uses PersistentVolumeClaim for log retention
 #
 # What Loki Does:
-# - Collects logs from all PayFlow services
+# - Collects logs from all SwiftPay services
 # - Stores logs in time-series format (like Prometheus for metrics)
 # - Allows querying logs with LogQL (similar to PromQL)
 # - Integrates with Grafana for visualization

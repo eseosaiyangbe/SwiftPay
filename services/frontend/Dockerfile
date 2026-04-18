@@ -1,5 +1,5 @@
 # ============================================
-# PayFlow Frontend - Ultra Minimal Build
+# SwiftPay Frontend - Ultra Minimal Build
 # ============================================
 # Purpose: Build and serve the React frontend application
 # Target: <50MB final image
@@ -26,7 +26,9 @@ COPY frontend/ .
 # Default to relative URL - works in all environments (dev, staging, prod)
 # Can be overridden at build time or runtime via Kubernetes env vars
 ARG REACT_APP_API_URL=/api
+ARG REACT_APP_SESSION_TIMEOUT_MS=900000
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ENV REACT_APP_SESSION_TIMEOUT_MS=$REACT_APP_SESSION_TIMEOUT_MS
 
 # #### Build the optimized production React app ####
 RUN npm run build

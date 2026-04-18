@@ -42,7 +42,7 @@ resource "aws_kms_key" "config_cloudtrail" {
 }
 
 resource "aws_kms_alias" "config_cloudtrail" {
-  name          = "alias/payflow-config-cloudtrail"
+  name          = "alias/swiftpay-config-cloudtrail"
   target_key_id = aws_kms_key.config_cloudtrail.key_id
 }
 
@@ -85,20 +85,20 @@ resource "aws_s3_bucket_public_access_block" "config" {
 }
 
 # Config Delivery Channel
-resource "aws_config_delivery_channel" "payflow" {
-  name           = "payflow-config-delivery"
+resource "aws_config_delivery_channel" "swiftpay" {
+  name           = "swiftpay-config-delivery"
   s3_bucket_name = aws_s3_bucket.config.id
 
   snapshot_delivery_properties {
     delivery_frequency = "TwentyFour_Hours"
   }
 
-  depends_on = [aws_config_configuration_recorder.payflow]
+  depends_on = [aws_config_configuration_recorder.swiftpay]
 }
 
 # Config Configuration Recorder
-resource "aws_config_configuration_recorder" "payflow" {
-  name     = "payflow-config-recorder"
+resource "aws_config_configuration_recorder" "swiftpay" {
+  name     = "swiftpay-config-recorder"
   role_arn = aws_iam_role.config.arn
 
   recording_group {
@@ -166,10 +166,10 @@ resource "aws_iam_role_policy" "config_s3" {
 }
 
 # Start Config Recorder
-resource "aws_config_configuration_recorder_status" "payflow" {
-  name       = aws_config_configuration_recorder.payflow.name
+resource "aws_config_configuration_recorder_status" "swiftpay" {
+  name       = aws_config_configuration_recorder.swiftpay.name
   is_enabled = true
 
-  depends_on = [aws_config_delivery_channel.payflow]
+  depends_on = [aws_config_delivery_channel.swiftpay]
 }
 

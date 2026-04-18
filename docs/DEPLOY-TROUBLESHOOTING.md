@@ -1,4 +1,4 @@
-# PayFlow EKS Deploy — Troubleshooting & Deep Scan Summary
+# SwiftPay EKS Deploy — Troubleshooting & Deep Scan Summary
 
 > **Navigation:** Quick fixes → [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) (repo root). Full doc map → [Documentation index](README.md). This file is a **deploy/EKS-focused** pass summary and historical fixes.
 
@@ -42,18 +42,18 @@
 
 1. **Check why the container failed**
    ```bash
-   kubectl describe pod <pod-name> -n payflow
-   kubectl logs <pod-name> -n payflow --previous
+   kubectl describe pod <pod-name> -n swiftpay
+   kubectl logs <pod-name> -n swiftpay --previous
    ```
    - **ImagePullBackOff:** Image missing or wrong tag in ECR. Push images with the tag in your overlay (e.g. `v5`): `./scripts/build-push-ecr.sh v5`.
    - **CrashLoopBackOff:** Process exits after start. Check logs for: missing env, DB/Redis connection refused, missing `db-secrets` (External Secrets not synced), or health check failing.
 
 2. **Ensure db-secrets exists (EKS)**
    ```bash
-   kubectl get secret db-secrets -n payflow
-   kubectl get externalsecret -n payflow
+   kubectl get secret db-secrets -n swiftpay
+   kubectl get externalsecret -n swiftpay
    ```
-   If `db-secrets` is missing or empty, fix the External Secret (AWS Secrets Manager keys: `payflow/dev/rds`, `payflow/dev/app/secrets`, `payflow/dev/rabbitmq`).
+   If `db-secrets` is missing or empty, fix the External Secret (AWS Secrets Manager keys: `swiftpay/dev/rds`, `swiftpay/dev/app/secrets`, `swiftpay/dev/rabbitmq`).
 
 3. **Rebuild and push images**  
    Run `./scripts/build-push-ecr.sh v5` and deploy with `IMAGE_TAG=v5`.
@@ -63,7 +63,7 @@
    - Set `additional_rds_security_group_ids` if you have multiple node SGs.
 
 5. **Inspect logs**  
-   `kubectl logs deployment/<service> -n payflow --tail=100` and check for module not found, metric already registered, or connection timeouts.
+   `kubectl logs deployment/<service> -n swiftpay --tail=100` and check for module not found, metric already registered, or connection timeouts.
 
 6. **Deploy script “silent” failure**  
    Run with `DEBUG=1 ./deploy.sh` and/or check SSM command output in AWS Systems Manager for the bastion.

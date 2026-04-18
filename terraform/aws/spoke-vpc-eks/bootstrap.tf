@@ -7,7 +7,7 @@ module "bootstrap_node" {
   name_prefix  = local.name_prefix
   vpc_id        = aws_vpc.eks.id
   subnet_id     = aws_subnet.eks_private[0].id
-  cluster_name       = aws_eks_cluster.payflow.name
+  cluster_name       = aws_eks_cluster.swiftpay.name
   aws_region         = var.aws_region
   kubernetes_version = var.kubernetes_version
 
@@ -33,7 +33,7 @@ module "bootstrap_node" {
   })
 
   depends_on = [
-    aws_eks_cluster.payflow,
+    aws_eks_cluster.swiftpay,
     aws_eks_node_group.on_demand,
     aws_eks_addon.coredns,
     aws_eks_addon.vpc_cni,

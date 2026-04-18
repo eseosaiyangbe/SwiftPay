@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# setup-hosts-payflow-local.sh
+# setup-hosts-swiftpay-local.sh
 #
-# Adds (or updates) the payflow.local entries in /etc/hosts so the local
+# Adds (or updates) the swiftpay.local entries in /etc/hosts so the local
 # Ingress works without port-forwarding. Safe to re-run — it replaces the
 # old line instead of duplicating it.
 #
 # Usage:
-#   ./scripts/setup-hosts-payflow-local.sh
+#   ./scripts/setup-hosts-swiftpay-local.sh
 #
 # What it does:
 #   1. Detects the MicroK8s VM IP (Multipass on macOS, or localhost on Linux).
-#   2. Removes any existing payflow.local lines from /etc/hosts.
+#   2. Removes any existing swiftpay.local lines from /etc/hosts.
 #   3. Appends a fresh line with the current IP.
 #
-# After this, open http://www.payflow.local in your browser.
+# After this, open http://www.swiftpay.local in your browser.
 
 set -euo pipefail
 
 HOSTS_FILE="/etc/hosts"
-HOSTS=(www.payflow.local payflow.local api.payflow.local)
+HOSTS=(www.swiftpay.local swiftpay.local api.swiftpay.local)
 
 # ── Detect VM IP ──────────────────────────────────────────────────────────────
 if command -v multipass >/dev/null 2>&1; then
@@ -41,20 +41,20 @@ echo "MicroK8s VM IP: $VM_IP"
 # Build the new line
 NEW_LINE="${VM_IP}   ${HOSTS[*]}"
 
-# Check if any payflow.local entry already exists
-if grep -q "payflow\.local" "$HOSTS_FILE" 2>/dev/null; then
-  echo "Updating existing payflow.local entry in $HOSTS_FILE ..."
+# Check if any swiftpay.local entry already exists
+if grep -q "swiftpay\.local" "$HOSTS_FILE" 2>/dev/null; then
+  echo "Updating existing swiftpay.local entry in $HOSTS_FILE ..."
   # Remove old lines (requires sudo)
-  sudo sed -i '' '/payflow\.local/d' "$HOSTS_FILE" 2>/dev/null \
-    || sudo sed -i '/payflow\.local/d' "$HOSTS_FILE"
+  sudo sed -i '' '/swiftpay\.local/d' "$HOSTS_FILE" 2>/dev/null \
+    || sudo sed -i '/swiftpay\.local/d' "$HOSTS_FILE"
 else
-  echo "Adding payflow.local entries to $HOSTS_FILE ..."
+  echo "Adding swiftpay.local entries to $HOSTS_FILE ..."
 fi
 
 echo "$NEW_LINE" | sudo tee -a "$HOSTS_FILE" > /dev/null
 
 echo ""
-echo "Done. Current payflow entries:"
-grep "payflow" "$HOSTS_FILE"
+echo "Done. Current swiftpay entries:"
+grep "swiftpay" "$HOSTS_FILE"
 echo ""
-echo "Open http://www.payflow.local in your browser."
+echo "Open http://www.swiftpay.local in your browser."

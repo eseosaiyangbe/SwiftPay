@@ -1,4 +1,4 @@
-# #### PayFlow Application Configuration ####
+# #### SwiftPay Application Configuration ####
 # #### This ConfigMap stores non-sensitive configuration data ####
 # #### ConfigMaps separate configuration from application code ####
 
@@ -6,12 +6,12 @@ apiVersion: v1  # #### Kubernetes API version ####
 kind: ConfigMap  # #### Resource type - stores configuration data ####
 metadata:
   name: app-config  # #### ConfigMap name ####
-  namespace: payflow  # #### Namespace where this ConfigMap lives ####
+  namespace: swiftpay  # #### Namespace where this ConfigMap lives ####
 data:
   # #### Database Configuration ####
   DB_HOST: "postgres"  # #### PostgreSQL service name (Kubernetes DNS) ####
   DB_PORT: "5432"      # #### PostgreSQL default port ####
-  DB_NAME: "payflow"   # #### Database name ####
+  DB_NAME: "swiftpay"   # #### Database name ####
   
   # #### Cache Configuration ####
   REDIS_URL: "redis://redis:6379"  # #### Redis connection URL ####

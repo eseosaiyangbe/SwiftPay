@@ -2,7 +2,7 @@
 
 ## System Design
 
-PayFlow uses microservices architecture to separate concerns: authentication, wallet management, transaction orchestration, and notifications each run as independent services. This allows teams to deploy independently, scale services based on load, and isolate failures. Services communicate via HTTP (synchronous) for user-facing operations and RabbitMQ (asynchronous) for background work.
+SwiftPay uses microservices architecture to separate concerns: authentication, wallet management, transaction orchestration, and notifications each run as independent services. This allows teams to deploy independently, scale services based on load, and isolate failures. Services communicate via HTTP (synchronous) for user-facing operations and RabbitMQ (asynchronous) for background work.
 
 ## Service Map
 
@@ -55,7 +55,7 @@ PayFlow uses microservices architecture to separate concerns: authentication, wa
 | Transaction Service | RabbitMQ | AMQP (publish) | Queue notification after completion |
 | RabbitMQ | Notification Service | AMQP (consume) | Send email/SMS asynchronously |
 
-> **AMQP** (Advanced Message Queuing Protocol) is the wire protocol RabbitMQ uses — similar to HTTP but for message queues. You'll see it in connection strings like `amqp://payflow:payflow123@rabbitmq:5672`. "Publish" = put a message on the queue. "Consume" = read and process a message from the queue.
+> **AMQP** (Advanced Message Queuing Protocol) is the wire protocol RabbitMQ uses — similar to HTTP but for message queues. You'll see it in connection strings like `amqp://swiftpay:swiftpay123@rabbitmq:5672`. "Publish" = put a message on the queue. "Consume" = read and process a message from the queue.
 
 ## Database Schema
 
@@ -97,7 +97,7 @@ Illustrations below live under [`docs/assets/`](assets/); the same files are ref
 | AWS & Azure VPC-style comparison | `AWS and Azure VPC Service-2026-03-30-111526.png` |
 | EKS cluster & secrets integration | `AWS EKS Cluster Secrets-2026-03-30-104747.png` |
 
-![PayFlow platform overview](assets/Visuals.png)
+![SwiftPay platform overview](assets/Visuals.png)
 
 ![EKS VPC hub-and-spoke integration pipeline](assets/EKS%20VPC%20Integration%20Pipeline-2026-03-30-135753.png)
 
@@ -231,7 +231,7 @@ Illustrations below live under [`docs/assets/`](assets/); the same files are ref
 ### Local (Development)
 
 **docker-compose.yml:**
-- All services in single network `payflow-network`
+- All services in single network `swiftpay-network`
 - PostgreSQL:5432, Redis:6379, RabbitMQ:5672/15672
 - All app services expose ports to host
 - Volumes persist data across restarts

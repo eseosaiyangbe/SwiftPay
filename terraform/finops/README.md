@@ -1,4 +1,4 @@
-# PayFlow FinOps Report Module
+# SwiftPay FinOps Report Module
 
 This `terraform/finops` module is a **report-only** module that has no resources of its own. It reads remote state from the existing AWS and Azure infrastructure modules and surfaces a consolidated FinOps view:
 
@@ -21,15 +21,15 @@ This `terraform/finops` module is a **report-only** module that has no resources
 module "finops_report" {
   source = "../terraform/finops"
 
-  aws_state_bucket      = "payflow-tfstate-ACCOUNTID"
+  aws_state_bucket      = "swiftpay-tfstate-ACCOUNTID"
   aws_state_region      = "us-east-1"
   aws_hub_state_key     = "aws/hub-vpc/terraform.tfstate"
   aws_spoke_state_key   = "env/dev/aws/eks/terraform.tfstate"  # workspace prefix if spoke uses workspaces
   aws_bastion_state_key = "aws/bastion/terraform.tfstate"
   aws_managed_state_key = "aws/managed-services/terraform.tfstate"
 
-  azure_resource_group_name  = "payflow-tfstate-rg"
-  azure_storage_account_name = "payflowtfstate"
+  azure_resource_group_name  = "swiftpay-tfstate-rg"
+  azure_storage_account_name = "swiftpaytfstate"
   azure_container_name       = "tfstate"
   azure_hub_blob_key         = "azure/hub-vnet/terraform.tfstate"
   azure_spoke_blob_key       = "azure/spoke-vnet-aks/terraform.tfstate"
@@ -60,7 +60,7 @@ Key outputs:
 
 - **Tagging**: All core modules expose a `local.common_tags` map including:
   - `environment` (`dev`, `staging`, `prod`)
-  - `project` (`payflow`)
+  - `project` (`swiftpay`)
   - `team` (e.g. `engineering`)
   - `cost-center` (e.g. `ENG-001`)
   - `owner` (person or team)

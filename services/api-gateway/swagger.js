@@ -5,12 +5,12 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'PayFlow API',
+      title: 'SwiftPay API',
       version: '1.0.0',
       description: 'Production-ready fintech microservices platform',
       contact: {
-        name: 'PayFlow Support',
-        email: 'support@payflow.com'
+        name: 'SwiftPay Support',
+        email: 'support@swiftpay.com'
       },
       license: {
         name: 'MIT',
@@ -90,7 +90,7 @@ const swaggerSpec = swaggerJsdoc(options);
 function setupSwagger(app) {
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'PayFlow API Documentation'
+    customSiteTitle: 'SwiftPay API Documentation'
   }));
 
   // Serve OpenAPI JSON

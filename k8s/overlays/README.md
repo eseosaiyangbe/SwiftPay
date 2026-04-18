@@ -1,6 +1,6 @@
 # Kustomize Overlays
 
-Kustomize overlays for deploying PayFlow to AWS EKS and Azure AKS.
+Kustomize overlays for deploying SwiftPay to AWS EKS and Azure AKS.
 
 ## Structure
 

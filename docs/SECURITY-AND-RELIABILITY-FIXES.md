@@ -72,7 +72,7 @@ Local JWT verification in the API Gateway **requires** `JWT_SECRET` and `REDIS_U
 |-------------|-------------------------------------|
 | **Docker Compose** | Already set in `docker-compose.yml` for the `api-gateway` service (`JWT_SECRET` and `REDIS_URL`). Change values in the compose file or use env files for local overrides. |
 | **Kubernetes (base / local)** | The API Gateway deployment reads both from the `db-secrets` Secret. For local/minikube, apply `k8s/overlays/local/secrets-db-secrets.yaml` (it includes `JWT_SECRET` and `REDIS_URL`). |
-| **Kubernetes (EKS)** | External Secrets syncs `db-secrets` from AWS Secrets Manager. Ensure the secret in Secrets Manager has keys `jwt_secret` (under `payflow/ENV/app/secrets`) and that the Redis secret has `url` (under `payflow/ENV/redis`). The EKS overlay maps these into `db-secrets` as `JWT_SECRET` and `REDIS_URL`; the API Gateway deployment was updated to inject **REDIS_URL** from `db-secrets` as well as `JWT_SECRET`. |
+| **Kubernetes (EKS)** | External Secrets syncs `db-secrets` from AWS Secrets Manager. Ensure the secret in Secrets Manager has keys `jwt_secret` (under `swiftpay/ENV/app/secrets`) and that the Redis secret has `url` (under `swiftpay/ENV/redis`). The EKS overlay maps these into `db-secrets` as `JWT_SECRET` and `REDIS_URL`; the API Gateway deployment was updated to inject **REDIS_URL** from `db-secrets` as well as `JWT_SECRET`. |
 | **Kubernetes (AKS)** | AKS External Secrets (`k8s/overlays/aks/aks-external-secrets.yaml`) currently syncs `JWT_SECRET` only. Add `REDIS_URL` from your Azure Cache for Redis (or Key Vault) so `db-secrets` contains both; the API Gateway deployment reads them. A commented example is in the AKS ExternalSecret. |
 | **Bare metal / VM / other** | Set environment variables when starting the process, e.g. `JWT_SECRET=... REDIS_URL=redis://... node server.js`, or use a process manager (systemd, PM2) that injects them from a secure store. |
 
@@ -80,7 +80,7 @@ Local JWT verification in the API Gateway **requires** `JWT_SECRET` and `REDIS_U
 
 ```bash
 # Kubernetes: check env on a running api-gateway pod (values are redacted in describe)
-kubectl exec -n payflow deploy/api-gateway -- env | grep -E 'JWT_SECRET|REDIS_URL'
+kubectl exec -n swiftpay deploy/api-gateway -- env | grep -E 'JWT_SECRET|REDIS_URL'
 ```
 
 ---

@@ -1,10 +1,10 @@
-# #### PayFlow Wallet Service ####
+# #### SwiftPay Wallet Service ####
 # #### This Service exposes the wallet service internally ####
 apiVersion: v1
 kind: Service
 metadata:
   name: wallet-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   selector:
     app: wallet-service
@@ -14,13 +14,13 @@ spec:
     targetPort: 3001
   type: ClusterIP
 ---
-# #### PayFlow Wallet Service Deployment ####
+# #### SwiftPay Wallet Service Deployment ####
 # #### This Deployment manages the wallet service pods ####
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: wallet-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   replicas: 2
   selector:

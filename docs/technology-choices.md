@@ -262,7 +262,7 @@ const userData = await redis.get('user:123');
 
 ## Infrastructure Technologies
 
-PayFlow targets **AWS EKS** and **Azure AKS** with similar hub-style networking patterns. The following diagram summarizes the VPC-style split across clouds (detail lives in [architecture.md](architecture.md#infrastructure) and [terraform/terraform.md](../terraform/terraform.md)).
+SwiftPay targets **AWS EKS** and **Azure AKS** with similar hub-style networking patterns. The following diagram summarizes the VPC-style split across clouds (detail lives in [architecture.md](architecture.md#infrastructure) and [terraform/terraform.md](../terraform/terraform.md)).
 
 ![AWS and Azure VPC service comparison](assets/AWS%20and%20Azure%20VPC%20Service-2026-03-30-111526.png)
 

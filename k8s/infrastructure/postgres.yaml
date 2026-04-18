@@ -4,7 +4,7 @@ apiVersion: v1  # #### Kubernetes API version ####
 kind: Service  # #### Resource type - exposes pods to network traffic ####
 metadata:
   name: postgres  # #### Service name ####
-  namespace: payflow  # #### Namespace ####
+  namespace: swiftpay  # #### Namespace ####
 spec:
   ports:
     - port: 5432  # #### PostgreSQL default port ####
@@ -20,7 +20,7 @@ apiVersion: apps/v1  # #### Kubernetes API version ####
 kind: StatefulSet  # #### Resource type - manages stateful applications ####
 metadata:
   name: postgres  # #### StatefulSet name ####
-  namespace: payflow  # #### Namespace ####
+  namespace: swiftpay  # #### Namespace ####
 spec:
   serviceName: postgres  # #### Service name for stable network identity ####
   replicas: 1  # #### Number of replicas (databases usually run as single instance) ####

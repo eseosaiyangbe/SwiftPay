@@ -1,8 +1,8 @@
-# PayFlow System Flow: How Money Moves
+# SwiftPay System Flow: How Money Moves
 
 > **The Complete Picture**: Step-by-step explanation of how a transaction flows through the system, from user click to money transfer completion.
 
-> **After you run the app:** Follow this doc in **Week 1** of [`LEARNING-PATH.md`](../LEARNING-PATH.md). UI URL is **`http://www.payflow.local`** on MicroK8s (ingress) or **`http://localhost`** if you used optional Docker Compose.
+> **After you run the app:** Follow this doc in **Week 1** of [`LEARNING-PATH.md`](../LEARNING-PATH.md). UI URL is **`http://www.swiftpay.local`** on MicroK8s (ingress) or **`http://localhost`** if you used optional Docker Compose.
 
 ---
 

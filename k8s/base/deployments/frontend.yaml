@@ -6,7 +6,7 @@ apiVersion: apps/v1  # #### API version for Deployments ####
 kind: Deployment      # #### Resource type: Deployment manages Pods ####
 metadata:
   name: frontend      # #### Name of this deployment ####
-  namespace: payflow   # #### Deploy to payflow namespace ####
+  namespace: swiftpay   # #### Deploy to swiftpay namespace ####
 spec:
   replicas: 1         # #### Run 1 copy of the frontend (we'll scale later) ####
   selector:
@@ -33,7 +33,7 @@ spec:
         env:
         # nginx proxies /api/* to this upstream — substituted at container start by docker-entrypoint.sh
         - name: API_GATEWAY_URL
-          value: "http://api-gateway.payflow.svc.cluster.local:80"
+          value: "http://api-gateway.swiftpay.svc.cluster.local:80"
         # DNS resolver used to resolve API_GATEWAY_URL at request time (not nginx startup)
         # kube-dns.kube-system.svc.cluster.local works on MicroK8s, EKS, and AKS
         - name: NGINX_RESOLVER
@@ -70,7 +70,7 @@ apiVersion: v1  # #### API version for Services ####
 kind: Service   # #### Resource type: Service exposes pods ####
 metadata:
   name: frontend      # #### Service name - other services can use this name ####
-  namespace: payflow   # #### Deploy to payflow namespace ####
+  namespace: swiftpay   # #### Deploy to swiftpay namespace ####
 spec:
   selector:
     app: frontend     # #### Select pods with label "app: frontend" ####

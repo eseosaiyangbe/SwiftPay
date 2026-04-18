@@ -2,7 +2,7 @@
 
 > **Optional detail.** Canonical order and links: [docs/README.md](docs/README.md). Prefer **[docs/INFRASTRUCTURE-ONBOARDING.md](docs/INFRASTRUCTURE-ONBOARDING.md)** for the full story, **[docs/DEPLOYMENT-ORDER.md](docs/DEPLOYMENT-ORDER.md)** for Terraform targets, and **`./spinup.sh`** from the repo root for scripted applies. This file adds extra verification and narrative that **overlaps** those.
 
-This guide walks you through deploying the PayFlow infrastructure step-by-step.
+This guide walks you through deploying the SwiftPay infrastructure step-by-step.
 
 ---
 
@@ -19,7 +19,7 @@ Deploy in this order. Each step depends on the previous.
 | 5 | Bastion (for kubectl; EKS is private) | `terraform/aws/bastion` | ~3 min |
 | 6 | Application (K8s manifests) | `k8s/overlays/eks` | ~2 min |
 
-**Critical:** Step 4 requires Step 3 to be applied first (VPC and subnets must exist). For RDS/Redis/MQ to allow traffic from EKS, **do not** hardcode `tfstate_bucket` in `terraform.tfvars`. Pass it at apply time so the module reads EKS security groups from spoke state. From repo root you can use `./spinup.sh`, which passes `-var=tfstate_bucket=payflow-tfstate-<ACCOUNT>` into managed-services automatically.
+**Critical:** Step 4 requires Step 3 to be applied first (VPC and subnets must exist). For RDS/Redis/MQ to allow traffic from EKS, **do not** hardcode `tfstate_bucket` in `terraform.tfvars`. Pass it at apply time so the module reads EKS security groups from spoke state. From repo root you can use `./spinup.sh`, which passes `-var=tfstate_bucket=swiftpay-tfstate-<ACCOUNT>` into managed-services automatically.
 
 **Plain English:** For a short explanation of what `spinup.sh` does and a list of infrastructure issues we fixed (Redis TLS, secrets wiring, ESO, CI→ECR, etc.), see **[SPINUP-AND-INFRA-FIXES.md](SPINUP-AND-INFRA-FIXES.md)**.
 
@@ -62,8 +62,8 @@ From repo root, run `./spinup.sh`. It creates the S3 bucket, DynamoDB lock table
 ```
 
 **What happens:**
-- Creates S3 bucket: `payflow-tfstate-{YOUR_ACCOUNT_ID}`
-- Creates DynamoDB table: `payflow-tfstate-lock`
+- Creates S3 bucket: `swiftpay-tfstate-{YOUR_ACCOUNT_ID}`
+- Creates DynamoDB table: `swiftpay-tfstate-lock`
 - Patches `backend.tf` in all 5 modules (hub, spoke, managed-services, bastion, finops)
 - Applies Hub VPC → EKS → Managed services → Bastion → FinOps
 
@@ -72,10 +72,10 @@ From repo root, run `./spinup.sh`. It creates the S3 bucket, DynamoDB lock table
 **Verify:**
 ```bash
 # Check S3 bucket exists
-aws s3 ls | grep payflow-tfstate
+aws s3 ls | grep swiftpay-tfstate
 
 # Check DynamoDB table exists
-aws dynamodb list-tables | grep payflow-tfstate-lock
+aws dynamodb list-tables | grep swiftpay-tfstate-lock
 ```
 
 ---
@@ -133,7 +133,7 @@ terraform apply -target=module.networking
 ### Step 3.2: EKS Cluster (without nodes)
 
 ```bash
-terraform apply -target=aws_eks_cluster.payflow
+terraform apply -target=aws_eks_cluster.swiftpay
 ```
 
 **Why:** Cluster API must exist before addons and nodes.
@@ -159,10 +159,10 @@ terraform apply -target=aws_eks_addon.vpc_cni
 **Option A: Via Bastion Host** (if already deployed):
 ```bash
 # SSH to bastion
-ssh -i ~/.ssh/payflow-bastion-key.pem ec2-user@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-bastion-key.pem ec2-user@<bastion-ip>
 
 # Configure kubectl on bastion
-aws eks update-kubeconfig --name payflow-eks-cluster --region us-east-1
+aws eks update-kubeconfig --name swiftpay-eks-cluster --region us-east-1
 
 # Check CNI pods
 kubectl get pods -n kube-system -l k8s-app=aws-node
@@ -173,7 +173,7 @@ kubectl get pods -n kube-system -l k8s-app=aws-node
 ```bash
 # List EKS nodes (get instance IDs)
 aws ec2 describe-instances \
-  --filters "Name=tag:Name,Values=payflow-eks-on-demand-nodes" \
+  --filters "Name=tag:Name,Values=swiftpay-eks-on-demand-nodes" \
   --query 'Reservations[*].Instances[*].[InstanceId,PrivateIpAddress,State.Name]' \
   --output table
 
@@ -197,8 +197,8 @@ terraform apply -target=aws_eks_node_group.on_demand
 ```bash
 # Get node instance IDs
 aws ec2 describe-instances \
-  --filters "Name=tag:kubernetes.io/cluster/payflow-eks-cluster,Values=owned" \
-            "Name=tag:eks:nodegroup-name,Values=payflow-on-demand" \
+  --filters "Name=tag:kubernetes.io/cluster/swiftpay-eks-cluster,Values=owned" \
+            "Name=tag:eks:nodegroup-name,Values=swiftpay-on-demand" \
   --query 'Reservations[*].Instances[*].[InstanceId,PrivateIpAddress,State.Name]' \
   --output table
 
@@ -256,10 +256,10 @@ terraform apply
 
 ```bash
 # SSH to bastion host
-ssh -i ~/.ssh/payflow-bastion-key.pem ec2-user@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-bastion-key.pem ec2-user@<bastion-ip>
 
 # Configure kubectl on bastion
-aws eks update-kubeconfig --name payflow-eks-cluster --region us-east-1
+aws eks update-kubeconfig --name swiftpay-eks-cluster --region us-east-1
 
 # Verify cluster access
 kubectl cluster-info
@@ -271,7 +271,7 @@ kubectl get nodes
 ```bash
 # List all EKS nodes
 aws ec2 describe-instances \
-  --filters "Name=tag:kubernetes.io/cluster/payflow-eks-cluster,Values=owned" \
+  --filters "Name=tag:kubernetes.io/cluster/swiftpay-eks-cluster,Values=owned" \
   --query 'Reservations[*].Instances[*].[InstanceId,PrivateIpAddress,State.Name,LaunchTime]' \
   --output table
 
@@ -285,7 +285,7 @@ aws ssm start-session --target <instance-id>
 ## Step 4: Deploy Managed Services (RDS, ElastiCache, MQ)
 
 **Prerequisites:**
-- Step 3 (EKS/spoke-vpc-eks) must be applied so the VPC `payflow-eks-vpc` and private subnets exist.
+- Step 3 (EKS/spoke-vpc-eks) must be applied so the VPC `swiftpay-eks-vpc` and private subnets exist.
 - To allow RDS, ElastiCache, and MQ to accept traffic from EKS nodes, do **one** of:
   - **Option A (recommended):** Set `tfstate_bucket` to your Terraform state bucket (same as EKS) and use the **same workspace** (e.g. `dev`). The module will read the EKS cluster security group from spoke state.
   - **Option B:** After EKS is up, get the EKS node security group ID and pass it: `-var="eks_node_security_group_id=sg-xxxxx"`.
@@ -298,7 +298,7 @@ terraform init
 terraform workspace select dev   # must match spoke-vpc-eks workspace
 
 # Optional: use tfvars so EKS SG is wired from spoke state (replace ACCOUNT_ID)
-echo 'tfstate_bucket = "payflow-tfstate-ACCOUNT_ID"' >> terraform.tfvars
+echo 'tfstate_bucket = "swiftpay-tfstate-ACCOUNT_ID"' >> terraform.tfvars
 
 terraform validate
 terraform plan -out=tfplan
@@ -331,7 +331,7 @@ terraform output
 # Should show: rds_endpoint, rds_address, redis_endpoint, mq_amqp_endpoint, mq_management_endpoint
 
 # Check secrets exist
-aws secretsmanager list-secrets --query "SecretList[?contains(Name, 'payflow')]"
+aws secretsmanager list-secrets --query "SecretList[?contains(Name, 'swiftpay')]"
 ```
 
 ---
@@ -363,28 +363,28 @@ terraform output ssm_connect_command
 aws ssm start-session --target i-xxxxx --region us-east-1
 
 # Once on the bastion, configure kubectl
-aws eks update-kubeconfig --name payflow-eks-cluster --region us-east-1
+aws eks update-kubeconfig --name swiftpay-eks-cluster --region us-east-1
 kubectl get nodes
 ```
 
-**Or connect via SSH:** `ssh -i ~/.ssh/payflow-bastion-key.pem ec2-user@<bastion-public-ip>` (get IP from `terraform output bastion_public_ip`).
+**Or connect via SSH:** `ssh -i ~/.ssh/swiftpay-bastion-key.pem ec2-user@<bastion-public-ip>` (get IP from `terraform output bastion_public_ip`).
 
-**Optional — SSH config:** Add to `~/.ssh/config` so you can run `ssh payflow-bastion`:
+**Optional — SSH config:** Add to `~/.ssh/config` so you can run `ssh swiftpay-bastion`:
 ```sshconfig
 # Key-based SSH
-Host payflow-bastion
+Host swiftpay-bastion
   HostName <bastion-public-ip>
   User ec2-user
-  IdentityFile ~/.ssh/payflow-bastion-key.pem
+  IdentityFile ~/.ssh/swiftpay-bastion-key.pem
 ```
 To use SSH over SSM (no port 22, use instance ID as HostName):
 ```sshconfig
-Host payflow-bastion-ssm
+Host swiftpay-bastion-ssm
   HostName <bastion-instance-id>
   User ec2-user
   ProxyCommand aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p
 ```
-Then: `ssh payflow-bastion-ssm` (requires Session Manager plugin: `session-manager-plugin`).
+Then: `ssh swiftpay-bastion-ssm` (requires Session Manager plugin: `session-manager-plugin`).
 
 **Note:** For EKS node access (no kubectl on nodes), use `aws ssm start-session --target <node-instance-id>` (see Step 3.3).
 
@@ -404,8 +404,8 @@ aws ecr get-login-password --region us-east-1 | docker login --username AWS --pa
 
 # Build and push (context = services/ so shared/ is included)
 for svc in api-gateway auth-service wallet-service transaction-service notification-service frontend; do
-  docker build -t 334091769766.dkr.ecr.us-east-1.amazonaws.com/payflow-eks-cluster/${svc}:${TAG} -f services/${svc}/Dockerfile ./services
-  docker push 334091769766.dkr.ecr.us-east-1.amazonaws.com/payflow-eks-cluster/${svc}:${TAG}
+  docker build -t 334091769766.dkr.ecr.us-east-1.amazonaws.com/swiftpay-eks-cluster/${svc}:${TAG} -f services/${svc}/Dockerfile ./services
+  docker push 334091769766.dkr.ecr.us-east-1.amazonaws.com/swiftpay-eks-cluster/${svc}:${TAG}
 done
 ```
 
@@ -418,7 +418,7 @@ IMAGE_TAG=$TAG ./deploy.sh
 
 ---
 
-Now deploy the PayFlow application services to your EKS cluster.
+Now deploy the SwiftPay application services to your EKS cluster.
 
 ```bash
 cd k8s/overlays/eks
@@ -442,19 +442,19 @@ cd k8s/overlays/eks
 
 ```bash
 # SSH to bastion
-ssh -i ~/.ssh/payflow-bastion-key.pem ec2-user@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-bastion-key.pem ec2-user@<bastion-ip>
 
 # Check all pods are running
-kubectl get pods -n payflow
+kubectl get pods -n swiftpay
 
 # Check services
-kubectl get svc -n payflow
+kubectl get svc -n swiftpay
 
 # Check API Gateway logs
-kubectl logs -n payflow deployment/api-gateway -f
+kubectl logs -n swiftpay deployment/api-gateway -f
 
 # Test health endpoint (port-forward from bastion)
-kubectl port-forward -n payflow svc/api-gateway 3000:3000
+kubectl port-forward -n swiftpay svc/api-gateway 3000:3000
 # In another terminal on bastion:
 curl http://localhost:3000/health
 ```
@@ -463,7 +463,7 @@ curl http://localhost:3000/health
 ```bash
 # Get node instance IDs
 aws ec2 describe-instances \
-  --filters "Name=tag:kubernetes.io/cluster/payflow-eks-cluster,Values=owned" \
+  --filters "Name=tag:kubernetes.io/cluster/swiftpay-eks-cluster,Values=owned" \
   --query 'Reservations[*].Instances[*].[InstanceId,PrivateIpAddress,State.Name]' \
   --output table
 
@@ -485,13 +485,13 @@ sudo journalctl -u kubelet -n 50
 
 ```bash
 # SSH to bastion
-ssh -i ~/.ssh/payflow-bastion-key.pem ec2-user@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-bastion-key.pem ec2-user@<bastion-ip>
 
 # Forward API Gateway (on bastion)
-kubectl port-forward -n payflow svc/api-gateway 3000:3000
+kubectl port-forward -n swiftpay svc/api-gateway 3000:3000
 
 # In another terminal, create SSH tunnel from your local machine
-ssh -i ~/.ssh/payflow-bastion-key.pem -L 3000:localhost:3000 ec2-user@<bastion-ip> -N
+ssh -i ~/.ssh/swiftpay-bastion-key.pem -L 3000:localhost:3000 ec2-user@<bastion-ip> -N
 
 # Now access from your local browser
 open http://localhost:3000/health
@@ -501,10 +501,10 @@ open http://localhost:3000/health
 
 ```bash
 # SSH to bastion
-ssh -i ~/.ssh/payflow-bastion-key.pem ec2-user@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-bastion-key.pem ec2-user@<bastion-ip>
 
 # Get ingress URL
-kubectl get ingress -n payflow
+kubectl get ingress -n swiftpay
 
 # Access via ALB URL (from AWS Load Balancer Controller)
 # The ALB is public-facing, so you can access it directly from your browser
@@ -524,7 +524,7 @@ kubectl get ingress -n payflow
 **Solution:** Check that VPC CNI addon is installed and running (via bastion):
 ```bash
 # SSH to bastion first
-ssh -i ~/.ssh/payflow-bastion-key.pem ec2-user@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-bastion-key.pem ec2-user@<bastion-ip>
 
 # Then check CNI
 kubectl get pods -n kube-system -l k8s-app=aws-node
@@ -534,7 +534,7 @@ kubectl get pods -n kube-system -l k8s-app=aws-node
 ```bash
 # Get node instance ID
 aws ec2 describe-instances \
-  --filters "Name=tag:kubernetes.io/cluster/payflow-eks-cluster,Values=owned" \
+  --filters "Name=tag:kubernetes.io/cluster/swiftpay-eks-cluster,Values=owned" \
   --query 'Reservations[*].Instances[*].[InstanceId,State.Name]' \
   --output table
 
@@ -559,7 +559,7 @@ cd k8s/overlays/eks && IMAGE_TAG=$TAG ./deploy.sh
 
 ### Issue: "Error: Null value found in list" (managed-services security groups)
 **Solution:** RDS/ElastiCache/MQ security groups need the EKS node security group ID. Set **one** of:
-- `tfstate_bucket = "payflow-tfstate-ACCOUNT_ID"` (same bucket and workspace as EKS) so the module reads it from spoke state, or
+- `tfstate_bucket = "swiftpay-tfstate-ACCOUNT_ID"` (same bucket and workspace as EKS) so the module reads it from spoke state, or
 - `-var="eks_node_security_group_id=sg-xxxxx"` (get the SG from EKS node group or cluster in AWS console).
 
 ### Issue: "Error: Cannot find version X.Y for postgres" or "multiple RDS engine versions"
@@ -571,18 +571,18 @@ cd k8s/overlays/eks && IMAGE_TAG=$TAG ./deploy.sh
 2. Check security group allows traffic from EKS nodes (requires `tfstate_bucket` or `eks_node_security_group_id` to be set)
 3. Verify Secrets Manager has correct credentials:
 ```bash
-aws secretsmanager get-secret-value --secret-id payflow/dev/rds
+aws secretsmanager get-secret-value --secret-id swiftpay/dev/rds
 ```
 
 ### Issue: Pods in CrashLoopBackOff (api-gateway, auth-service, wallet-service, etc.)
 **Diagnose on bastion** — get the real error from a crashing pod:
 ```bash
 # From bastion (SSH or SSM)
-aws eks update-kubeconfig --name payflow-eks-cluster --region us-east-1
+aws eks update-kubeconfig --name swiftpay-eks-cluster --region us-east-1
 
 # Logs from one failing deployment (pick the one that’s crashing)
-kubectl logs -n payflow deployment/api-gateway --tail=80
-kubectl logs -n payflow deployment/auth-service --tail=80
+kubectl logs -n swiftpay deployment/api-gateway --tail=80
+kubectl logs -n swiftpay deployment/auth-service --tail=80
 ```
 
 **Common causes and fixes:**
@@ -593,13 +593,13 @@ kubectl logs -n payflow deployment/auth-service --tail=80
 | `ECONNREFUSED` to Redis or RDS host | EKS nodes can’t reach Redis/RDS | RDS/Redis SGs must allow EKS **node** SG. See [RDS-CONNECTIVITY.md](terraform/aws/managed-services/RDS-CONNECTIVITY.md); re-apply managed-services with same workspace as spoke or `-var="eks_node_sg_id=sg-xxx"`. |
 | `transactions_total already registered` (api-gateway crash) | Duplicate Prometheus metric in same process | Fixed in `services/shared/metrics.js` (getSingleMetric). Rebuild api-gateway image and redeploy. |
 | `InvalidProviderConfig` / no EC2 IMDS role for External Secrets | External Secrets SA not bound to IRSA role | See [External Secrets IRSA](#external-secrets-irsa-required-once) below. |
-| `RABBITMQ_URL` empty / connection failed | Secret not synced or Amazon MQ URL missing | Ensure `payflow/dev/rabbitmq` in Secrets Manager has key `url` (managed-services `null_resource` updates it). On bastion: `kubectl get externalsecret -n payflow` and `kubectl get secret db-secrets -n payflow -o yaml` to confirm keys. |
-| DB auth / password error | Wrong credentials in secret | Verify `payflow/dev/rds` in Secrets Manager; re-sync: delete `db-secrets` in payflow and let ESO recreate it. |
+| `RABBITMQ_URL` empty / connection failed | Secret not synced or Amazon MQ URL missing | Ensure `swiftpay/dev/rabbitmq` in Secrets Manager has key `url` (managed-services `null_resource` updates it). On bastion: `kubectl get externalsecret -n swiftpay` and `kubectl get secret db-secrets -n swiftpay -o yaml` to confirm keys. |
+| DB auth / password error | Wrong credentials in secret | Verify `swiftpay/dev/rds` in Secrets Manager; re-sync: delete `db-secrets` in swiftpay and let ESO recreate it. |
 
 After fixing, restart rollouts:
 ```bash
-kubectl rollout restart deployment -n payflow
-kubectl get pods -n payflow -w
+kubectl rollout restart deployment -n swiftpay
+kubectl get pods -n swiftpay -w
 ```
 
 ### External Secrets IRSA (verify first; manual only if missing)
@@ -629,7 +629,7 @@ kubectl rollout restart deployment external-secrets -n external-secrets
 **Solution:**
 ```bash
 # Check pod events
-kubectl describe pod <pod-name> -n payflow
+kubectl describe pod <pod-name> -n swiftpay
 
 # Check node resources
 kubectl describe nodes
@@ -673,26 +673,26 @@ Subsequent deployments are faster (infrastructure already exists).
 
 ```bash
 # SSH to bastion
-ssh -i ~/.ssh/payflow-bastion-key.pem ec2-user@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-bastion-key.pem ec2-user@<bastion-ip>
 
 # Configure kubectl (on bastion)
-aws eks update-kubeconfig --name payflow-eks-cluster --region us-east-1
+aws eks update-kubeconfig --name swiftpay-eks-cluster --region us-east-1
 
 # Check cluster status
 kubectl cluster-info
 kubectl get nodes
 
 # Check application status
-kubectl get pods -n payflow
-kubectl get svc -n payflow
-kubectl get ingress -n payflow
+kubectl get pods -n swiftpay
+kubectl get svc -n swiftpay
+kubectl get ingress -n swiftpay
 
 # View logs
-kubectl logs -n payflow deployment/api-gateway -f
+kubectl logs -n swiftpay deployment/api-gateway -f
 
 # Port forward for testing
-kubectl port-forward -n payflow svc/api-gateway 3000:3000
-kubectl port-forward -n payflow svc/frontend 80:80
+kubectl port-forward -n swiftpay svc/api-gateway 3000:3000
+kubectl port-forward -n swiftpay svc/frontend 80:80
 ```
 
 ### Access Nodes via SSM Session Manager
@@ -700,7 +700,7 @@ kubectl port-forward -n payflow svc/frontend 80:80
 ```bash
 # List all EKS nodes
 aws ec2 describe-instances \
-  --filters "Name=tag:kubernetes.io/cluster/payflow-eks-cluster,Values=owned" \
+  --filters "Name=tag:kubernetes.io/cluster/swiftpay-eks-cluster,Values=owned" \
   --query 'Reservations[*].Instances[*].[InstanceId,PrivateIpAddress,State.Name,LaunchTime]' \
   --output table
 

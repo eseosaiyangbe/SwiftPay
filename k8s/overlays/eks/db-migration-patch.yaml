@@ -5,7 +5,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: db-migration-job
-  namespace: payflow
+  namespace: swiftpay
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:

@@ -1,4 +1,4 @@
-# Runbook — Operate & Debug PayFlow
+# Runbook — Operate & Debug SwiftPay
 
 ## Health Check (First Thing to Run)
 
@@ -39,12 +39,12 @@ docker-compose exec frontend cat /etc/nginx/conf.d/default.conf | grep proxy_pas
 # Should show: proxy_pass http://api-gateway:80;
 
 # Kubernetes
-kubectl get configmap frontend-nginx -n payflow -o yaml | grep proxy_pass
+kubectl get configmap frontend-nginx -n swiftpay -o yaml | grep proxy_pass
 # Should show: proxy_pass $api_gateway; (with variable for DNS resolution)
 
 # Test connection
 docker-compose exec frontend wget -qO- http://api-gateway:80/health
-kubectl exec -it <frontend-pod> -n payflow -- wget -qO- http://api-gateway.payflow.svc.cluster.local:80/health
+kubectl exec -it <frontend-pod> -n swiftpay -- wget -qO- http://api-gateway.swiftpay.svc.cluster.local:80/health
 ```
 
 ### Transactions Stuck in PENDING
@@ -56,11 +56,11 @@ kubectl exec -it <frontend-pod> -n payflow -- wget -qO- http://api-gateway.payfl
 **Fix:**
 ```bash
 # Check RabbitMQ is running
-kubectl get pods -n payflow | grep rabbitmq
+kubectl get pods -n swiftpay | grep rabbitmq
 docker-compose ps rabbitmq
 
 # Check transaction service logs
-kubectl logs deployment/transaction-service -n payflow | grep -i rabbitmq
+kubectl logs deployment/transaction-service -n swiftpay | grep -i rabbitmq
 docker-compose logs transaction-service | grep -i rabbitmq
 
 # Check queue depth
@@ -68,7 +68,7 @@ curl http://localhost:15672/api/queues/%2F/transactions  # RabbitMQ Management A
 # Or: kubectl port-forward svc/rabbitmq 15672:15672
 
 # Restart transaction service (will reconnect to RabbitMQ)
-kubectl rollout restart deployment/transaction-service -n payflow
+kubectl rollout restart deployment/transaction-service -n swiftpay
 docker-compose restart transaction-service
 ```
 
@@ -81,16 +81,16 @@ docker-compose restart transaction-service
 **Fix:**
 ```bash
 # Check wallet service health
-kubectl get pods -n payflow -l app=wallet-service
+kubectl get pods -n swiftpay -l app=wallet-service
 docker-compose ps wallet-service
 
 # Check wallet service logs
-kubectl logs deployment/wallet-service -n payflow --tail=50
+kubectl logs deployment/wallet-service -n swiftpay --tail=50
 docker-compose logs wallet-service --tail=50
 
 # Check database connection
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "SELECT 1"
-docker-compose exec postgres psql -U payflow -d payflow -c "SELECT 1"
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "SELECT 1"
+docker-compose exec postgres psql -U swiftpay -d swiftpay -c "SELECT 1"
 
 # Check circuit breaker state
 curl http://localhost:3002/metrics | grep circuit_breaker_state
@@ -106,17 +106,17 @@ curl http://localhost:3002/metrics | grep circuit_breaker_state
 **Fix:**
 ```bash
 # Check RabbitMQ pod exists
-kubectl get pods -n payflow | grep rabbitmq
+kubectl get pods -n swiftpay | grep rabbitmq
 # If missing, deploy it:
 kubectl apply -f k8s/infrastructure/rabbitmq.yaml
 
 # Check network policies
-kubectl get networkpolicies -n payflow
+kubectl get networkpolicies -n swiftpay
 # May need to allow traffic from transaction-service to rabbitmq
 
 # Verify RabbitMQ URL in transaction service
-kubectl get configmap app-config -n payflow -o yaml | grep RABBITMQ_URL
-# Should be: amqp://payflow:payflow123@rabbitmq:5672 (local) or service DNS (k8s)
+kubectl get configmap app-config -n swiftpay -o yaml | grep RABBITMQ_URL
+# Should be: amqp://swiftpay:swiftpay123@rabbitmq:5672 (local) or service DNS (k8s)
 ```
 
 ### Database Connection Refused
@@ -128,42 +128,42 @@ kubectl get configmap app-config -n payflow -o yaml | grep RABBITMQ_URL
 **Fix:**
 ```bash
 # Check PostgreSQL is running
-kubectl get pods -n payflow | grep postgres
+kubectl get pods -n swiftpay | grep postgres
 docker-compose ps postgres
 
 # Check PostgreSQL logs
-kubectl logs postgres-0 -n payflow --tail=50
+kubectl logs postgres-0 -n swiftpay --tail=50
 docker-compose logs postgres --tail=50
 
 # Test connection from service pod
-kubectl exec -it deployment/auth-service -n payflow -- \
-  psql -h postgres -U payflow -d payflow -c "SELECT 1"
+kubectl exec -it deployment/auth-service -n swiftpay -- \
+  psql -h postgres -U swiftpay -d swiftpay -c "SELECT 1"
 
 # Verify connection string
-kubectl get configmap app-config -n payflow -o yaml | grep DB_HOST
+kubectl get configmap app-config -n swiftpay -o yaml | grep DB_HOST
 ```
 
 ## Tracing a Failed Transaction
 
 ```bash
 # 1. Get transaction ID from user or database
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT id, status, error_message, created_at FROM transactions WHERE id = 'TXN-123';"
 
 # 2. Check API Gateway logs (request entry point)
-kubectl logs deployment/api-gateway -n payflow | grep TXN-123
+kubectl logs deployment/api-gateway -n swiftpay | grep TXN-123
 
 # 3. Check transaction service logs (creation and processing)
-kubectl logs deployment/transaction-service -n payflow | grep TXN-123
+kubectl logs deployment/transaction-service -n swiftpay | grep TXN-123
 
 # 4. Check wallet service logs (money transfer)
-kubectl logs deployment/wallet-service -n payflow | grep TXN-123
+kubectl logs deployment/wallet-service -n swiftpay | grep TXN-123
 
 # 5. Check notification service logs (email/SMS)
-kubectl logs deployment/notification-service -n payflow | grep TXN-123
+kubectl logs deployment/notification-service -n swiftpay | grep TXN-123
 
 # 6. Check RabbitMQ queue (if stuck)
-curl -u payflow:payflow123 http://localhost:15672/api/queues/%2F/transactions
+curl -u swiftpay:swiftpay123 http://localhost:15672/api/queues/%2F/transactions
 # Look for messageCount > 0
 ```
 
@@ -198,10 +198,10 @@ open http://localhost:3000
 ```bash
 # Local
 open http://localhost:15672
-# Credentials: payflow/payflow123
+# Credentials: swiftpay/swiftpay123
 
 # Kubernetes
-kubectl port-forward svc/rabbitmq 15672:15672 -n payflow
+kubectl port-forward svc/rabbitmq 15672:15672 -n swiftpay
 open http://localhost:15672
 ```
 
@@ -226,25 +226,25 @@ curl http://localhost:3001/metrics | grep transfers_total
 
 ```bash
 # SSH to bastion
-ssh -i ~/.ssh/payflow-bastion-key.pem ec2-user@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-bastion-key.pem ec2-user@<bastion-ip>
 
 # Configure kubectl
-aws eks update-kubeconfig --region us-east-1 --name payflow-eks-cluster
+aws eks update-kubeconfig --region us-east-1 --name swiftpay-eks-cluster
 
 # Verify access
 kubectl get nodes
-kubectl get pods -n payflow
+kubectl get pods -n swiftpay
 ```
 
 ### SSH to Bastion and Connect to AKS
 
 ```bash
 # SSH to bastion
-ssh -i ~/.ssh/payflow-azure-key.pem azureuser@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-azure-key.pem azureuser@<bastion-ip>
 
 # Configure kubectl
 az login
-az aks get-credentials --resource-group payflow-rg --name payflow-aks-cluster
+az aks get-credentials --resource-group swiftpay-rg --name swiftpay-aks-cluster
 
 # Verify access
 kubectl get nodes
@@ -254,41 +254,41 @@ kubectl get nodes
 
 ```bash
 # Scale a service
-kubectl scale deployment/transaction-service --replicas=3 -n payflow
+kubectl scale deployment/transaction-service --replicas=3 -n swiftpay
 
 # Get logs (last 100 lines)
-kubectl logs --tail=100 deployment/api-gateway -n payflow
+kubectl logs --tail=100 deployment/api-gateway -n swiftpay
 
 # Follow logs (real-time)
-kubectl logs -f deployment/transaction-service -n payflow
+kubectl logs -f deployment/transaction-service -n swiftpay
 
 # Exec into a pod
-kubectl exec -it deployment/wallet-service -n payflow -- sh
+kubectl exec -it deployment/wallet-service -n swiftpay -- sh
 
 # Check resource usage
-kubectl top pods -n payflow
+kubectl top pods -n swiftpay
 kubectl top nodes
 
 # Check events (what just happened)
-kubectl get events -n payflow --sort-by='.lastTimestamp'
+kubectl get events -n swiftpay --sort-by='.lastTimestamp'
 
 # Check service endpoints
-kubectl get endpoints -n payflow
+kubectl get endpoints -n swiftpay
 
 # Check ingress
-kubectl get ingress -n payflow
+kubectl get ingress -n swiftpay
 
 # Restart a deployment
-kubectl rollout restart deployment/api-gateway -n payflow
+kubectl rollout restart deployment/api-gateway -n swiftpay
 
 # Check deployment status
-kubectl rollout status deployment/transaction-service -n payflow
+kubectl rollout status deployment/transaction-service -n swiftpay
 
 # View pod details
-kubectl describe pod <pod-name> -n payflow
+kubectl describe pod <pod-name> -n swiftpay
 
 # Check secrets
-kubectl get secrets -n payflow
-kubectl get secret app-secrets -n payflow -o yaml
+kubectl get secrets -n swiftpay
+kubectl get secret app-secrets -n swiftpay -o yaml
 ```
 

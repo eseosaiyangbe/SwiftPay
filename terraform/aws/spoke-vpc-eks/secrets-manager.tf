@@ -11,24 +11,24 @@ resource "aws_kms_key" "secrets" {
   enable_key_rotation     = true  # Required for PCI-DSS
 
   tags = {
-    Name = "payflow-secrets-kms-key"
+    Name = "swiftpay-secrets-kms-key"
   }
 }
 
 resource "aws_kms_alias" "secrets" {
-  name          = "alias/payflow-secrets"
+  name          = "alias/swiftpay-secrets"
   target_key_id = aws_kms_key.secrets.key_id
 }
 
 # RDS Database Credentials Secret
 resource "aws_secretsmanager_secret" "rds" {
-  name                    = "payflow/${local.env}/rds"
+  name                    = "swiftpay/${local.env}/rds"
   description             = "RDS PostgreSQL credentials"
   kms_key_id              = aws_kms_key.secrets.arn
   recovery_window_in_days  = 0  # Immediate delete on destroy so re-apply can reuse name
 
   tags = {
-    Name        = "payflow-rds-secret"
+    Name        = "swiftpay-rds-secret"
     Environment = local.env
     Service     = "rds"
   }
@@ -54,13 +54,13 @@ resource "aws_secretsmanager_secret_version" "rds" {
 
 # RabbitMQ (Amazon MQ) Credentials Secret
 resource "aws_secretsmanager_secret" "rabbitmq" {
-  name                    = "payflow/${local.env}/rabbitmq"
+  name                    = "swiftpay/${local.env}/rabbitmq"
   description             = "Amazon MQ RabbitMQ credentials"
   kms_key_id              = aws_kms_key.secrets.arn
   recovery_window_in_days = 0  # Immediate delete on destroy so re-apply can reuse name
 
   tags = {
-    Name        = "payflow-rabbitmq-secret"
+    Name        = "swiftpay-rabbitmq-secret"
     Environment = local.env
     Service     = "rabbitmq"
   }
@@ -85,13 +85,13 @@ resource "aws_secretsmanager_secret_version" "rabbitmq" {
 
 # Redis (ElastiCache) Credentials Secret
 resource "aws_secretsmanager_secret" "redis" {
-  name                    = "payflow/${local.env}/redis"
+  name                    = "swiftpay/${local.env}/redis"
   description             = "ElastiCache Redis connection details"
   kms_key_id              = aws_kms_key.secrets.arn
   recovery_window_in_days = 0  # Immediate delete on destroy so re-apply can reuse name
 
   tags = {
-    Name        = "payflow-redis-secret"
+    Name        = "swiftpay-redis-secret"
     Environment = local.env
     Service     = "redis"
   }
@@ -113,13 +113,13 @@ resource "aws_secretsmanager_secret_version" "redis" {
 
 # Application Secrets (JWT, API keys, etc.)
 resource "aws_secretsmanager_secret" "app_secrets" {
-  name                    = "payflow/${local.env}/app/secrets"
+  name                    = "swiftpay/${local.env}/app/secrets"
   description             = "Application secrets (JWT, API keys)"
   kms_key_id              = aws_kms_key.secrets.arn
   recovery_window_in_days = 0  # Immediate delete on destroy so re-apply can reuse name
 
   tags = {
-    Name        = "payflow-app-secrets"
+    Name        = "swiftpay-app-secrets"
     Environment = local.env
     Service     = "application"
   }
@@ -188,7 +188,7 @@ resource "aws_iam_role_policy" "external_secrets" {
           aws_secretsmanager_secret.rabbitmq.arn,
           aws_secretsmanager_secret.redis.arn,
           aws_secretsmanager_secret.app_secrets.arn,
-          "arn:aws:secretsmanager:${var.aws_region}:*:secret:payflow/${local.env}/*"
+          "arn:aws:secretsmanager:${var.aws_region}:*:secret:swiftpay/${local.env}/*"
         ]
       },
       {

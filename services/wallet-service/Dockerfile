@@ -1,5 +1,5 @@
 # ============================================
-# PayFlow Wallet Service - Optimized Multi-Stage Build
+# SwiftPay Wallet Service - Optimized Multi-Stage Build
 # Target: <100MB (reduced from 192MB)
 # ============================================
 

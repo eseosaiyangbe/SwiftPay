@@ -10,8 +10,8 @@ global:
   resolve_timeout: 5m
   # SMTP for email notifications
   smtp_smarthost: 'smtp.gmail.com:587'
-  smtp_from: 'alerts@payflow.com'
-  smtp_auth_username: 'alerts@payflow.com'
+  smtp_from: 'alerts@swiftpay.com'
+  smtp_auth_username: 'alerts@swiftpay.com'
   smtp_auth_password: 'REPLACE_WITH_APP_PASSWORD'  # Use app-specific password
   smtp_require_tls: true
 
@@ -141,8 +141,8 @@ receivers:
   # ============================================
   - name: 'email-backup'
     email_configs:
-    - to: 'oncall@payflow.com'
-      from: 'alerts@payflow.com'
+    - to: 'oncall@swiftpay.com'
+      from: 'alerts@swiftpay.com'
       headers:
         Subject: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
       html: |

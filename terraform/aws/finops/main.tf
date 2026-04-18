@@ -16,7 +16,7 @@ provider "aws" {
 locals {
   # Common FinOps tags applied to all AWS FinOps resources
   common_tags = {
-    project       = "payflow"
+    project       = "swiftpay"
     environment   = var.environment
     team          = var.team
     owner         = var.owner
@@ -51,7 +51,7 @@ resource "aws_ce_cost_allocation_tag" "finops" {
 # ---------------------------------------------------------------------------
 
 resource "aws_budgets_budget" "dev" {
-  name              = "payflow-dev-monthly-budget"
+  name              = "swiftpay-dev-monthly-budget"
   budget_type       = "COST"
   time_unit         = "MONTHLY"
   limit_amount      = tostring(var.monthly_budget_dev)
@@ -75,13 +75,13 @@ resource "aws_budgets_budget" "dev" {
   }
 
   tags = merge(local.common_tags, {
-    Name   = "payflow-dev-monthly-budget"
+    Name   = "swiftpay-dev-monthly-budget"
     module = "aws-finops"
   })
 }
 
 resource "aws_budgets_budget" "prod" {
-  name              = "payflow-prod-monthly-budget"
+  name              = "swiftpay-prod-monthly-budget"
   budget_type       = "COST"
   time_unit         = "MONTHLY"
   limit_amount      = tostring(var.monthly_budget_prod)
@@ -105,7 +105,7 @@ resource "aws_budgets_budget" "prod" {
   }
 
   tags = merge(local.common_tags, {
-    Name   = "payflow-prod-monthly-budget"
+    Name   = "swiftpay-prod-monthly-budget"
     module = "aws-finops"
   })
 }
@@ -116,19 +116,19 @@ resource "aws_budgets_budget" "prod" {
 
 resource "aws_ce_anomaly_monitor" "account" {
   count             = var.enable_anomaly_detection ? 1 : 0
-  name              = "payflow-account-anomaly-monitor"
+  name              = "swiftpay-account-anomaly-monitor"
   monitor_type      = "DIMENSIONAL"
   monitor_dimension = "SERVICE"
 
   tags = merge(local.common_tags, {
-    Name   = "payflow-account-anomaly-monitor"
+    Name   = "swiftpay-account-anomaly-monitor"
     module = "aws-finops"
   })
 }
 
 resource "aws_ce_anomaly_subscription" "account" {
   count       = var.enable_anomaly_detection ? 1 : 0
-  name        = "payflow-account-anomaly-subscription"
+  name        = "swiftpay-account-anomaly-subscription"
   frequency   = "DAILY"
   monitor_arn_list = [aws_ce_anomaly_monitor.account[0].arn]
 
@@ -148,7 +148,7 @@ resource "aws_ce_anomaly_subscription" "account" {
   }
 
   tags = merge(local.common_tags, {
-    Name   = "payflow-account-anomaly-subscription"
+    Name   = "swiftpay-account-anomaly-subscription"
     module = "aws-finops"
   })
 }
@@ -158,10 +158,10 @@ resource "aws_ce_anomaly_subscription" "account" {
 # ---------------------------------------------------------------------------
 
 resource "aws_sns_topic" "billing_alarm" {
-  name = "payflow-billing-alarm"
+  name = "swiftpay-billing-alarm"
 
   tags = merge(local.common_tags, {
-    Name   = "payflow-billing-alarm"
+    Name   = "swiftpay-billing-alarm"
     module = "aws-finops"
   })
 }
@@ -178,7 +178,7 @@ resource "aws_sns_topic_subscription" "billing_alarm_email" {
 # ---------------------------------------------------------------------------
 
 resource "aws_cloudwatch_metric_alarm" "billing_estimated_charges" {
-  alarm_name          = "payflow-billing-estimated-charges"
+  alarm_name          = "swiftpay-billing-estimated-charges"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "EstimatedCharges"
@@ -204,7 +204,7 @@ resource "aws_cloudwatch_metric_alarm" "billing_estimated_charges" {
 # ---------------------------------------------------------------------------
 
 resource "aws_cloudwatch_dashboard" "cost_overview" {
-  dashboard_name = "payflow-cost-overview"
+  dashboard_name = "swiftpay-cost-overview"
 
   dashboard_body = jsonencode({
     widgets = [

@@ -8,7 +8,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: postgres-backup
-  namespace: payflow
+  namespace: swiftpay
 spec:
   schedule: "0 2 * * *"  # Daily at 2 AM UTC
   successfulJobsHistoryLimit: 3
@@ -31,7 +31,7 @@ spec:
               echo "Starting PostgreSQL backup..."
               
               # Create backup filename with timestamp
-              BACKUP_FILE="/backups/payflow-$(date +%Y%m%d-%H%M%S).sql.gz"
+              BACKUP_FILE="/backups/swiftpay-$(date +%Y%m%d-%H%M%S).sql.gz"
               
               # Perform backup
               PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
@@ -47,7 +47,7 @@ spec:
                 echo "Backup completed: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
                 
                 # Delete backups older than 7 days
-                find /backups -name "payflow-*.sql.gz" -mtime +7 -delete
+                find /backups -name "swiftpay-*.sql.gz" -mtime +7 -delete
                 echo "Cleaned up old backups (>7 days)"
               else
                 echo "ERROR: Backup file not created!"
@@ -100,7 +100,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-backup-pvc
-  namespace: payflow
+  namespace: swiftpay
 spec:
   accessModes:
     - ReadWriteOnce

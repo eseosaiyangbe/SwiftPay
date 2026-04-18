@@ -10,7 +10,7 @@ apiVersion: batch/v1  # Kubernetes batch API version
 kind: CronJob  # Resource type - runs scheduled jobs repeatedly
 metadata:
   name: image-scanning  # CronJob name
-  namespace: payflow  # Namespace
+  namespace: swiftpay  # Namespace
 spec:
   # ============================================
   # Cron Schedule
@@ -69,10 +69,10 @@ spec:
               # ============================================
               # Images to Scan
               # ============================================
-              # List of all PayFlow container images to scan
+              # List of all SwiftPay container images to scan
               # These should match the images used in deployments
               # Using space-separated list (compatible with Alpine sh)
-              IMAGES="payflow/api-gateway:latest payflow/auth-service:latest payflow/wallet-service:latest payflow/transaction-service:latest payflow/notification-service:latest payflow/frontend:latest"
+              IMAGES="swiftpay/api-gateway:latest swiftpay/auth-service:latest swiftpay/wallet-service:latest swiftpay/transaction-service:latest swiftpay/notification-service:latest swiftpay/frontend:latest"
               
               # ============================================
               # Scan Each Image
@@ -83,7 +83,7 @@ spec:
                 
                 # Generate report filename
                 # Convert image name to filename-safe format
-                # Example: "payflow/api-gateway:latest" -> "payflow-api-gateway-latest-20251225.json"
+                # Example: "swiftpay/api-gateway:latest" -> "swiftpay-api-gateway-latest-20251225.json"
                 REPORT_FILE="/reports/$(echo $IMAGE | tr '/:' '-')-$(date +%Y%m%d).json"
                 # tr '/:' '-': Translates / and : to - (filename-safe)
                 # date +%Y%m%d: Current date in YYYYMMDD format

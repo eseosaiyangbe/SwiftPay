@@ -7,5 +7,5 @@ mq_password = "REPLACE_ME"
 jwt_secret  = "REPLACE_ME"
 
 # Optional overrides (defaults exist in variables.tf)
-# db_username = "payflow"
-# mq_username = "payflow"
+# db_username = "swiftpay"
+# mq_username = "swiftpay"

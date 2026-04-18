@@ -1,6 +1,6 @@
 # Local / MicroK8s Overlay
 
-Deploy the full PayFlow stack on a local MicroK8s cluster.
+Deploy the full SwiftPay stack on a local MicroK8s cluster.
 
 **Learning path:** Week 1 uses **`./scripts/deploy-microk8s.sh`** (applies this overlay). Week 2 explains *why* overlays exist—see [`LEARNING-PATH.md`](../../LEARNING-PATH.md) and [`docs/microk8s-deployment.md`](../../docs/microk8s-deployment.md).
 
@@ -13,7 +13,7 @@ Deploy the full PayFlow stack on a local MicroK8s cluster.
   ```
 - `/etc/hosts` entries (run once):
   ```bash
-  bash scripts/setup-hosts-payflow-local.sh
+  bash scripts/setup-hosts-swiftpay-local.sh
   ```
 
 ## Deploy
@@ -28,7 +28,7 @@ kubectl apply -k k8s/overlays/local
 Give it 2–5 minutes on first run (image pulls + DB migration), then:
 
 ```bash
-kubectl get pods -n payflow
+kubectl get pods -n swiftpay
 ```
 
 **Expected:**
@@ -42,15 +42,15 @@ kubectl get pods -n payflow
 Run the repo’s smoke test so you’re not guessing:
 
 ```bash
-./scripts/validate.sh --env k8s --host http://api.payflow.local
+./scripts/validate.sh --env k8s --host http://api.swiftpay.local
 ```
 
 ## Access
 
 | URL | Service |
 |-----|---------|
-| http://www.payflow.local | Frontend (React app) |
-| http://api.payflow.local | API Gateway (curl / Postman) |
+| http://www.swiftpay.local | Frontend (React app) |
+| http://api.swiftpay.local | API Gateway (curl / Postman) |
 
 ## How it differs from the base
 
@@ -62,7 +62,7 @@ Run the repo’s smoke test so you’re not guessing:
 | `local-quota-patch.yaml` | Raises namespace ResourceQuota so all replicas can schedule |
 | `secrets-db-secrets.yaml` | Plain-text dev Secret (no ESO required — local only) |
 | `infra/` | Self-hosted Postgres, Redis, RabbitMQ StatefulSets |
-| `ingress-local.yaml` | Ingress: `/api` → api-gateway:80, `/` → frontend:80 on `www.payflow.local` |
+| `ingress-local.yaml` | Ingress: `/api` → api-gateway:80, `/` → frontend:80 on `www.swiftpay.local` |
 
 ## Image note
 
@@ -84,8 +84,8 @@ docker compose build api-gateway
 docker save veeno/api-gateway:latest | microk8s ctr images import -
 
 # Restart the deployment so the new image is picked up
-kubectl rollout restart deployment/api-gateway -n payflow
-kubectl rollout status deployment/api-gateway -n payflow
+kubectl rollout restart deployment/api-gateway -n swiftpay
+kubectl rollout status deployment/api-gateway -n swiftpay
 ```
 
 Replace `api-gateway` / `veeno/api-gateway` with the service name you changed.
@@ -108,9 +108,9 @@ Access Grafana at http://localhost:3006 (admin/admin).
 | Symptom | Cause | Fix |
 |---|---|---|
 | api-gateway CrashLoopBackOff | `DB_PASSWORD` not in env | Already fixed in base deployment — ensure you're applying the latest overlay |
-| 502 on /api calls | api-gateway not ready | Check `kubectl logs -n payflow deploy/api-gateway`; wait for `DB_PASSWORD` pod to become Ready |
+| 502 on /api calls | api-gateway not ready | Check `kubectl logs -n swiftpay deploy/api-gateway`; wait for `DB_PASSWORD` pod to become Ready |
 | frontend shows blank | nginx resolver failure | Ensure MicroK8s DNS addon is enabled: `microk8s enable dns` |
-| Pods stuck Pending | ResourceQuota exceeded | `kubectl describe quota -n payflow`; quota patch should have raised limits |
+| Pods stuck Pending | ResourceQuota exceeded | `kubectl describe quota -n swiftpay`; quota patch should have raised limits |
 
 If you’re still stuck, use:
 - `docs/microk8s-deployment.md` for the full local walkthrough

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# PayFlow Infrastructure — DESTROY Script
+# SwiftPay Infrastructure — DESTROY Script
 # Destroys all AWS resources in the correct dependency order
 # Safe to run: confirms before destroying each module; skips missing workspaces; continues on module failure
 # ============================================================
@@ -24,7 +24,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Run from repo root so terraform/aws is correct
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TF_ROOT="$REPO_ROOT/terraform/aws"
-DYNAMODB_TABLE="${TFSTATE_DYNAMODB_TABLE:-payflow-tfstate-lock}"
+DYNAMODB_TABLE="${TFSTATE_DYNAMODB_TABLE:-swiftpay-tfstate-lock}"
 FAILED_MODULES=0
 
 # ── Helpers ──────────────────────────────────────────────────
@@ -132,7 +132,7 @@ echo "  ██║  ██║██╔══╝  ╚════██║   █�
 echo "  ██████╔╝███████╗███████║   ██║   ██║  ██║╚██████╔╝   ██║   "
 echo "  ╚═════╝ ╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝    ╚═╝  "
 echo -e "${NC}"
-echo -e "${BOLD}  PayFlow Infrastructure Destroy Script${NC}"
+echo -e "${BOLD}  SwiftPay Infrastructure Destroy Script${NC}"
 echo -e "  This will destroy: EKS cluster, RDS, Redis, MQ, TGW, VPCs, NAT gateways"
 echo -e "  ${GREEN}Safe:${NC} S3 state bucket and DynamoDB lock table are never touched"
 echo ""
@@ -151,7 +151,7 @@ success "Terraform: $TF_VERSION"
 # Confirm the account before destroying anything (generic — works for any account)
 warn "About to destroy infrastructure in account: ${ACCOUNT} (region: ${REGION})"
 
-TFSTATE_BUCKET="payflow-tfstate-${ACCOUNT}"
+TFSTATE_BUCKET="swiftpay-tfstate-${ACCOUNT}"
 
 # Ask which environment/workspace to destroy (dev or prod) unless already set
 # For managed-services and spoke-vpc-eks, ensure required vars are set (terraform.tfvars or TF_VAR_*),

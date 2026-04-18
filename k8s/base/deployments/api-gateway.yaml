@@ -1,10 +1,10 @@
-# #### PayFlow API Gateway Service ####
+# #### SwiftPay API Gateway Service ####
 # #### This Service exposes the API Gateway to other services and external traffic ####
 apiVersion: v1
 kind: Service
 metadata:
   name: api-gateway
-  namespace: payflow
+  namespace: swiftpay
   annotations:
     # Prometheus scrapes the pod directly via pod annotations, not this Service.
     # Keeping a single port avoids confusion when building Ingress rules (always use port 80).
@@ -21,13 +21,13 @@ spec:
   selector:
     app: api-gateway
 ---
-# #### PayFlow API Gateway Deployment ####
+# #### SwiftPay API Gateway Deployment ####
 # #### This Deployment manages the API Gateway pods ####
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api-gateway
-  namespace: payflow
+  namespace: swiftpay
 spec:
   replicas: 2  # #### Number of pod replicas for high availability ####
   selector:

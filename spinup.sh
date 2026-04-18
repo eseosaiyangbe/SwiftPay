@@ -1,5 +1,5 @@
 #!/bin/bash
-# PayFlow infrastructure spin-up: backend, hub, EKS/AKS spoke, managed services, bastion, FinOps.
+# SwiftPay infrastructure spin-up: backend, hub, EKS/AKS spoke, managed services, bastion, FinOps.
 # Run from repo root. Prompts for AWS (EKS) or Azure (AKS). Uses TF_WORKSPACE (default dev).
 # For a plain-English explanation and list of issues we fixed, see SPINUP-AND-INFRA-FIXES.md.
 set -euo pipefail
@@ -40,7 +40,7 @@ REGION="${AWS_REGION:-us-east-1}"
 
 if [ "$CLOUD" = "aws" ]; then
   ACCOUNT=$(aws sts get-caller-identity --query Account --output text --region "$REGION" 2>/dev/null) || { echo "[spinup] AWS CLI not configured"; exit 1; }
-  TFSTATE_BUCKET="payflow-tfstate-${ACCOUNT}"
+  TFSTATE_BUCKET="swiftpay-tfstate-${ACCOUNT}"
 fi
 
 # FIX: Do NOT export TF_WORKSPACE globally — it conflicts with `terraform workspace select`
@@ -100,18 +100,18 @@ bootstrap_backend() {
   fi
 
   # Create DynamoDB lock table if it doesn't exist
-  if ! aws dynamodb describe-table --table-name payflow-tfstate-lock --region "$REGION" &>/dev/null; then
-    log "Creating DynamoDB table: payflow-tfstate-lock"
+  if ! aws dynamodb describe-table --table-name swiftpay-tfstate-lock --region "$REGION" &>/dev/null; then
+    log "Creating DynamoDB table: swiftpay-tfstate-lock"
     aws dynamodb create-table \
-      --table-name payflow-tfstate-lock \
+      --table-name swiftpay-tfstate-lock \
       --attribute-definitions AttributeName=LockID,AttributeType=S \
       --key-schema AttributeName=LockID,KeyType=HASH \
       --billing-mode PAY_PER_REQUEST \
       --region "$REGION" 2>/dev/null || true
     log "Waiting for DynamoDB table to be active..."
-    aws dynamodb wait table-exists --table-name payflow-tfstate-lock --region "$REGION" 2>/dev/null || true
+    aws dynamodb wait table-exists --table-name swiftpay-tfstate-lock --region "$REGION" 2>/dev/null || true
   else
-    log "DynamoDB table already exists: payflow-tfstate-lock"
+    log "DynamoDB table already exists: swiftpay-tfstate-lock"
   fi
 
   # Patch all backend.tf files to use THIS account's bucket and region.
@@ -125,8 +125,8 @@ bootstrap_backend() {
     "$REPO_ROOT/terraform/aws/bastion/backend.tf" \
     "$REPO_ROOT/terraform/aws/finops/backend.tf"; do
     if [ -f "$backend_file" ]; then
-      # Replace any payflow-tfstate-<anything> bucket name with the correct one (portable sed)
-      sed -i.bak "s|bucket[[:space:]]*=[[:space:]]*\"payflow-tfstate-[^\"]*\"|bucket         = \"$TFSTATE_BUCKET\"|g" "$backend_file"
+      # Replace any swiftpay-tfstate-<anything> bucket name with the correct one (portable sed)
+      sed -i.bak "s|bucket[[:space:]]*=[[:space:]]*\"swiftpay-tfstate-[^\"]*\"|bucket         = \"$TFSTATE_BUCKET\"|g" "$backend_file"
       # Replace region line (portable: no range /start/,/end/ so BSD sed on macOS works)
       sed -i.bak "s|^[[:space:]]*region[[:space:]]*=[[:space:]]*\"[^\"]*\"|    region         = \"$REGION\"|" "$backend_file"
       rm -f "${backend_file}.bak"
@@ -209,7 +209,7 @@ spinup_aks() {
 # Auto-import spoke-vpc-eks resources that may already exist in AWS but not in Terraform state.
 # Prevents ResourceAlreadyExistsException on re-runs (e.g. CloudWatch log group, flow log).
 import_spoke_drift_if_exists() {
-  local cluster="payflow-eks-cluster-${ENVIRONMENT}"
+  local cluster="swiftpay-eks-cluster-${ENVIRONMENT}"
 
   cd "$REPO_ROOT/terraform/aws/spoke-vpc-eks"
   unset TF_WORKSPACE
@@ -251,8 +251,8 @@ import_spoke_drift_if_exists() {
 # Auto-import the node access entry if EKS already created it.
 # Called after spoke-vpc-eks apply so we don't get 409 on re-runs.
 import_node_access_entry_if_exists() {
-  local cluster="payflow-eks-cluster"
-  local node_role_arn="arn:aws:iam::${ACCOUNT}:role/payflow-eks-node-role"
+  local cluster="swiftpay-eks-cluster"
+  local node_role_arn="arn:aws:iam::${ACCOUNT}:role/swiftpay-eks-node-role"
 
   cd "$REPO_ROOT/terraform/aws/spoke-vpc-eks"
   unset TF_WORKSPACE
@@ -278,13 +278,13 @@ import_bastion_if_exists() {
   terraform init -input=false -reconfigure 2>/dev/null || true
   terraform workspace select "$ENVIRONMENT" 2>/dev/null || terraform workspace new "$ENVIRONMENT" 2>/dev/null || true
 
-  if aws iam get-role --role-name payflow-bastion-role &>/dev/null; then
+  if aws iam get-role --role-name swiftpay-bastion-role &>/dev/null; then
     log "Bastion IAM role already exists — importing to Terraform state..."
-    terraform import -input=false aws_iam_role.bastion payflow-bastion-role 2>/dev/null || log "  Role already in state, skipping."
+    terraform import -input=false aws_iam_role.bastion swiftpay-bastion-role 2>/dev/null || log "  Role already in state, skipping."
   fi
-  if aws iam get-instance-profile --instance-profile-name payflow-bastion-profile &>/dev/null; then
+  if aws iam get-instance-profile --instance-profile-name swiftpay-bastion-profile &>/dev/null; then
     log "Bastion instance profile already exists — importing to Terraform state..."
-    terraform import -input=false aws_iam_instance_profile.bastion payflow-bastion-profile 2>/dev/null || log "  Profile already in state, skipping."
+    terraform import -input=false aws_iam_instance_profile.bastion swiftpay-bastion-profile 2>/dev/null || log "  Profile already in state, skipping."
   fi
   cd "$REPO_ROOT"
 }
@@ -318,11 +318,11 @@ for entry in "rds:host" "redis:url" "rabbitmq:url"; do
   NAME="${entry%%:*}"
   FIELD="${entry##*:}"
   VAL=$(aws secretsmanager get-secret-value \
-    --secret-id "payflow/${ENVIRONMENT}/${NAME}" \
+    --secret-id "swiftpay/${ENVIRONMENT}/${NAME}" \
     --region "$REGION" --query SecretString --output text 2>/dev/null \
     | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('${FIELD}',''))" 2>/dev/null)
-  [ -z "$VAL" ] && error "payflow/${ENVIRONMENT}/${NAME}.${FIELD} is empty — null_resource failed. Check CloudTrail/CloudWatch."
-  log "  payflow/${ENVIRONMENT}/${NAME}.${FIELD} = <populated>"
+  [ -z "$VAL" ] && error "swiftpay/${ENVIRONMENT}/${NAME}.${FIELD} is empty — null_resource failed. Check CloudTrail/CloudWatch."
+  log "  swiftpay/${ENVIRONMENT}/${NAME}.${FIELD} = <populated>"
 done
 log "Secrets Manager population OK"
 

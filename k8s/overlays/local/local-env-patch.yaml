@@ -1,10 +1,10 @@
-# Local only: set NODE_ENV=development so apps allow default DB password (payflow123).
+# Local only: set NODE_ENV=development so apps allow default DB password (swiftpay123).
 # EKS overlay never uses this; production keeps NODE_ENV=production and real secrets.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api-gateway
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:
@@ -18,7 +18,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: auth-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:
@@ -32,7 +32,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: wallet-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:
@@ -46,7 +46,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: transaction-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:
@@ -60,7 +60,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: notification-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:
@@ -77,7 +77,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:

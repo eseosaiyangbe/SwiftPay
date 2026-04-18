@@ -15,7 +15,7 @@ resource "aws_vpc_endpoint" "s3" {
   )
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-s3-endpoint"
+    Name      = "swiftpay-eks-s3-endpoint"
     module    = "spoke-vpc-eks"
     Component = "vpc-endpoint"
   })
@@ -57,7 +57,7 @@ resource "aws_vpc_endpoint" "ecr_api" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-ecr-api-endpoint"
+    Name      = "swiftpay-eks-ecr-api-endpoint"
     module    = "spoke-vpc-eks"
     Component = "vpc-endpoint"
   })
@@ -73,7 +73,7 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-ecr-dkr-endpoint"
+    Name      = "swiftpay-eks-ecr-dkr-endpoint"
     module    = "spoke-vpc-eks"
     Component = "vpc-endpoint"
   })
@@ -89,7 +89,7 @@ resource "aws_vpc_endpoint" "sts" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-sts-endpoint"
+    Name      = "swiftpay-eks-sts-endpoint"
     module    = "spoke-vpc-eks"
     Component = "vpc-endpoint"
   })
@@ -105,7 +105,7 @@ resource "aws_vpc_endpoint" "secretsmanager" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-secretsmanager-endpoint"
+    Name      = "swiftpay-eks-secretsmanager-endpoint"
     module    = "spoke-vpc-eks"
     Component = "vpc-endpoint"
   })

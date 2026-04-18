@@ -1,6 +1,6 @@
 # Cloudflare setup (optional — expose your home lab safely)
 
-This guide is for learners who already run PayFlow locally (**MicroK8s** or optional **Docker Compose**—see [`LEARNING-PATH.md`](../LEARNING-PATH.md)) and want a **real HTTPS URL** on the public internet without opening inbound ports on your home router the traditional way.
+This guide is for learners who already run SwiftPay locally (**MicroK8s** or optional **Docker Compose**—see [`LEARNING-PATH.md`](../LEARNING-PATH.md)) and want a **real HTTPS URL** on the public internet without opening inbound ports on your home router the traditional way.
 
 **What Cloudflare gives you:**
 
@@ -8,7 +8,7 @@ This guide is for learners who already run PayFlow locally (**MicroK8s** or opti
 - **Cloudflare Tunnel (`cloudflared`)** — outbound-only connection from your PC to Cloudflare; traffic to `https://app.yourdomain.com` is forwarded to `http://localhost` or your ingress VM. No need to expose port 80/443 on your WAN IP for the tunnel model.
 - **SSL/TLS** termination at the edge (browser ↔ Cloudflare is always HTTPS).
 
-**What this doc does *not* do:** replace Kubernetes ingress or PayFlow’s own TLS story in production (EKS/ALB, cert-manager, etc.). This is a **home lab / demo** path.
+**What this doc does *not* do:** replace Kubernetes ingress or SwiftPay’s own TLS story in production (EKS/ALB, cert-manager, etc.). This is a **home lab / demo** path.
 
 ---
 
@@ -16,8 +16,8 @@ This guide is for learners who already run PayFlow locally (**MicroK8s** or opti
 
 1. A **Cloudflare account** (free tier is enough for tunnels and basic DNS).
 2. A **domain** whose DNS is managed by Cloudflare (transfer the domain or change nameservers at your registrar to the pair Cloudflare shows you).
-3. PayFlow reachable on your machine:
-   - **MicroK8s + Multipass:** `http://www.payflow.local` (with `/etc/hosts` from `scripts/setup-hosts-payflow-local.sh`). For Cloudflare Tunnel you need a **reachable IP:port** on the host—often `kubectl port-forward` the ingress controller to `127.0.0.1:8080` and tunnel to that, or hit the Multipass VM IP where ingress listens (see [`docs/microk8s-deployment.md`](microk8s-deployment.md)).
+3. SwiftPay reachable on your machine:
+   - **MicroK8s + Multipass:** `http://www.swiftpay.local` (with `/etc/hosts` from `scripts/setup-hosts-swiftpay-local.sh`). For Cloudflare Tunnel you need a **reachable IP:port** on the host—often `kubectl port-forward` the ingress controller to `127.0.0.1:8080` and tunnel to that, or hit the Multipass VM IP where ingress listens (see [`docs/microk8s-deployment.md`](microk8s-deployment.md)).
    - **Docker Compose (optional):** `http://localhost` (port 80)—easiest tunnel target if you are on the Compose path from [`LEARNING-PATH.md`](../LEARNING-PATH.md).
 
 ---
@@ -26,7 +26,7 @@ This guide is for learners who already run PayFlow locally (**MicroK8s** or opti
 
 In Cloudflare Dashboard → **SSL/TLS** → **Overview**:
 
-| Mode | When to use with PayFlow |
+| Mode | When to use with SwiftPay |
 |------|---------------------------|
 | **Flexible** | Origin (your laptop) speaks **HTTP only**. Cloudflare talks HTTPS to browsers. Easiest for quick tests; **not** ideal for production (traffic Cloudflare → you is unencrypted). |
 | **Full** | Origin uses **HTTPS** with a certificate (even a self-signed one, if you enable “Full” not “Full (strict)”). Use if you terminate TLS locally. |
@@ -54,7 +54,7 @@ This opens a browser window and downloads a **cert.pem** into your user config. 
 ### 3. Create a tunnel
 
 ```bash
-cloudflared tunnel create payflow-lab
+cloudflared tunnel create swiftpay-lab
 ```
 
 Note the **Tunnel ID** printed. Cloudflare also creates a **credentials JSON** file under `~/.cloudflared/` — **never commit** that file (repo ignores `.cloudflared/`).
@@ -92,22 +92,22 @@ In Cloudflare Dashboard → **Zero Trust** → **Networks** → **Tunnels** → 
 Or CLI:
 
 ```bash
-cloudflared tunnel route dns payflow-lab app.yourdomain.com
+cloudflared tunnel route dns swiftpay-lab app.yourdomain.com
 ```
 
 ### 6. Run the tunnel
 
 ```bash
-cloudflared tunnel run payflow-lab
+cloudflared tunnel run swiftpay-lab
 ```
 
 For a persistent service, use **launchd** (macOS), **systemd** (Linux), or Cloudflare’s documented service install.
 
-### 7. PayFlow-specific notes
+### 7. SwiftPay-specific notes
 
 - **CORS / API URL:** If the browser loads `https://app.yourdomain.com` but the SPA was built to call `http://localhost:3000/api`, calls will fail. Prefer the **relative** `/api` path through nginx (default Docker build) so one hostname works.
 - **Cookies / JWT:** Same-site and secure cookie flags may differ over HTTPS; if login breaks, check browser devtools → Network and compare to local HTTP.
-- **Ingress hostnames:** Kubernetes manifests may still say `www.payflow.local`. For tunneling to localhost Compose, you don’t change K8s. For tunneling **directly** to an in-cluster ingress, you must add your real domain to the Ingress **rules** and TLS blocks (advanced; separate from this quickstart).
+- **Ingress hostnames:** Kubernetes manifests may still say `www.swiftpay.local`. For tunneling to localhost Compose, you don’t change K8s. For tunneling **directly** to an in-cluster ingress, you must add your real domain to the Ingress **rules** and TLS blocks (advanced; separate from this quickstart).
 
 ---
 
@@ -141,7 +141,7 @@ Use only if you **want** to forward ports 80/443 from your router to one machine
 | App loads, API `CORS` or `404` | Split hostnames vs single nginx proxy | Single hostname → port 80 with `/api` proxy |
 | Tunnel disconnects | Laptop sleep, unstable network | Run tunnel on a small always-on host (Raspberry Pi, etc.) |
 
-**PayFlow docs:** [`TROUBLESHOOTING.md`](../TROUBLESHOOTING.md) for application-level issues (DB, RabbitMQ, ingress).
+**SwiftPay docs:** [`TROUBLESHOOTING.md`](../TROUBLESHOOTING.md) for application-level issues (DB, RabbitMQ, ingress).
 
 ---
 

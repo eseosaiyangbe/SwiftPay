@@ -1,5 +1,5 @@
 # ============================================
-# PayFlow Auth Service - Optimized Multi-Stage Build
+# SwiftPay Auth Service - Optimized Multi-Stage Build
 # Target: <100MB
 # ============================================
 # Build from repo root or services/: docker build -f auth-service/Dockerfile .

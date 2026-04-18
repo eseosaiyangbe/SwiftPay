@@ -1,5 +1,5 @@
 # ============================================
-# PayFlow Local Ingress with Self-Signed TLS
+# SwiftPay Local Ingress with Self-Signed TLS
 # ============================================
 # Purpose: Routes external traffic with HTTPS using self-signed certificates
 # Use Case: Local development - test HTTPS flow without real certificates
@@ -10,22 +10,22 @@
 #   2. Create Kubernetes secret with certificate
 #
 # Access:
-#   - Frontend: https://www.payflow.local (browser warning expected)
-#   - API: https://api.payflow.local (browser warning expected)
+#   - Frontend: https://www.swiftpay.local (browser warning expected)
+#   - API: https://api.swiftpay.local (browser warning expected)
 #
 # Setup:
 #   1. Generate self-signed certificate:
 #      openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 #        -keyout tls.key -out tls.crt \
-#        -subj "/CN=payflow.local" \
-#        -addext "subjectAltName=DNS:www.payflow.local,DNS:api.payflow.local"
+#        -subj "/CN=swiftpay.local" \
+#        -addext "subjectAltName=DNS:www.swiftpay.local,DNS:api.swiftpay.local"
 #
 #   2. Create Kubernetes secret:
-#      kubectl create secret tls payflow-local-tls \
-#        --cert=tls.crt --key=tls.key -n payflow
+#      kubectl create secret tls swiftpay-local-tls \
+#        --cert=tls.crt --key=tls.key -n swiftpay
 #
 #   3. Add to /etc/hosts:
-#      127.0.0.1 www.payflow.local api.payflow.local
+#      127.0.0.1 www.swiftpay.local api.swiftpay.local
 #
 # Note: Self-signed certificates cause browser warnings. Accept the warning to proceed.
 # For production, use Let's Encrypt ingress instead.
@@ -33,8 +33,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: payflow-local-ingress
-  namespace: payflow
+  name: swiftpay-local-ingress
+  namespace: swiftpay
   annotations:
     # Force HTTPS redirect
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
@@ -47,12 +47,12 @@ spec:
   ingressClassName: nginx
   tls:
   - hosts:
-    - api.payflow.local
-    - www.payflow.local
-    secretName: payflow-local-tls  # Secret containing self-signed certificate
+    - api.swiftpay.local
+    - www.swiftpay.local
+    secretName: swiftpay-local-tls  # Secret containing self-signed certificate
   rules:
   # API Gateway routing (separate subdomain)
-  - host: api.payflow.local
+  - host: api.swiftpay.local
     http:
       paths:
       - path: /
@@ -63,7 +63,7 @@ spec:
             port:
               number: 80  # Service port (targets container port 3000)
   # Frontend routing (with /api path for backend calls)
-  - host: www.payflow.local
+  - host: www.swiftpay.local
     http:
       paths:
       # ============================================

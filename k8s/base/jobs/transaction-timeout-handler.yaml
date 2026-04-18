@@ -16,7 +16,7 @@ kind: CronJob  # Resource type - runs scheduled jobs repeatedly
 # - Job: Runs once and completes
 metadata:
   name: transaction-timeout-handler  # Unique name for this CronJob
-  namespace: payflow  # Namespace where the CronJob will run
+  namespace: swiftpay  # Namespace where the CronJob will run
 spec:
   # ============================================
   # Cron Schedule

@@ -16,18 +16,18 @@ locals {
 }
 
 # DB Subnet Group
-resource "aws_db_subnet_group" "payflow" {
-  name       = "payflow-db-subnet-group"
+resource "aws_db_subnet_group" "swiftpay" {
+  name       = "swiftpay-db-subnet-group"
   subnet_ids = data.aws_subnets.eks_private.ids
 
   tags = {
-    Name = "payflow-db-subnet-group"
+    Name = "swiftpay-db-subnet-group"
   }
 }
 
 # Security Group for RDS
 resource "aws_security_group" "rds" {
-  name        = "payflow-rds-sg"
+  name        = "swiftpay-rds-sg"
   description = "Security group for RDS PostgreSQL"
   vpc_id      = data.aws_vpc.eks.id
 
@@ -52,7 +52,7 @@ resource "aws_security_group" "rds" {
   }
 
   tags = {
-    Name = "payflow-rds-sg"
+    Name = "swiftpay-rds-sg"
   }
 }
 
@@ -63,13 +63,13 @@ resource "aws_kms_key" "rds" {
   enable_key_rotation     = true  # Required for PCI-DSS compliance
 
   tags = {
-    Name = "payflow-rds-kms-key"
+    Name = "swiftpay-rds-kms-key"
   }
 }
 
 # RDS PostgreSQL Instance
-resource "aws_db_instance" "payflow" {
-  identifier = "payflow-postgres"
+resource "aws_db_instance" "swiftpay" {
+  identifier = "swiftpay-postgres"
 
   # Engine Configuration
   engine         = "postgres"
@@ -89,7 +89,7 @@ resource "aws_db_instance" "payflow" {
   kms_key_id            = aws_kms_key.rds.arn
 
   # Network Configuration
-  db_subnet_group_name   = aws_db_subnet_group.payflow.name
+  db_subnet_group_name   = aws_db_subnet_group.swiftpay.name
   vpc_security_group_ids = [aws_security_group.rds.id]
   publicly_accessible    = false
 
@@ -113,7 +113,7 @@ resource "aws_db_instance" "payflow" {
   deletion_protection = var.deletion_protection
   skip_final_snapshot = !var.deletion_protection
   # Required when skip_final_snapshot is false (e.g. deletion_protection was true)
-  final_snapshot_identifier = var.deletion_protection ? "payflow-postgres-final-${formatdate("YYYY-MM-DD-hhmm", timestamp())}" : null
+  final_snapshot_identifier = var.deletion_protection ? "swiftpay-postgres-final-${formatdate("YYYY-MM-DD-hhmm", timestamp())}" : null
 
   # Timeouts for slow operations
   timeouts {
@@ -134,21 +134,21 @@ resource "aws_db_instance" "payflow" {
   }
 
   depends_on = [
-    aws_db_subnet_group.payflow,
+    aws_db_subnet_group.swiftpay,
     aws_security_group.rds,
     aws_kms_key.rds,
   ]
 
   tags = {
-    Name        = "payflow-postgres"
+    Name        = "swiftpay-postgres"
     Environment = var.environment
   }
 }
 
 # DB Parameter Group (optional, for custom PostgreSQL settings)
 # Name includes environment to avoid "already exists" when state is lost or multiple envs share an account.
-resource "aws_db_parameter_group" "payflow" {
-  name   = "payflow-postgres-params-${var.environment}"
+resource "aws_db_parameter_group" "swiftpay" {
+  name   = "swiftpay-postgres-params-${var.environment}"
   family = "postgres${local.postgres_family}"
 
   parameter {
@@ -158,7 +158,7 @@ resource "aws_db_parameter_group" "payflow" {
   }
 
   tags = {
-    Name = "payflow-postgres-params-${var.environment}"
+    Name = "swiftpay-postgres-params-${var.environment}"
   }
 }
 
@@ -166,20 +166,20 @@ resource "aws_db_parameter_group" "payflow" {
 # Note: Secret must exist in spoke-vpc-eks module first
 resource "null_resource" "update_rds_secret" {
   depends_on = [
-    aws_db_instance.payflow
+    aws_db_instance.swiftpay
   ]
 
   triggers = {
-    rds_endpoint = aws_db_instance.payflow.endpoint
+    rds_endpoint = aws_db_instance.swiftpay.endpoint
   }
 
   provisioner "local-exec" {
-    command     = "echo \"$${B64}\" | base64 -d > ${path.module}/.secret-rds.json && aws secretsmanager put-secret-value --secret-id payflow/${local.env}/rds --secret-string file://${path.module}/.secret-rds.json --region ${var.aws_region} || echo 'Warning: Secret may not exist yet.'"
+    command     = "echo \"$${B64}\" | base64 -d > ${path.module}/.secret-rds.json && aws secretsmanager put-secret-value --secret-id swiftpay/${local.env}/rds --secret-string file://${path.module}/.secret-rds.json --region ${var.aws_region} || echo 'Warning: Secret may not exist yet.'"
     environment = {
       B64 = base64encode(jsonencode({
         username = var.db_username
         password = var.db_password
-        host     = aws_db_instance.payflow.address
+        host     = aws_db_instance.swiftpay.address
         port     = 5432
         dbname   = var.db_name
         engine   = "postgres"

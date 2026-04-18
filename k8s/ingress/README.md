@@ -1,6 +1,6 @@
-# PayFlow Ingress Configuration
+# SwiftPay Ingress Configuration
 
-> **Purpose**: Route external traffic to PayFlow services with HTTPS support
+> **Purpose**: Route external traffic to SwiftPay services with HTTPS support
 
 ---
 
@@ -10,7 +10,7 @@
 - Ingress is a Kubernetes resource that manages external access to services
 - Acts like a reverse proxy/router (similar to Nginx or Apache)
 - Handles SSL/TLS termination (HTTPS → HTTP to services)
-- Provides domain-based routing (api.payflow.local → API Gateway, www.payflow.local → Frontend)
+- Provides domain-based routing (api.swiftpay.local → API Gateway, www.swiftpay.local → Frontend)
 
 **Why use Ingress?**
 - ✅ **Single Entry Point**: One IP address for all services
@@ -32,8 +32,8 @@
 - Simplest setup
 
 **Access**:
-- Frontend: `http://www.payflow.local`
-- API: `http://api.payflow.local`
+- Frontend: `http://www.swiftpay.local`
+- API: `http://api.swiftpay.local`
 
 **Deploy**:
 ```bash
@@ -51,8 +51,8 @@ kubectl apply -f k8s/ingress/http-ingress.yaml
 - Learning HTTPS flow
 
 **Access**:
-- Frontend: `https://www.payflow.local`
-- API: `https://api.payflow.local`
+- Frontend: `https://www.swiftpay.local`
+- API: `https://api.swiftpay.local`
 
 **Setup Steps**:
 
@@ -67,14 +67,14 @@ cd k8s/ingress
 - Creates `certs/tls.key` (private key - keep secret!)
 - Creates `certs/tls.crt` (certificate - can be shared)
 - Certificate valid for 365 days
-- Includes both `www.payflow.local` and `api.payflow.local`
+- Includes both `www.swiftpay.local` and `api.swiftpay.local`
 
 #### Step 2: Create Kubernetes Secret
 ```bash
-kubectl create secret tls payflow-local-tls \
+kubectl create secret tls swiftpay-local-tls \
   --cert=k8s/ingress/certs/tls.crt \
   --key=k8s/ingress/certs/tls.key \
-  -n payflow
+  -n swiftpay
 ```
 
 **What this does**:
@@ -88,7 +88,7 @@ kubectl apply -f k8s/ingress/tls-ingress-local.yaml
 
 #### Step 4: Get Ingress IP
 ```bash
-kubectl get ingress -n payflow
+kubectl get ingress -n swiftpay
 ```
 
 #### Step 5: Update /etc/hosts
@@ -97,7 +97,7 @@ kubectl get ingress -n payflow
 ```bash
 sudo nano /etc/hosts
 # Add this line (replace <ingress-ip> with actual IP):
-<ingress-ip> www.payflow.local api.payflow.local
+<ingress-ip> www.swiftpay.local api.swiftpay.local
 ```
 
 **Windows**:
@@ -105,17 +105,17 @@ sudo nano /etc/hosts
 2. Open `C:\Windows\System32\drivers\etc\hosts`
 3. Add this line (replace `<ingress-ip>` with actual IP):
    ```
-   <ingress-ip> www.payflow.local api.payflow.local
+   <ingress-ip> www.swiftpay.local api.swiftpay.local
    ```
 
 #### Step 6: Access Application
-- Frontend: `https://www.payflow.local`
-- API: `https://api.payflow.local`
+- Frontend: `https://www.swiftpay.local`
+- API: `https://api.swiftpay.local`
 
 **⚠️ Browser Security Warning**:
 - Browsers will show "Your connection is not private" warning
 - This is **normal** for self-signed certificates
-- Click "Advanced" → "Proceed to www.payflow.local (unsafe)"
+- Click "Advanced" → "Proceed to www.swiftpay.local (unsafe)"
 - In production, you'd use Let's Encrypt (real certificates, no warnings)
 
 ---
@@ -130,7 +130,7 @@ sudo nano /etc/hosts
 
 **Prerequisites**:
 1. **cert-manager enabled**: `microk8s enable cert-manager`
-2. **Real domain**: Must own a domain (e.g., `payflow.com`)
+2. **Real domain**: Must own a domain (e.g., `swiftpay.com`)
 3. **DNS configured**: Domain must point to ingress IP/LoadBalancer
 4. **Public access**: HTTP-01 challenge must be accessible from internet
 
@@ -167,7 +167,7 @@ kubectl apply -f k8s/ingress/tls-ingress-letsencrypt.yaml
 1. cert-manager creates ClusterIssuer
 2. Ingress requests certificate from Let's Encrypt
 3. Let's Encrypt validates domain ownership (HTTP-01 challenge)
-4. Certificate is automatically issued and stored in `payflow-tls` secret
+4. Certificate is automatically issued and stored in `swiftpay-tls` secret
 5. Certificate auto-renews before expiration (every 60 days)
 
 **Access**:
@@ -184,7 +184,7 @@ kubectl apply -f k8s/ingress/tls-ingress-letsencrypt.yaml
 ```
 User Browser
     ↓
-    http://www.payflow.local
+    http://www.swiftpay.local
     ↓
 /etc/hosts (maps to ingress IP)
     ↓
@@ -199,7 +199,7 @@ Frontend Pod (Nginx serving React app)
 ```
 User Browser
     ↓
-    https://www.payflow.local
+    https://www.swiftpay.local
     ↓
 /etc/hosts (maps to ingress IP)
     ↓
@@ -221,34 +221,34 @@ Frontend Pod (Nginx serving React app)
 ### Issue: "Connection refused" or "This site can't be reached"
 
 **Check**:
-1. Ingress is running: `kubectl get ingress -n payflow`
-2. Ingress has an IP: `kubectl get ingress payflow-local-ingress -n payflow -o wide`
-3. /etc/hosts is correct: `cat /etc/hosts | grep payflow`
-4. Services are running: `kubectl get svc -n payflow`
+1. Ingress is running: `kubectl get ingress -n swiftpay`
+2. Ingress has an IP: `kubectl get ingress swiftpay-local-ingress -n swiftpay -o wide`
+3. /etc/hosts is correct: `cat /etc/hosts | grep swiftpay`
+4. Services are running: `kubectl get svc -n swiftpay`
 
 **Solution**:
 ```bash
 # Check ingress status
-kubectl describe ingress payflow-local-ingress -n payflow
+kubectl describe ingress swiftpay-local-ingress -n swiftpay
 
 # Check ingress controller
 kubectl get pods -n ingress
 
 # Verify services
-kubectl get svc -n payflow
+kubectl get svc -n swiftpay
 ```
 
 ### Issue: "Your connection is not private" (Self-Signed Certificate)
 
 **This is normal!** Self-signed certificates always show this warning.
 
-**Solution**: Click "Advanced" → "Proceed to www.payflow.local (unsafe)"
+**Solution**: Click "Advanced" → "Proceed to www.swiftpay.local (unsafe)"
 
 **To avoid warnings**: Use Let's Encrypt (requires real domain)
 
 ### Issue: Certificate Secret Not Found
 
-**Error**: `secret "payflow-local-tls" not found`
+**Error**: `secret "swiftpay-local-tls" not found`
 
 **Solution**:
 ```bash
@@ -257,10 +257,10 @@ cd k8s/ingress
 ./generate-tls-cert.sh
 
 # Create secret
-kubectl create secret tls payflow-local-tls \
+kubectl create secret tls swiftpay-local-tls \
   --cert=k8s/ingress/certs/tls.crt \
   --key=k8s/ingress/certs/tls.key \
-  -n payflow
+  -n swiftpay
 ```
 
 ### Issue: Let's Encrypt Certificate Not Issuing
@@ -276,8 +276,8 @@ kubectl create secret tls payflow-local-tls \
 kubectl logs -n cert-manager -l app=cert-manager
 
 # Check certificate status
-kubectl get certificate -n payflow
-kubectl describe certificate payflow-tls -n payflow
+kubectl get certificate -n swiftpay
+kubectl describe certificate swiftpay-tls -n swiftpay
 ```
 
 ---
@@ -295,16 +295,16 @@ kubectl apply -f k8s/ingress/http-ingress.yaml
 cd k8s/ingress && ./generate-tls-cert.sh
 
 # 2. Create secret
-kubectl create secret tls payflow-local-tls \
+kubectl create secret tls swiftpay-local-tls \
   --cert=k8s/ingress/certs/tls.crt \
   --key=k8s/ingress/certs/tls.key \
-  -n payflow
+  -n swiftpay
 
 # 3. Deploy ingress
 kubectl apply -f k8s/ingress/tls-ingress-local.yaml
 
 # 4. Get IP and update /etc/hosts
-kubectl get ingress -n payflow
+kubectl get ingress -n swiftpay
 ```
 
 ### Deploy TLS Ingress (Production, Let's Encrypt)
@@ -321,10 +321,10 @@ kubectl apply -f k8s/ingress/tls-ingress-letsencrypt.yaml
 ### Check Ingress Status
 ```bash
 # List all ingresses
-kubectl get ingress -n payflow
+kubectl get ingress -n swiftpay
 
 # Detailed information
-kubectl describe ingress payflow-local-ingress -n payflow
+kubectl describe ingress swiftpay-local-ingress -n swiftpay
 
 # Check ingress controller
 kubectl get pods -n ingress
@@ -343,6 +343,6 @@ kubectl get pods -n ingress
 
 ---
 
-*Document created for PayFlow ingress configuration*  
+*Document created for SwiftPay ingress configuration*  
 *Last updated: December 25, 2025*
 

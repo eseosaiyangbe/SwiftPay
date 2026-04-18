@@ -8,7 +8,7 @@ The EKS stack uses a **one-off bootstrap EC2 instance** that installs Helm add-o
 
 - You ran `terraform apply` for the spoke-vpc-eks module.
 - The Ingress resource never gets an external hostname / ALB address.
-- `kubectl get ingress -n payflow` shows `ADDRESS` empty or `<pending>`.
+- `kubectl get ingress -n swiftpay` shows `ADDRESS` empty or `<pending>`.
 
 **Likely cause:** The bootstrap script failed (e.g. Helm timeout, IRSA not propagated yet, spot interruption). The bootstrap instance is still running, so Terraform does not create a new one on re-apply.
 

@@ -1,4 +1,4 @@
-# #### Grafana Deployment for PayFlow Monitoring ####
+# #### Grafana Deployment for SwiftPay Monitoring ####
 # #### Grafana provides visualization and dashboards for Prometheus metrics ####
 # For production: Replace grafana-admin Secret with ESO sync from Secrets Manager
 #
@@ -66,12 +66,12 @@ metadata:
   labels:
     app: grafana
 data:
-  payflow.yaml: |
+  swiftpay.yaml: |
     apiVersion: 1
     providers:
-      - name: PayFlow
+      - name: SwiftPay
         orgId: 1
-        folder: PayFlow
+        folder: SwiftPay
         type: file
         disableDeletion: false
         updateIntervalSeconds: 30

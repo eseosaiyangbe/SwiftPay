@@ -1,11 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: payflow
+namespace: swiftpay
 
 # Base resources
   # Local infrastructure (copies under overlay so Kustomize allows; sync from k8s/infrastructure/ if those change)
-  # Local only: Ingress for www.payflow.local / api.payflow.local (EKS uses ALB; not in this overlay)
+  # Local only: Ingress for www.swiftpay.local / api.swiftpay.local (EKS uses ALB; not in this overlay)
 resources:
 - ../../base
 - secrets-db-secrets.yaml

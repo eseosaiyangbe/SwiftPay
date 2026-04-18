@@ -1,4 +1,4 @@
-# Microservices vs. Modular Monolith: PayFlow Architecture Choice
+# Microservices vs. Modular Monolith: SwiftPay Architecture Choice
 
 The codebase today is a **distributed monolith**: multiple Node.js services, but one shared database, shared secrets, synchronous cross-service calls, and deployment as a unit. This doc lays out the tradeoff and two paths.
 
@@ -22,7 +22,7 @@ You don’t need full “database per service” or event-driven everything for 
 
 ## Why the audit called it a distributed monolith
 
-| Microservices goal | PayFlow today |
+| Microservices goal | SwiftPay today |
 |--------------------|----------------|
 | **Independent deployability** | All services deploy together; DB migrations and shared schema tie releases. |
 | **Fault isolation** | One DB and shared Redis; a DB outage takes down every service. |
@@ -32,7 +32,7 @@ You don’t need full “database per service” or event-driven everything for 
 
 Concrete issues:
 
-- **One shared database** – auth, wallet, transaction, notification all use the same `payflow` DB and tables (e.g. `users`).
+- **One shared database** – auth, wallet, transaction, notification all use the same `swiftpay` DB and tables (e.g. `users`).
 - **Shared secret** – `JWT_SECRET` is the same everywhere; no per-service identity boundary.
 - **Sync coupling** – API Gateway used to call auth-service on every request (now fixed with local JWT verify); notification-service still reads auth’s `users` table for email/name.
 - **Deploy as a unit** – K8s/docker-compose treat the app as one system; no “deploy only wallet-service” story.
@@ -89,7 +89,7 @@ Use this as a checklist; order is intentional.
 ### Phase 1: Database and data ownership
 
 1. **Database per service (or schema per service with strict ownership)**  
-   - **Option A:** Separate Postgres DBs (e.g. `payflow_auth`, `payflow_wallet`, `payflow_transactions`, `payflow_notifications`). Each service connects only to its own DB.  
+   - **Option A:** Separate Postgres DBs (e.g. `swiftpay_auth`, `swiftpay_wallet`, `swiftpay_transactions`, `swiftpay_notifications`). Each service connects only to its own DB.  
    - **Option B:** One Postgres instance, separate schemas (`auth`, `wallet`, `transactions`, `notifications`) and DB users so each service has access only to its schema.  
    - Migrate data and point each service at its own DB/schema. No service may `SELECT`/`INSERT` into another service’s tables.
 
@@ -108,7 +108,7 @@ Use this as a checklist; order is intentional.
    - Example: “Send money” → gateway calls transaction-service → transaction-service emits “TransactionCompleted” (or similar) with all data needed for notifications (amount, recipient name/email, etc.). Notification-service consumes the event and sends email; it does not look up users in a DB.
 
 6. **Service discovery and config**  
-   - In K8s, use DNS (e.g. `http://wallet-service.payflow.svc:3001`). Store URLs and feature flags in ConfigMaps/Secrets or a config service, not hardcoded in code.
+   - In K8s, use DNS (e.g. `http://wallet-service.swiftpay.svc:3001`). Store URLs and feature flags in ConfigMaps/Secrets or a config service, not hardcoded in code.
 
 ### Phase 3: Independent deployability
 

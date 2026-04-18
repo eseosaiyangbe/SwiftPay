@@ -38,5 +38,5 @@ If you can’t re-apply spoke or workspaces differ:
 
 ## Verify
 
-- In AWS Console: RDS → your DB → VPC security groups → `payflow-rds-sg` → Inbound rules should allow **5432** from both the cluster SG and the node SG (or a rule that includes the node SG).
+- In AWS Console: RDS → your DB → VPC security groups → `swiftpay-rds-sg` → Inbound rules should allow **5432** from both the cluster SG and the node SG (or a rule that includes the node SG).
 - Then redeploy: `cd k8s/overlays/eks && IMAGE_TAG=<your-tag> ./deploy.sh`. The deploy script deletes and recreates the migration job, so migration will run again after RDS is reachable.

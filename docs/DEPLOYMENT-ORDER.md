@@ -11,7 +11,7 @@ Deploy in this order using **targets** (no full `terraform apply` until the end 
 | 0 | `terraform/` | `./bootstrap.sh --aws-only` (first time only) |
 | 1 | `terraform/aws/hub-vpc` | `terraform init` → `terraform workspace new dev` → `terraform apply` |
 | 2.1 | `terraform/aws/spoke-vpc-eks` | `terraform apply -target=aws_ec2_transit_gateway_vpc_attachment.eks` |
-| 2.2 | same | `terraform apply -target=aws_eks_cluster.payflow` |
+| 2.2 | same | `terraform apply -target=aws_eks_cluster.swiftpay` |
 | 2.3 | same | `terraform apply -target=aws_eks_addon.vpc_cni` |
 | 2.4 | same | `terraform apply -target=aws_eks_node_group.on_demand` |
 | 2.5 | same | `terraform apply -target=aws_eks_addon.coredns` |
@@ -116,7 +116,7 @@ terraform plan -out=tfplan
 
 ```bash
 terraform apply -target=aws_ec2_transit_gateway_vpc_attachment.eks   # 3.1 net
-terraform apply -target=aws_eks_cluster.payflow                        # 3.2 cluster
+terraform apply -target=aws_eks_cluster.swiftpay                        # 3.2 cluster
 terraform apply -target=aws_eks_addon.vpc_cni                         # 3.3 CNI
 terraform apply -target=aws_eks_node_group.on_demand                  # 3.4 nodes
 terraform apply -target=aws_eks_addon.coredns                         # 3.5 coredns
@@ -126,7 +126,7 @@ terraform apply                                                       # 3.6 rest
 | Step | Command | Creates |
 |------|---------|--------|
 | 3.1 | `terraform apply -target=aws_ec2_transit_gateway_vpc_attachment.eks` | VPC, subnets, NAT, TGW attachment |
-| 3.2 | `terraform apply -target=aws_eks_cluster.payflow` | EKS control plane |
+| 3.2 | `terraform apply -target=aws_eks_cluster.swiftpay` | EKS control plane |
 | 3.3 | `terraform apply -target=aws_eks_addon.vpc_cni` | VPC CNI addon |
 | 3.4 | `terraform apply -target=aws_eks_node_group.on_demand` | Worker nodes |
 | 3.5 | `terraform apply -target=aws_eks_addon.coredns` | CoreDNS addon |
@@ -135,11 +135,11 @@ terraform apply                                                       # 3.6 rest
 **Confirm what exists in AWS (CLI):**
 ```bash
 aws sts get-caller-identity
-aws ec2 describe-vpcs --filters "Name=tag:Name,Values=payflow-eks-vpc" --query 'Vpcs[].{VpcId:VpcId,CidrBlock:CidrBlock}' --output table
+aws ec2 describe-vpcs --filters "Name=tag:Name,Values=swiftpay-eks-vpc" --query 'Vpcs[].{VpcId:VpcId,CidrBlock:CidrBlock}' --output table
 aws eks list-clusters --query 'clusters' --output table
-aws eks describe-cluster --name payflow-eks-cluster --query 'cluster.{status:status,endpoint:endpoint}' --output table
+aws eks describe-cluster --name swiftpay-eks-cluster --query 'cluster.{status:status,endpoint:endpoint}' --output table
 aws ecr describe-repositories --query 'repositories[].repositoryName' --output table
-aws ec2 describe-transit-gateway-vpc-attachments --filters "Name=vpc-id,Values=$(aws ec2 describe-vpcs --filters Name=tag:Name,Values=payflow-eks-vpc --query 'Vpcs[0].VpcId' --output text)" --query 'TransitGatewayVpcAttachments[].State' --output text
+aws ec2 describe-transit-gateway-vpc-attachments --filters "Name=vpc-id,Values=$(aws ec2 describe-vpcs --filters Name=tag:Name,Values=swiftpay-eks-vpc --query 'Vpcs[0].VpcId' --output text)" --query 'TransitGatewayVpcAttachments[].State' --output text
 ```
 
 **Accessing EKS (private endpoint):** The EKS API is private. All `kubectl` commands must be run from inside the VPC. Options: (1) SSM to the bootstrap instance (before it self-terminates) or (2) bastion (Phase 5) or VPN.
@@ -152,23 +152,23 @@ aws ec2 describe-transit-gateway-vpc-attachments --filters "Name=vpc-id,Values=$
 ```bash
 # Get bastion IP (from terraform/aws/bastion: terraform output)
 # SSH to bastion
-ssh -i ~/.ssh/payflow-bastion-key.pem ec2-user@<bastion-ip>
+ssh -i ~/.ssh/swiftpay-bastion-key.pem ec2-user@<bastion-ip>
 
 # On bastion: configure kubectl (once)
-aws eks update-kubeconfig --name payflow-eks-cluster --region us-east-1
+aws eks update-kubeconfig --name swiftpay-eks-cluster --region us-east-1
 ```
 
-**Optional — SSH config (skip if already added):** Add to `~/.ssh/config` so you can run `ssh payflow-bastion`:
+**Optional — SSH config (skip if already added):** Add to `~/.ssh/config` so you can run `ssh swiftpay-bastion`:
 ```sshconfig
 # Key-based SSH
-Host payflow-bastion
+Host swiftpay-bastion
   HostName <bastion-public-ip>
   User ec2-user
-  IdentityFile ~/.ssh/payflow-bastion-key.pem
+  IdentityFile ~/.ssh/swiftpay-bastion-key.pem
 ```
 If bastion has SSM and you prefer not to open port 22:
 ```sshconfig
-Host payflow-bastion
+Host swiftpay-bastion
   HostName <bastion-instance-id>
   User ec2-user
   ProxyCommand aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p
@@ -186,7 +186,7 @@ terraform apply -target=aws_ec2_transit_gateway_vpc_attachment.eks
 
 #### Step 3.2: EKS Cluster (without nodes)
 ```bash
-terraform apply -target=aws_eks_cluster.payflow
+terraform apply -target=aws_eks_cluster.swiftpay
 ```
 **Why:** Cluster API must exist before addons and nodes.
 
@@ -319,9 +319,9 @@ cd k8s/overlays/eks
 
 **Verify deployment:** *(Run from bastion; see "Accessing EKS" in Phase 3.)*
 ```bash
-kubectl get pods -n payflow
-kubectl get svc -n payflow
-kubectl logs -n payflow deployment/api-gateway
+kubectl get pods -n swiftpay
+kubectl get svc -n swiftpay
+kubectl logs -n swiftpay deployment/api-gateway
 ```
 
 ## Deployment Order (Azure AKS)
@@ -404,18 +404,18 @@ The script runs the database migration job and waits for it to complete before d
 1. **One-time:** Enable Access Entries on the cluster via AWS CLI (no cluster replace):
    ```bash
    aws eks update-cluster-config \
-     --name payflow-eks-cluster \
+     --name swiftpay-eks-cluster \
      --access-config authenticationMode=API_AND_CONFIG_MAP \
      --region us-east-1
    ```
-   Wait until the cluster status is ACTIVE again (EKS console or `aws eks describe-cluster --name payflow-eks-cluster --query 'cluster.status'`).  
+   Wait until the cluster status is ACTIVE again (EKS console or `aws eks describe-cluster --name swiftpay-eks-cluster --query 'cluster.status'`).  
 2. **Terraform:** We set `ignore_changes = [access_config]` on the cluster so Terraform won’t try to replace it. Run `terraform apply` again; the cluster won’t be in the plan, and the access entry + node group will apply.
 
 ### Issue: "ResourceInUseException" (409) on EKS Access Entry
 **Cause:** The access entry for the node role already exists in AWS (e.g. EKS created it when the node group joined).
 **Solution:** Import it so Terraform manages it (replace ACCOUNT_ID with your AWS account ID):
 ```bash
-terraform import aws_eks_access_entry.node_role payflow-eks-cluster:arn:aws:iam::ACCOUNT_ID:role/payflow-eks-node-role
+terraform import aws_eks_access_entry.node_role swiftpay-eks-cluster:arn:aws:iam::ACCOUNT_ID:role/swiftpay-eks-node-role
 ```
 Then run `terraform apply` again.
 
@@ -425,7 +425,7 @@ Then run `terraform apply` again.
 
 ### Issue: "NodeGroup already exists" (409) on on-demand node group
 **Cause:** The node group exists in AWS but Terraform state doesn’t have it (e.g. a previous apply partially succeeded).
-**Solution:** Import it: `terraform import aws_eks_node_group.on_demand payflow-eks-cluster:payflow-on-demand`. If the node group is in "Create failed" state in the EKS console, delete it in the console first, then run `terraform apply` so Terraform creates it again.
+**Solution:** Import it: `terraform import aws_eks_node_group.on_demand swiftpay-eks-cluster:swiftpay-on-demand`. If the node group is in "Create failed" state in the EKS console, delete it in the console first, then run `terraform apply` so Terraform creates it again.
 
 ### Issue: "Error: ImagePullBackOff"
 **Solution:** Replace `<ACCOUNT_ID>` in `k8s/overlays/eks/kustomization.yaml` or run `./deploy.sh`.
@@ -441,7 +441,7 @@ Then run `terraform apply` again.
 ### Rollback Application
 *(Run from bastion; see "Accessing EKS" in Phase 3.)*
 ```bash
-kubectl rollout undo deployment/[service-name] -n payflow
+kubectl rollout undo deployment/[service-name] -n swiftpay
 ```
 
 ### Rollback Infrastructure
@@ -455,7 +455,7 @@ aws s3 cp s3://[bucket]/env:/dev/eks/terraform.tfstate \
 ```bash
 # Restore from snapshot (if created before migration)
 aws rds restore-db-instance-from-db-snapshot \
-  --db-instance-identifier payflow-postgres-restored \
+  --db-instance-identifier swiftpay-postgres-restored \
   --db-snapshot-identifier pre-migration-[date]
 ```
 

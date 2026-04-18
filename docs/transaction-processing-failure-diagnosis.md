@@ -20,7 +20,7 @@
 
 ### Step 1: Check Transaction Status Breakdown
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT status, COUNT(*) as count 
    FROM transactions 
    GROUP BY status 
@@ -40,7 +40,7 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
 
 ### Step 2: View Recent Transactions
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT id, status, error_message, created_at 
    FROM transactions 
    ORDER BY created_at DESC 
@@ -62,7 +62,7 @@ TXN-1766702326092-B5J6HU8AJ | COMPLETED | (null)                          | 2025
 
 ### Step 3: Check Service Health
 ```bash
-kubectl get pods -n payflow | grep -E "rabbitmq|transaction|wallet"
+kubectl get pods -n swiftpay | grep -E "rabbitmq|transaction|wallet"
 ```
 
 **Result**:
@@ -80,7 +80,7 @@ wallet-service-7f84487578-g77zm        1/1     Running   2                32h
 
 ### Step 4: Check Transaction Service Logs
 ```bash
-kubectl logs deployment/transaction-service -n payflow --tail=50 | grep -i error
+kubectl logs deployment/transaction-service -n swiftpay --tail=50 | grep -i error
 ```
 
 **Result**:
@@ -101,7 +101,7 @@ error: RabbitMQ connection error: connect ETIMEDOUT 10.152.183.80:5672
 
 ### Step 5: Check RabbitMQ Deployment
 ```bash
-kubectl get deployment rabbitmq -n payflow
+kubectl get deployment rabbitmq -n swiftpay
 ```
 
 **Result**:
@@ -116,7 +116,7 @@ rabbitmq   0/1     0            0           19d
 
 ### Step 6: Check RabbitMQ Service
 ```bash
-kubectl get svc rabbitmq -n payflow
+kubectl get svc rabbitmq -n swiftpay
 ```
 
 **Result**:
@@ -131,7 +131,7 @@ rabbitmq   ClusterIP   10.152.183.80   5672/TCP,15672/TCP   19d
 
 ### Step 7: Describe RabbitMQ Deployment
 ```bash
-kubectl describe deployment rabbitmq -n payflow | tail -20
+kubectl describe deployment rabbitmq -n swiftpay | tail -20
 ```
 
 **Result**:
@@ -152,7 +152,7 @@ NewReplicaSet:  rabbitmq-f65996c9f (0/1 replicas created)
 
 ### Step 8: Check ReplicaSet Events
 ```bash
-kubectl describe rs rabbitmq-f65996c9f -n payflow | grep -A 10 Events
+kubectl describe rs rabbitmq-f65996c9f -n swiftpay | grep -A 10 Events
 ```
 
 **ROOT CAUSE FOUND**:
@@ -161,7 +161,7 @@ Events:
   Type     Reason        Message
   ----     ------        -------
   Warning  FailedCreate  Error creating: pods "rabbitmq-f65996c9f-ls6rc" is forbidden: 
-                         failed quota: payflow-resource-quota: 
+                         failed quota: swiftpay-resource-quota: 
                          must specify limits.cpu for: rabbitmq; 
                          limits.memory for: rabbitmq; 
                          requests.cpu for: rabbitmq; 
@@ -174,7 +174,7 @@ Events:
 
 **RabbitMQ deployment is missing `resources` section!**
 
-Because we have a `payflow-resource-quota` active, **every** container must specify:
+Because we have a `swiftpay-resource-quota` active, **every** container must specify:
 - `requests.cpu` and `requests.memory` (minimum guaranteed)
 - `limits.cpu` and `limits.memory` (maximum allowed)
 
@@ -232,7 +232,7 @@ Without this, Kubernetes **refuses to create the pod**.
 
 ### Check Transaction Status Distribution
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT status, COUNT(*) as count 
    FROM transactions 
    GROUP BY status;"
@@ -242,7 +242,7 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
 
 ### Find Last Successful Transaction
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT id, from_user_id, to_user_id, amount, created_at 
    FROM transactions 
    WHERE status = 'COMPLETED' 
@@ -254,7 +254,7 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
 
 ### Check Error Message Distribution
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT error_message, COUNT(*) as count 
    FROM transactions 
    WHERE status = 'FAILED' 
@@ -272,7 +272,7 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
 
 ### Check Pending Transaction Age
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT id, 
           EXTRACT(EPOCH FROM (NOW() - created_at)) as age_seconds,
           created_at 
@@ -287,7 +287,7 @@ If age > 60 seconds, they should have been reversed already.
 
 ### Check Transaction Rate Over Time
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT 
      DATE(created_at) as date, 
      status, 
@@ -318,7 +318,7 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
 
 ### Check Wallet Balances
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT user_id, balance, created_at, updated_at 
    FROM wallets 
    ORDER BY updated_at DESC 
@@ -331,7 +331,7 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
 ```bash
 USER_ID="user-1766680340518-a43da3fkw"
 
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT id, to_user_id, amount, status, error_message, created_at 
    FROM transactions 
    WHERE from_user_id = '$USER_ID' 
@@ -345,30 +345,30 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
 
 ### Method 1: Direct Query (Fastest)
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "SELECT NOW();"
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "SELECT NOW();"
 ```
 
 ### Method 2: Interactive Session
 ```bash
-kubectl exec -it postgres-0 -n payflow -- psql -U payflow -d payflow
+kubectl exec -it postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay
 ```
 
 ### Method 3: Port Forward (For GUI Tools)
 ```bash
-kubectl port-forward postgres-0 5432:5432 -n payflow
+kubectl port-forward postgres-0 5432:5432 -n swiftpay
 # Then connect with pgAdmin/DBeaver to localhost:5432
 ```
 
 ### Method 4: Get Credentials
 ```bash
 # Username
-kubectl get secret db-secrets -n payflow -o jsonpath='{.data.DB_USER}' | base64 -d
+kubectl get secret db-secrets -n swiftpay -o jsonpath='{.data.DB_USER}' | base64 -d
 
 # Password
-kubectl get secret db-secrets -n payflow -o jsonpath='{.data.DB_PASSWORD}' | base64 -d
+kubectl get secret db-secrets -n swiftpay -o jsonpath='{.data.DB_PASSWORD}' | base64 -d
 
 # Database name
-kubectl get configmap app-config -n payflow -o jsonpath='{.data.DB_NAME}'
+kubectl get configmap app-config -n swiftpay -o jsonpath='{.data.DB_NAME}'
 ```
 
 ---
@@ -379,7 +379,7 @@ When transactions aren't completing, check in this order:
 
 ### ✅ Step 1: Database Health
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "SELECT NOW();"
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "SELECT NOW();"
 ```
 Expected: Returns current timestamp
 
@@ -387,7 +387,7 @@ Expected: Returns current timestamp
 
 ### ✅ Step 2: Transaction Status Distribution
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT status, COUNT(*) FROM transactions GROUP BY status;"
 ```
 Expected: Mix of COMPLETED, FAILED, maybe 1-2 PENDING
@@ -396,7 +396,7 @@ Expected: Mix of COMPLETED, FAILED, maybe 1-2 PENDING
 
 ### ✅ Step 3: Check RabbitMQ Pod
 ```bash
-kubectl get pods -n payflow | grep rabbitmq
+kubectl get pods -n swiftpay | grep rabbitmq
 ```
 Expected: 1 pod Running
 **Current**: NO PODS ❌
@@ -405,8 +405,8 @@ Expected: 1 pod Running
 
 ### ✅ Step 4: Check Transaction Service
 ```bash
-kubectl get pods -n payflow | grep transaction
-kubectl logs deployment/transaction-service -n payflow --tail=20
+kubectl get pods -n swiftpay | grep transaction
+kubectl logs deployment/transaction-service -n swiftpay --tail=20
 ```
 Expected: Pods running, no connection errors
 **Current**: Connection timeout to RabbitMQ ❌
@@ -415,8 +415,8 @@ Expected: Pods running, no connection errors
 
 ### ✅ Step 5: Check Wallet Service
 ```bash
-kubectl get pods -n payflow | grep wallet
-kubectl logs deployment/wallet-service -n payflow --tail=20
+kubectl get pods -n swiftpay | grep wallet
+kubectl logs deployment/wallet-service -n swiftpay --tail=20
 ```
 Expected: Pods running, processing requests
 
@@ -424,7 +424,7 @@ Expected: Pods running, processing requests
 
 ### ✅ Step 6: Check RabbitMQ Service
 ```bash
-kubectl get svc rabbitmq -n payflow
+kubectl get svc rabbitmq -n swiftpay
 ```
 Expected: Service exists with ClusterIP
 **Current**: Service exists but no pods behind it ❌
@@ -433,7 +433,7 @@ Expected: Service exists with ClusterIP
 
 ### ✅ Step 7: Check RabbitMQ Deployment
 ```bash
-kubectl describe deployment rabbitmq -n payflow | tail -20
+kubectl describe deployment rabbitmq -n swiftpay | tail -20
 ```
 Expected: ReplicaSet with 1/1 ready
 **Current**: ReplicaFailure - FailedCreate ❌
@@ -442,7 +442,7 @@ Expected: ReplicaSet with 1/1 ready
 
 ### ✅ Step 8: Check Resource Quota
 ```bash
-kubectl describe resourcequota payflow-resource-quota -n payflow
+kubectl describe resourcequota swiftpay-resource-quota -n swiftpay
 ```
 Shows current usage vs limits
 
@@ -450,7 +450,7 @@ Shows current usage vs limits
 
 ### ✅ Step 9: Check Recent Transaction Logs
 ```bash
-kubectl logs deployment/transaction-service -n payflow --tail=100 | grep -i "created transaction\|rabbitmq"
+kubectl logs deployment/transaction-service -n swiftpay --tail=100 | grep -i "created transaction\|rabbitmq"
 ```
 Expected: Successful RabbitMQ message publishing
 **Current**: Connection timeouts ❌
@@ -566,7 +566,7 @@ curl -X POST api-gateway/transactions
 
 ### Check if transactions are processing
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT COUNT(*) FROM transactions WHERE status = 'COMPLETED' AND created_at > NOW() - INTERVAL '5 minutes';"
 ```
 Expected: > 0 if system is healthy
@@ -575,7 +575,7 @@ Expected: > 0 if system is healthy
 
 ### Check RabbitMQ is running
 ```bash
-kubectl get pods -n payflow | grep rabbitmq | grep Running
+kubectl get pods -n swiftpay | grep rabbitmq | grep Running
 ```
 Expected: 1 line
 
@@ -583,7 +583,7 @@ Expected: 1 line
 
 ### Check transaction service can connect to RabbitMQ
 ```bash
-kubectl logs deployment/transaction-service -n payflow --tail=50 | grep -i rabbitmq
+kubectl logs deployment/transaction-service -n swiftpay --tail=50 | grep -i rabbitmq
 ```
 Expected: No timeout errors
 
@@ -592,7 +592,7 @@ Expected: No timeout errors
 ### Force process a stuck transaction manually
 ```bash
 # 1. Get transaction details
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT * FROM transactions WHERE id = 'TXN-...';"
 
 # 2. If it's truly stuck and RabbitMQ is now healthy, you could:

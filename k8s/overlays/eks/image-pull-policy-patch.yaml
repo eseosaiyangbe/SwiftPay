@@ -5,7 +5,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api-gateway
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:
@@ -17,7 +17,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: auth-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:
@@ -29,7 +29,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: wallet-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:
@@ -41,7 +41,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: transaction-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:
@@ -53,7 +53,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: notification-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:
@@ -65,7 +65,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: payflow
+  namespace: swiftpay
 spec:
   template:
     spec:

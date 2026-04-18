@@ -8,18 +8,18 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: redis-exporter-secret
-  namespace: payflow
+  namespace: swiftpay
   labels:
     app: redis-exporter
 type: Opaque
 stringData:
-  REDIS_ADDR: "redis.payflow.svc.cluster.local:6379"  # Local; EKS: ESO overwrites with ElastiCache
+  REDIS_ADDR: "redis.swiftpay.svc.cluster.local:6379"  # Local; EKS: ESO overwrites with ElastiCache
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis-exporter
-  namespace: payflow
+  namespace: swiftpay
   labels:
     app: redis-exporter
 spec:
@@ -70,7 +70,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis-exporter
-  namespace: payflow
+  namespace: swiftpay
   labels:
     app: redis-exporter
 spec:

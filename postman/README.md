@@ -1,6 +1,6 @@
 # API Examples (Postman / cURL)
 
-Use these to hit the PayFlow API after `docker-compose up`. Base URL when running locally: **http://localhost:3000** (API Gateway). Full reference: [../docs/SERVICES.md](../docs/SERVICES.md).
+Use these to hit the SwiftPay API after `docker-compose up`. Base URL when running locally: **http://localhost:3000** (API Gateway). Full reference: [../docs/SERVICES.md](../docs/SERVICES.md).
 
 ## 1. Register
 
@@ -48,4 +48,4 @@ curl -X POST http://localhost:3000/api/transactions \
 
 ## Postman collection
 
-You can add a `PayFlow.postman_collection.json` in this folder and import it in Postman. The requests above match the same endpoints and bodies.
+You can add a `SwiftPay.postman_collection.json` in this folder and import it in Postman. The requests above match the same endpoints and bodies.

@@ -25,7 +25,7 @@ app.use(metricsMiddleware);
 
 // PostgreSQL connection (ssl required for AWS RDS; PGSSLMODE from app-config)
 // rejectUnauthorized: false so RDS TLS cert is accepted (RDS cert not in Node default trust store)
-const DEFAULT_INSECURE_DB_PASSWORD = 'payflow123';
+const DEFAULT_INSECURE_DB_PASSWORD = 'swiftpay123';
 if (process.env.NODE_ENV === 'production') {
   if (!process.env.DB_PASSWORD || process.env.DB_PASSWORD === DEFAULT_INSECURE_DB_PASSWORD) {
     throw new Error('DB_PASSWORD must be set to a non-default value in production (do not use the default placeholder)');
@@ -34,8 +34,8 @@ if (process.env.NODE_ENV === 'production') {
 const pool = new Pool({
   host: process.env.DB_HOST || 'postgres',
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'payflow',
-  user: process.env.DB_USER || 'payflow',
+  database: process.env.DB_NAME || 'swiftpay',
+  user: process.env.DB_USER || 'swiftpay',
   password: process.env.DB_PASSWORD || DEFAULT_INSECURE_DB_PASSWORD,
   max: parseInt(process.env.PG_POOL_MAX || '5', 10),
   ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: false } : false,

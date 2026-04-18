@@ -4,7 +4,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: api-gateway-hpa
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minReplicas: 1
 ---
@@ -12,7 +12,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: auth-service-hpa
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minReplicas: 1
 ---
@@ -20,7 +20,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: wallet-service-hpa
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minReplicas: 1
 ---
@@ -28,7 +28,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: transaction-service-hpa
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minReplicas: 1
 ---
@@ -36,7 +36,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: notification-service-hpa
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minReplicas: 1
 ---
@@ -44,6 +44,6 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: frontend-hpa
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minReplicas: 1

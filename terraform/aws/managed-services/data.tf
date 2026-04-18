@@ -5,7 +5,7 @@
 data "aws_vpc" "eks" {
   filter {
     name   = "tag:Name"
-    values = ["payflow-eks-vpc"]
+    values = ["swiftpay-eks-vpc"]
   }
 }
 
@@ -16,7 +16,7 @@ data "aws_subnets" "eks_private" {
   }
   filter {
     name   = "tag:Name"
-    values = ["payflow-eks-private-subnet-*"]
+    values = ["swiftpay-eks-private-subnet-*"]
   }
 }
 
@@ -29,11 +29,11 @@ data "aws_security_groups" "eks_cluster_sg" {
   }
   filter {
     name   = "tag:aws:eks:cluster-name"
-    values = ["payflow-eks-cluster"]
+    values = ["swiftpay-eks-cluster"]
   }
 }
 
-# Node SG: spoke creates with tag Name = "payflow-eks-cluster-<env>-nodes-sg"
+# Node SG: spoke creates with tag Name = "swiftpay-eks-cluster-<env>-nodes-sg"
 data "aws_security_groups" "eks_nodes" {
   filter {
     name   = "vpc-id"
@@ -41,7 +41,7 @@ data "aws_security_groups" "eks_nodes" {
   }
   filter {
     name   = "tag:Name"
-    values = ["payflow-eks-cluster-${local.env}-nodes-sg"]
+    values = ["swiftpay-eks-cluster-${local.env}-nodes-sg"]
   }
 }
 
@@ -57,7 +57,7 @@ data "terraform_remote_state" "spoke" {
 }
 
 locals {
-  # Match spoke-vpc-eks secret paths (payflow/<workspace>/...) so ESO can sync
+  # Match spoke-vpc-eks secret paths (swiftpay/<workspace>/...) so ESO can sync
   env = terraform.workspace
   # Only use SG IDs that exist in AWS (lookup by tag); never use API/state IDs that may be stale
   eks_sg_id      = length(data.aws_security_groups.eks_cluster_sg.ids) > 0 ? data.aws_security_groups.eks_cluster_sg.ids[0] : null

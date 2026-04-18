@@ -2,7 +2,7 @@
 
 # IAM Role for EKS Cluster
 resource "aws_iam_role" "eks_cluster" {
-  name = "payflow-eks-cluster-role"
+  name = "swiftpay-eks-cluster-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -18,7 +18,7 @@ resource "aws_iam_role" "eks_cluster" {
   })
 
   tags = merge(local.common_tags, {
-    Name   = "payflow-eks-cluster-role"
+    Name   = "swiftpay-eks-cluster-role"
     module = "spoke-vpc-eks"
   })
 }
@@ -45,14 +45,14 @@ resource "aws_kms_key" "eks" {
   enable_key_rotation     = true  # Required for PCI-DSS compliance
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-kms-key"
+    Name      = "swiftpay-eks-kms-key"
     module    = "spoke-vpc-eks"
     Component = "kms-eks"
   })
 }
 
 # EKS Cluster
-resource "aws_eks_cluster" "payflow" {
+resource "aws_eks_cluster" "swiftpay" {
   name     = var.eks_cluster_name
   role_arn = aws_iam_role.eks_cluster.arn
   version  = var.kubernetes_version
@@ -119,7 +119,7 @@ resource "aws_cloudwatch_log_group" "eks_cluster" {
   retention_in_days = 365  # 1 year minimum for fintech compliance
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-cluster-logs"
+    Name      = "swiftpay-eks-cluster-logs"
     module    = "spoke-vpc-eks"
     Component = "cloudwatch-logs"
   })
@@ -127,7 +127,7 @@ resource "aws_cloudwatch_log_group" "eks_cluster" {
 
 # Wait for cluster to be fully ready before proceeding
 resource "time_sleep" "wait_for_cluster" {
-  depends_on = [aws_eks_cluster.payflow]
+  depends_on = [aws_eks_cluster.swiftpay]
   create_duration = "60s"   # was 30s
 }
 
@@ -139,7 +139,7 @@ resource "time_sleep" "wait_for_oidc" {
 
 # OIDC Provider for IRSA (IAM Roles for Service Accounts)
 data "tls_certificate" "eks" {
-  url = aws_eks_cluster.payflow.identity[0].oidc[0].issuer
+  url = aws_eks_cluster.swiftpay.identity[0].oidc[0].issuer
 
   depends_on = [time_sleep.wait_for_cluster]
 }
@@ -147,12 +147,12 @@ data "tls_certificate" "eks" {
 resource "aws_iam_openid_connect_provider" "eks" {
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
-  url              = aws_eks_cluster.payflow.identity[0].oidc[0].issuer
+  url              = aws_eks_cluster.swiftpay.identity[0].oidc[0].issuer
 
   depends_on = [data.tls_certificate.eks]
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-oidc-provider"
+    Name      = "swiftpay-eks-oidc-provider"
     module    = "spoke-vpc-eks"
     Component = "oidc-provider"
   })
@@ -160,7 +160,7 @@ resource "aws_iam_openid_connect_provider" "eks" {
 
 # EKS Addon: VPC CNI (MUST be installed before nodes)
 resource "aws_eks_addon" "vpc_cni" {
-  cluster_name             = aws_eks_cluster.payflow.name
+  cluster_name             = aws_eks_cluster.swiftpay.name
   addon_name               = "vpc-cni"
   service_account_role_arn = aws_iam_role.vpc_cni_irsa.arn
 
@@ -181,7 +181,7 @@ resource "aws_eks_addon" "vpc_cni" {
 
 # EKS Addon: CoreDNS (depends on nodes)
 resource "aws_eks_addon" "coredns" {
-  cluster_name = aws_eks_cluster.payflow.name
+  cluster_name = aws_eks_cluster.swiftpay.name
   addon_name   = "coredns"
 
   resolve_conflicts_on_create = "OVERWRITE"
@@ -201,7 +201,7 @@ resource "aws_eks_addon" "coredns" {
 
 # EKS Addon: kube-proxy (depends on nodes)
 resource "aws_eks_addon" "kube_proxy" {
-  cluster_name = aws_eks_cluster.payflow.name
+  cluster_name = aws_eks_cluster.swiftpay.name
   addon_name   = "kube-proxy"
 
   resolve_conflicts_on_create = "OVERWRITE"
@@ -221,7 +221,7 @@ resource "aws_eks_addon" "kube_proxy" {
 
 # EKS Addon: EBS CSI Driver (depends on nodes)
 resource "aws_eks_addon" "ebs_csi" {
-  cluster_name             = aws_eks_cluster.payflow.name
+  cluster_name             = aws_eks_cluster.swiftpay.name
   addon_name               = "aws-ebs-csi-driver"
   service_account_role_arn = aws_iam_role.ebs_csi_irsa.arn
 

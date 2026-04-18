@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# PayFlow EKS Deploy Script
+# SwiftPay EKS Deploy Script
 # =============================================================================
 # Usage:
 #   IMAGE_TAG=<git-sha>  ./deploy.sh          # deploy specific image tag (recommended)
@@ -28,17 +28,17 @@ if [[ "$IMAGE_TAG" == "latest" ]]; then
   echo "WARNING: Deploying :latest tag. For production, set IMAGE_TAG to a specific git SHA."
 fi
 
-echo "Deploying PayFlow to EKS"
+echo "Deploying SwiftPay to EKS"
 echo "  Account : $ACCOUNT_ID"
 echo "  Region  : $REGION"
 echo "  Tag     : $IMAGE_TAG"
-echo "  Cluster : ${EKS_CLUSTER_NAME:-payflow-eks-cluster}"
+echo "  Cluster : ${EKS_CLUSTER_NAME:-swiftpay-eks-cluster}"
 echo ""
 
 # ---- Update kubeconfig (no-op if already configured) ----
 aws eks update-kubeconfig \
   --region "$REGION" \
-  --name "${EKS_CLUSTER_NAME:-payflow-eks-cluster}" \
+  --name "${EKS_CLUSTER_NAME:-swiftpay-eks-cluster}" \
   --no-cli-pager 2>/dev/null || true
 
 # ---- Apply kustomization with placeholders replaced on the fly ----
@@ -51,14 +51,14 @@ sed \
   -e "s|<REGION>|${REGION}|g" \
   -e "s|<IMAGE_TAG>|${IMAGE_TAG}|g" \
   "$DIR/kustomization.yaml" \
-| kubectl apply -k - --namespace payflow
+| kubectl apply -k - --namespace swiftpay
 
 echo ""
 echo "Deploy complete. Watching rollout status..."
 for svc in api-gateway auth-service wallet-service transaction-service notification-service frontend; do
-  kubectl rollout status deployment/"$svc" -n payflow --timeout=180s || true
+  kubectl rollout status deployment/"$svc" -n swiftpay --timeout=180s || true
 done
 
 echo ""
 echo "Current pods:"
-kubectl get pods -n payflow
+kubectl get pods -n swiftpay

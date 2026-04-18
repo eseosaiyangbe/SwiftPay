@@ -1,12 +1,12 @@
 # PostgreSQL Outputs
 output "postgres_fqdn" {
   description = "PostgreSQL fully qualified domain name"
-  value       = azurerm_postgresql_flexible_server.payflow.fqdn
+  value       = azurerm_postgresql_flexible_server.swiftpay.fqdn
 }
 
 output "postgres_host" {
   description = "PostgreSQL host"
-  value       = azurerm_postgresql_flexible_server.payflow.fqdn
+  value       = azurerm_postgresql_flexible_server.swiftpay.fqdn
 }
 
 output "postgres_port" {
@@ -17,28 +17,28 @@ output "postgres_port" {
 # Redis Outputs
 output "redis_hostname" {
   description = "Redis hostname"
-  value       = azurerm_redis_cache.payflow.hostname
+  value       = azurerm_redis_cache.swiftpay.hostname
 }
 
 output "redis_port" {
   description = "Redis port"
-  value       = azurerm_redis_cache.payflow.port
+  value       = azurerm_redis_cache.swiftpay.port
 }
 
 output "redis_ssl_port" {
   description = "Redis SSL port"
-  value       = azurerm_redis_cache.payflow.ssl_port
+  value       = azurerm_redis_cache.swiftpay.ssl_port
 }
 
 # Service Bus Outputs
 output "servicebus_namespace" {
   description = "Service Bus namespace"
-  value       = azurerm_servicebus_namespace.payflow.name
+  value       = azurerm_servicebus_namespace.swiftpay.name
 }
 
 output "servicebus_connection_string" {
   description = "Service Bus connection string"
-  value       = azurerm_servicebus_namespace_authorization_rule.payflow.primary_connection_string
+  value       = azurerm_servicebus_namespace_authorization_rule.swiftpay.primary_connection_string
   sensitive   = true
 }
 

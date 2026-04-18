@@ -1,7 +1,7 @@
 variable "project_name" {
   description = "Project name prefix for resources"
   type        = string
-  default     = "payflow"
+  default     = "swiftpay"
 }
 
 variable "environment" {

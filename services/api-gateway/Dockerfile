@@ -1,5 +1,5 @@
 # ============================================
-# PayFlow API Gateway - Optimized Multi-Stage Build
+# SwiftPay API Gateway - Optimized Multi-Stage Build
 # Target: <60MB (reduced from 235MB)
 # ============================================
 

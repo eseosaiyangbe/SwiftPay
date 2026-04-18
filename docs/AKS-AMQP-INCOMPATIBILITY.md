@@ -2,7 +2,7 @@
 
 ## Critical Issue
 
-**Break 10:** The PayFlow application uses `amqplib` (AMQP 0-9-1 protocol) to connect to RabbitMQ. Azure Service Bus uses AMQP 1.0, which is a completely different protocol. These are **architecturally incompatible**.
+**Break 10:** The SwiftPay application uses `amqplib` (AMQP 0-9-1 protocol) to connect to RabbitMQ. Azure Service Bus uses AMQP 1.0, which is a completely different protocol. These are **architecturally incompatible**.
 
 ## Current State
 
@@ -92,7 +92,7 @@ Edit `k8s/overlays/aks/db-config-patch.yaml` and change the RABBITMQ_URL:
 
 ```yaml
 # Change from Service Bus:
-# RABBITMQ_URL: "Endpoint=sb://payflow-servicebus-prod.servicebus.windows.net/;..."
+# RABBITMQ_URL: "Endpoint=sb://swiftpay-servicebus-prod.servicebus.windows.net/;..."
 
 # To local RabbitMQ service:
 RABBITMQ_URL: "amqp://rabbitmq:5672"  # Kubernetes service name
@@ -118,8 +118,8 @@ kubectl apply -k .
 ### Step 5: Verify RabbitMQ is Running
 
 ```bash
-kubectl get pods -n payflow | grep rabbitmq
-kubectl get svc -n payflow | grep rabbitmq
+kubectl get pods -n swiftpay | grep rabbitmq
+kubectl get svc -n swiftpay | grep rabbitmq
 ```
 
 ### Optional: Remove Service Bus from Terraform

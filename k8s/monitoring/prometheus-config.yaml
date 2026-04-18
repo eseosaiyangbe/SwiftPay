@@ -1,9 +1,9 @@
 # ============================================
-# Prometheus Configuration for PayFlow
+# Prometheus Configuration for SwiftPay
 # ============================================
 # NOTE: monitoring/deploy-monitoring.sh builds the live ConfigMap from
 # k8s/monitoring/prometheus.yml (not this file). Keep them aligned if you edit scrape jobs.
-# Purpose: Configure Prometheus to scrape metrics from all PayFlow services
+# Purpose: Configure Prometheus to scrape metrics from all SwiftPay services
 # Metrics Scraped: HTTP requests, business metrics, infrastructure health
 apiVersion: v1
 kind: ConfigMap
@@ -17,7 +17,7 @@ data:
       scrape_interval: 15s          # How often to scrape metrics (15 seconds)
       evaluation_interval: 15s      # How often to evaluate alert rules
       external_labels:               # Labels added to all metrics
-        cluster: 'payflow'
+        cluster: 'swiftpay'
         environment: 'production'
     
     # ============================================
@@ -33,7 +33,7 @@ data:
         kubernetes_sd_configs:      # Discover pods automatically in Kubernetes
           - role: pod                # Use pods as targets
             namespaces:
-              names: ['payflow']    # Only scan payflow namespace
+              names: ['swiftpay']    # Only scan swiftpay namespace
         relabel_configs:
           # Only scrape pods labeled with app=api-gateway
           - source_labels: [__meta_kubernetes_pod_label_app]
@@ -51,7 +51,7 @@ data:
         kubernetes_sd_configs:
           - role: pod
             namespaces:
-              names: ['payflow']
+              names: ['swiftpay']
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             regex: auth-service
@@ -67,7 +67,7 @@ data:
         kubernetes_sd_configs:
           - role: pod
             namespaces:
-              names: ['payflow']
+              names: ['swiftpay']
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             regex: wallet-service
@@ -83,7 +83,7 @@ data:
         kubernetes_sd_configs:
           - role: pod
             namespaces:
-              names: ['payflow']
+              names: ['swiftpay']
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             regex: transaction-service
@@ -99,7 +99,7 @@ data:
         kubernetes_sd_configs:
           - role: pod
             namespaces:
-              names: ['payflow']
+              names: ['swiftpay']
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             regex: notification-service
@@ -116,7 +116,7 @@ data:
         kubernetes_sd_configs:
           - role: pod
             namespaces:
-              names: ['payflow']
+              names: ['swiftpay']
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             regex: postgres-exporter
@@ -133,7 +133,7 @@ data:
         kubernetes_sd_configs:
           - role: pod
             namespaces:
-              names: ['payflow']
+              names: ['swiftpay']
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             regex: redis-exporter
@@ -150,7 +150,7 @@ data:
         kubernetes_sd_configs:
           - role: pod
             namespaces:
-              names: ['payflow']
+              names: ['swiftpay']
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             regex: rabbitmq

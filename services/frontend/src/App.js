@@ -1,335 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Send, ArrowDownLeft, Clock, CheckCircle, XCircle, Activity, Bell, Wallet, AlertCircle, LogOut, User } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Clock, CheckCircle, XCircle, Activity, Wallet, AlertCircle, LogOut, User } from 'lucide-react';
+import { APIClient } from './lib/api-client';
+import { SESSION_TIMEOUT_MS, SESSION_WARNING_MS } from './lib/session-config';
+import { formatRelativeAge, newestFirst, oldestFirst } from './lib/transaction-utils';
+import { LoginPage } from './components/auth/LoginPage';
+import { DashboardTab } from './components/dashboard/DashboardTab';
+import { MonitoringTab } from './components/monitoring/MonitoringTab';
+import { ActivityTab } from './components/transactions/ActivityTab';
+import { SendMoneyTab } from './components/transactions/SendMoneyTab';
 
-// ============================================
-// API URL Configuration - Environment-Aware
-// ============================================
-// Supports multiple deployment scenarios:
-// 1. Relative URL (/api) - Works with ingress, nginx proxies to api-gateway
-// 2. Full URL (http://api-gateway:3000/api) - Direct service communication (internal)
-// 3. External URL (https://api.payflow.com/api) - Production with real domain
-// 4. Default (http://localhost:3000/api) - Local development fallback
-//
-// How it works:
-// - Relative URLs (/api): Browser makes request to same origin, nginx proxies it
-// - Absolute URLs: Direct fetch to specified endpoint
-// - Environment variable REACT_APP_API_URL can be set per environment
-const getApiBaseUrl = () => {
-  const envUrl = process.env.REACT_APP_API_URL;
-  
-  // If no env var, use relative URL (works with ingress/nginx)
-  if (!envUrl) {
-    return '/api';
-  }
-  
-  // If it's already a relative URL, use as-is
-  if (envUrl.startsWith('/')) {
-    return envUrl;
-  }
-  
-  // If it's an absolute URL (http:// or https://), use it directly
-  if (envUrl.startsWith('http://') || envUrl.startsWith('https://')) {
-    return envUrl;
-  }
-  
-  // Fallback: treat as relative
-  return envUrl.startsWith('/') ? envUrl : `/${envUrl}`;
-};
-
-const API_BASE_URL = getApiBaseUrl();
-
-class APIClient {
-  static getToken() {
-    return localStorage.getItem('accessToken');
-  }
-
-  static setToken(token) {
-    localStorage.setItem('accessToken', token);
-  }
-
-  static removeToken() {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-  }
-
-  static async request(endpoint, options = {}, isRetryAfterRefresh = false) {
-    const token = this.getToken();
-    const isAuthEndpoint = endpoint === '/auth/login' || endpoint === '/auth/register' || endpoint === '/auth/refresh';
-
-    const doFetch = () =>
-      fetch(`${API_BASE_URL}${endpoint}`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
-          ...options.headers,
-        },
-        ...options,
-      });
-
-    try {
-      let response = await doFetch();
-
-      if (response.status === 401) {
-        if (isAuthEndpoint) {
-          const body = await response.json().catch(() => ({}));
-          throw new Error(body.error || 'Invalid credentials');
-        }
-        if (!isRetryAfterRefresh) {
-          const refreshed = await this.tryRefreshToken();
-          if (refreshed) {
-            return this.request(endpoint, options, true);
-          }
-        }
-        this.removeToken();
-        window.location.href = '/';
-        throw new Error('Session expired');
-      }
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Request failed' }));
-        if (error.errors && Array.isArray(error.errors)) {
-          const passwordErrors = error.errors
-            .filter(e => e.path === 'password')
-            .map(e => e.msg);
-          if (passwordErrors.length > 0) {
-            throw new Error(`Password requirements: ${passwordErrors.join(', ')}`);
-          }
-          const errorMessages = error.errors.map(e => {
-            if (e.path === 'email') return `Email: ${e.msg}`;
-            if (e.path === 'name') return `Name: ${e.msg}`;
-            return `${e.path}: ${e.msg}`;
-          }).join('. ');
-          throw new Error(errorMessages || 'Validation failed');
-        }
-        throw new Error(error.error || error.message || `HTTP ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  static async tryRefreshToken() {
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (!refreshToken) return false;
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
-      if (!res.ok) return false;
-      const data = await res.json();
-      if (data.accessToken) {
-        this.setToken(data.accessToken);
-        if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
-    }
-  }
-
-  static async login(email, password) {
-    const data = await this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-    this.setToken(data.accessToken);
-    // localStorage is vulnerable to XSS; for higher security use httpOnly cookies.
-    localStorage.setItem('refreshToken', data.refreshToken);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    return data;
-  }
-
-  static async register(email, password, name) {
-    const data = await this.request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name }),
-    });
-    this.setToken(data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
-    const user = data.user || { id: data.userId, email, name, role: 'user' };
-    localStorage.setItem('user', JSON.stringify(user));
-    return { ...data, user };
-  }
-
-  static async logout() {
-    try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      await this.request('/auth/logout', {
-        method: 'POST',
-        body: JSON.stringify(refreshToken ? { refreshToken } : {}),
-      });
-    } finally {
-      this.removeToken();
-    }
-  }
-
-  static async getWallets() {
-    return this.request('/wallets');
-  }
-
-  static async getWallet(userId) {
-    return this.request(`/wallets/${userId}`);
-  }
-
-  static async createTransaction(data) {
-    return this.request('/transactions', {
-      method: 'POST',
-      body: JSON.stringify({
-        fromUserId: data.from,
-        toUserId: data.to,
-        amount: parseFloat(data.amount)
-      }),
-    });
-  }
-
-  static async getTransactions(userId = null) {
-    const query = userId ? `?userId=${userId}` : '';
-    return this.request(`/transactions${query}`);
-  }
-
-  static async getNotifications(userId) {
-    return this.request(`/notifications/${userId}`);
-  }
-
-  static async getMetrics() {
-    return this.request('/metrics');
-  }
-}
-
-function LoginPage({ onLogin }) {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleSubmit = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      if (isLogin) {
-        const data = await APIClient.login(email, password);
-        onLogin(data.user);
-      } else {
-        const data = await APIClient.register(email, password, name);
-        onLogin(data.user || { id: data.userId, email, name, role: 'user' });
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-        <div className="flex items-center justify-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center">
-            <Wallet className="w-10 h-10 text-white" />
-          </div>
-        </div>
-
-        <h1 className="text-3xl font-bold text-center text-slate-900 mb-2">PayFlow</h1>
-        <p className="text-center text-slate-600 mb-8">Secure Digital Wallet</p>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
-            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
-            <p className="text-sm text-red-800">{error}</p>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="John Doe"
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
-            />
-            {!isLogin && (
-              <p className="text-xs text-slate-500 mt-1">
-                At least 8 characters with uppercase, lowercase, and number
-              </p>
-            )}
-          </div>
-
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !email || !password || (!isLogin && !name)}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-          >
-            {loading ? (
-              <>
-                <Activity className="w-5 h-5 animate-spin" />
-                <span>Processing...</span>
-              </>
-            ) : (
-              <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
-            )}
-          </button>
-        </div>
-
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError(null);
-            }}
-            className="text-sm text-blue-600 hover:text-blue-700"
-          >
-            {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-          </button>
-        </div>
-
-        <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-          <p className="text-xs text-blue-800 text-center">
-            🔒 Secured with JWT authentication, encrypted connections, and industry-standard security
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function PayFlowApp() {
+export default function SwiftPayApp() {
   const [user, setUser] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [allWallets, setAllWallets] = useState([]);
@@ -338,12 +18,80 @@ export default function PayFlowApp() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [sessionNotice, setSessionNotice] = useState(null);
+  const [sessionWarningSeconds, setSessionWarningSeconds] = useState(null);
+  const [markingNotificationId, setMarkingNotificationId] = useState(null);
+  const [deletingNotificationId, setDeletingNotificationId] = useState(null);
+  const warningTimerRef = useRef(null);
+  const logoutTimerRef = useRef(null);
+  const countdownTimerRef = useRef(null);
   
   const [sendAmount, setSendAmount] = useState('');
   const [recipient, setRecipient] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
+
+  const clearSessionTimers = useCallback(() => {
+    clearTimeout(warningTimerRef.current);
+    clearTimeout(logoutTimerRef.current);
+    clearInterval(countdownTimerRef.current);
+    warningTimerRef.current = null;
+    logoutTimerRef.current = null;
+    countdownTimerRef.current = null;
+  }, []);
+
+  const finishLogout = useCallback(async ({ timedOut = false } = {}) => {
+    clearSessionTimers();
+
+    try {
+      await APIClient.logout();
+    } catch (err) {
+      console.error('Logout request failed:', err);
+      APIClient.removeToken();
+    }
+
+    setUser(null);
+    setWallet(null);
+    setAllWallets([]);
+    setTransactions([]);
+    setNotifications([]);
+    setMetrics(null);
+    setDataLoading(false);
+    setMarkingNotificationId(null);
+    setDeletingNotificationId(null);
+    setSessionWarningSeconds(null);
+    setSendAmount('');
+    setRecipient('');
+    setSendSuccess(false);
+    setError(null);
+    setSessionNotice(timedOut ? 'You were signed out because the session was inactive.' : null);
+  }, [clearSessionTimers]);
+
+  const resetSessionTimer = useCallback(() => {
+    if (!user) return;
+
+    clearSessionTimers();
+    setSessionWarningSeconds(null);
+    setSessionNotice(null);
+
+    warningTimerRef.current = setTimeout(() => {
+      const initialSeconds = Math.ceil(SESSION_WARNING_MS / 1000);
+      setSessionWarningSeconds(initialSeconds);
+
+      countdownTimerRef.current = setInterval(() => {
+        setSessionWarningSeconds((current) => {
+          if (!current || current <= 1) return 0;
+          return current - 1;
+        });
+      }, 1000);
+    }, Math.max(0, SESSION_TIMEOUT_MS - SESSION_WARNING_MS));
+
+    logoutTimerRef.current = setTimeout(() => {
+      finishLogout({ timedOut: true });
+    }, SESSION_TIMEOUT_MS);
+  }, [user, clearSessionTimers, finishLogout]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -404,18 +152,46 @@ export default function PayFlowApp() {
 
   useEffect(() => {
     if (user) {
+      setSessionNotice(null);
       const loadData = async () => {
-        await Promise.all([
-          fetchWallet(),
-          fetchAllWallets(),
-          fetchTransactions(),
-          fetchNotifications(),
-          fetchMetrics()
-        ]);
+        setDataLoading(true);
+        try {
+          await Promise.all([
+            fetchWallet(),
+            fetchAllWallets(),
+            fetchTransactions(),
+            fetchNotifications(),
+            fetchMetrics()
+          ]);
+        } finally {
+          setDataLoading(false);
+        }
       };
       loadData();
     }
   }, [user, fetchWallet, fetchAllWallets, fetchTransactions, fetchNotifications, fetchMetrics]);
+
+  useEffect(() => {
+    if (!user) {
+      clearSessionTimers();
+      setSessionWarningSeconds(null);
+      return undefined;
+    }
+
+    const activityEvents = ['click', 'keydown', 'scroll', 'touchstart'];
+    activityEvents.forEach((eventName) => {
+      window.addEventListener(eventName, resetSessionTimer, { passive: true });
+    });
+
+    resetSessionTimer();
+
+    return () => {
+      activityEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, resetSessionTimer);
+      });
+      clearSessionTimers();
+    };
+  }, [user, resetSessionTimer, clearSessionTimers]);
 
   // Poll wallet/transactions/notifications every 30s; metrics every 60s to reduce load
   useEffect(() => {
@@ -473,13 +249,41 @@ export default function PayFlowApp() {
     }
   };
 
-  const handleLogout = async () => {
-    await APIClient.logout();
-    setUser(null);
-    setWallet(null);
-    setTransactions([]);
-    setNotifications([]);
+  const handleMarkNotificationRead = async (notificationId) => {
+    setMarkingNotificationId(notificationId);
+    setError(null);
+
+    try {
+      const updatedNotification = await APIClient.markNotificationRead(notificationId);
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.id === notificationId ? updatedNotification : notification
+        )
+      );
+    } catch (err) {
+      setError(`Failed to mark notification as read: ${err.message}`);
+    } finally {
+      setMarkingNotificationId(null);
+    }
   };
+
+  const handleDeleteNotification = async (notificationId) => {
+    setDeletingNotificationId(notificationId);
+    setError(null);
+
+    try {
+      await APIClient.deleteNotification(notificationId);
+      setNotifications((current) =>
+        current.filter((notification) => notification.id !== notificationId)
+      );
+    } catch (err) {
+      setError(`Failed to delete notification: ${err.message}`);
+    } finally {
+      setDeletingNotificationId(null);
+    }
+  };
+
+  const handleLogout = () => finishLogout();
 
   if (loading) {
     return (
@@ -490,16 +294,66 @@ export default function PayFlowApp() {
   }
 
   if (!user) {
-    return <LoginPage onLogin={setUser} />;
+    return <LoginPage onLogin={setUser} notice={sessionNotice} />;
   }
 
   const otherUsers = allWallets.filter(u => u.user_id !== user.id);
   const queueMetrics = {
-    queued: transactions.filter(t => t.status === 'PENDING').length,
-    processing: transactions.filter(t => t.status === 'PROCESSING').length,
-    completed: transactions.filter(t => t.status === 'COMPLETED').length,
-    failed: transactions.filter(t => t.status === 'FAILED').length
+    pending: transactions.filter(t => t.status === 'PENDING'),
+    processing: transactions.filter(t => t.status === 'PROCESSING'),
+    completed: transactions.filter(t => t.status === 'COMPLETED'),
+    failed: transactions.filter(t => t.status === 'FAILED')
   };
+  const transactionHealthCards = [
+    {
+      title: 'Pending',
+      value: queueMetrics.pending.length,
+      Icon: Clock,
+      iconClass: 'text-amber-500',
+      borderClass: queueMetrics.pending.length > 0 ? 'border-amber-300' : 'border-slate-200',
+      textClass: queueMetrics.pending.length > 0 ? 'text-amber-700' : 'text-slate-500',
+      description: 'Accepted and waiting for the worker.',
+      detail: queueMetrics.pending.length > 0
+        ? `Oldest waiting ${formatRelativeAge(oldestFirst(queueMetrics.pending)[0]?.created_at)}`
+        : 'Queue is clear.'
+    },
+    {
+      title: 'Processing',
+      value: queueMetrics.processing.length,
+      Icon: Activity,
+      iconClass: 'text-blue-500',
+      borderClass: queueMetrics.processing.length > 0 ? 'border-blue-300' : 'border-slate-200',
+      textClass: queueMetrics.processing.length > 0 ? 'text-blue-700' : 'text-slate-500',
+      description: 'Worker claimed it and is moving money.',
+      detail: queueMetrics.processing.length > 0
+        ? `Oldest active ${formatRelativeAge(oldestFirst(queueMetrics.processing, 'processing_started_at')[0]?.processing_started_at || oldestFirst(queueMetrics.processing)[0]?.created_at)}`
+        : 'No active transfer work.'
+    },
+    {
+      title: 'Completed',
+      value: queueMetrics.completed.length,
+      Icon: CheckCircle,
+      iconClass: 'text-green-500',
+      borderClass: 'border-slate-200',
+      textClass: 'text-green-700',
+      description: 'Money moved and notifications were sent.',
+      detail: queueMetrics.completed.length > 0
+        ? `Latest completed ${formatRelativeAge(newestFirst(queueMetrics.completed)[0]?.completed_at || newestFirst(queueMetrics.completed)[0]?.created_at)}`
+        : 'No successful transfers yet.'
+    },
+    {
+      title: 'Failed',
+      value: queueMetrics.failed.length,
+      Icon: XCircle,
+      iconClass: 'text-red-500',
+      borderClass: queueMetrics.failed.length > 0 ? 'border-red-300' : 'border-slate-200',
+      textClass: queueMetrics.failed.length > 0 ? 'text-red-700' : 'text-slate-500',
+      description: 'Accepted by backend but could not finish.',
+      detail: queueMetrics.failed.length > 0
+        ? `Latest reason: ${newestFirst(queueMetrics.failed)[0]?.error_message || 'No reason stored'}`
+        : 'No backend failures recorded.'
+    }
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -511,7 +365,7 @@ export default function PayFlowApp() {
                 <Wallet className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">PayFlow</h1>
+                <h1 className="text-xl font-bold text-slate-900">SwiftPay</h1>
                 <p className="text-xs text-slate-500">Production Platform</p>
               </div>
             </div>
@@ -584,293 +438,73 @@ export default function PayFlowApp() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {activeTab === 'dashboard' && wallet && (
-          <div className="space-y-6">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-8 text-white shadow-lg">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-blue-100 text-sm mb-2">Available Balance</p>
-                  <h2 className="text-4xl font-bold">${parseFloat(wallet.balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}</h2>
-                  <p className="text-blue-100 text-sm mt-4">{wallet.name}</p>
-                  <p className="text-blue-200 text-xs mt-1">{wallet.user_id}</p>
-                </div>
-                <Wallet className="w-12 h-12 text-blue-300 opacity-50" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-600 text-sm">Pending</span>
-                  <Clock className="w-4 h-4 text-amber-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{queueMetrics.queued}</p>
-              </div>
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-600 text-sm">Processing</span>
-                  <Activity className="w-4 h-4 text-blue-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{queueMetrics.processing}</p>
-              </div>
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-600 text-sm">Completed</span>
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{queueMetrics.completed}</p>
-              </div>
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-600 text-sm">Failed</span>
-                  <XCircle className="w-4 h-4 text-red-500" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{queueMetrics.failed}</p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <Bell className="w-5 h-5 text-slate-600" />
-                <h3 className="font-semibold text-slate-900">Recent Notifications</h3>
-              </div>
-              <div className="space-y-3">
-                {notifications.slice(0, 5).map(notif => (
-                  <div key={notif.id} className="flex items-start space-x-3 p-3 bg-slate-50 rounded-lg">
-                    <div className={`w-2 h-2 rounded-full mt-2 ${
-                      notif.type === 'TRANSACTION_COMPLETED' ? 'bg-green-500' :
-                      notif.type === 'TRANSACTION_RECEIVED' ? 'bg-blue-500' : 'bg-red-500'
-                    }`} />
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-900">{notif.message}</p>
-                      <p className="text-xs text-slate-500 mt-1">{new Date(notif.created_at).toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-                {notifications.length === 0 && (
-                  <p className="text-sm text-slate-500 text-center py-4">No notifications yet</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'send' && wallet && (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-              <div className="flex items-center space-x-3 mb-6">
-                <Send className="w-6 h-6 text-blue-600" />
-                <h2 className="text-2xl font-bold text-slate-900">Send Money</h2>
-              </div>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Recipient</label>
-                  <select
-                    value={recipient}
-                    onChange={(e) => setRecipient(e.target.value)}
-                    disabled={sendLoading}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select recipient</option>
-                    {otherUsers.map(u => (
-                      <option key={u.user_id} value={u.user_id}>{u.name} ({u.user_id})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Amount</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-3 text-slate-500 text-lg">$</span>
-                    <input
-                      type="number"
-                      value={sendAmount}
-                      onChange={(e) => setSendAmount(e.target.value)}
-                      disabled={sendLoading}
-                      placeholder="0.00"
-                      step="0.01"
-                      className="w-full pl-8 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <p className="text-sm text-slate-500 mt-2">
-                    Available: ${parseFloat(wallet.balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-
-                <button
-                  onClick={handleSendMoney}
-                  disabled={sendLoading || !sendAmount || !recipient}
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-slate-300 flex items-center justify-center space-x-2"
-                >
-                  {sendLoading ? (
-                    <>
-                      <Activity className="w-5 h-5 animate-spin" />
-                      <span>Processing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-5 h-5" />
-                      <span>Send Money</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Secure:</strong> Transactions are processed asynchronously through RabbitMQ with full audit logging.
+      {sessionWarningSeconds !== null && (
+        <div className="max-w-7xl mx-auto px-6 pt-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start space-x-3">
+              <Clock className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-900">Session timeout warning</p>
+                <p className="text-sm text-amber-800">
+                  You will be signed out in {Math.max(0, sessionWarningSeconds)} seconds because the session is inactive.
                 </p>
               </div>
             </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={resetSessionTimer}
+                className="px-3 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors"
+              >
+                Stay signed in
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-3 py-2 bg-white border border-amber-300 text-amber-800 text-sm font-medium rounded-lg hover:bg-amber-100 transition-colors"
+              >
+                Sign out now
+              </button>
+            </div>
           </div>
+        </div>
+      )}
+
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        {activeTab === 'dashboard' && (
+          <DashboardTab
+            wallet={wallet}
+            transactionHealthCards={transactionHealthCards}
+            notifications={notifications}
+            dataLoading={dataLoading}
+            markingNotificationId={markingNotificationId}
+            deletingNotificationId={deletingNotificationId}
+            onMarkNotificationRead={handleMarkNotificationRead}
+            onDeleteNotification={handleDeleteNotification}
+          />
+        )}
+
+        {activeTab === 'send' && (
+          <SendMoneyTab
+            wallet={wallet}
+            otherUsers={otherUsers}
+            recipient={recipient}
+            setRecipient={setRecipient}
+            sendAmount={sendAmount}
+            setSendAmount={setSendAmount}
+            sendLoading={sendLoading}
+            onSendMoney={handleSendMoney}
+          />
         )}
 
         {activeTab === 'activity' && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-            <div className="p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">Transaction History</h2>
-            </div>
-            <div className="p-6">
-              <div className="space-y-3">
-                {transactions.map(txn => {
-                  const isOutgoing = txn.from_user_id === user.id;
-                  const otherParty = isOutgoing ? txn.to_user_id : txn.from_user_id;
-                  const otherWallet = allWallets.find(w => w.user_id === otherParty);
-                  
-                  return (
-                    <div key={txn.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          isOutgoing ? 'bg-red-100' : 'bg-green-100'
-                        }`}>
-                          {isOutgoing ? <Send className="w-5 h-5 text-red-600" /> : <ArrowDownLeft className="w-5 h-5 text-green-600" />}
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">
-                            {isOutgoing ? 'Sent to' : 'Received from'} {otherWallet?.name || otherParty}
-                          </p>
-                          <p className="text-sm text-slate-500 font-mono">{txn.id}</p>
-                          <p className="text-xs text-slate-400 mt-1">{new Date(txn.created_at).toLocaleString()}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-bold text-lg ${isOutgoing ? 'text-red-600' : 'text-green-600'}`}>
-                          {isOutgoing ? '-' : '+'}${parseFloat(txn.amount).toFixed(2)}
-                        </p>
-                        <div className="flex items-center justify-end space-x-1 mt-1">
-                          {txn.status === 'PENDING' && (
-                            <>
-                              <Clock className="w-4 h-4 text-amber-500" />
-                              <span className="text-xs text-amber-600 font-medium">Pending</span>
-                            </>
-                          )}
-                          {txn.status === 'PROCESSING' && (
-                            <>
-                              <Activity className="w-4 h-4 text-blue-500 animate-spin" />
-                              <span className="text-xs text-blue-600 font-medium">Processing</span>
-                            </>
-                          )}
-                          {txn.status === 'COMPLETED' && (
-                            <>
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                              <span className="text-xs text-green-600 font-medium">Completed</span>
-                            </>
-                          )}
-                          {txn.status === 'FAILED' && (
-                            <>
-                              <XCircle className="w-4 h-4 text-red-500" />
-                              <span className="text-xs text-red-600 font-medium">Failed</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {transactions.length === 0 && (
-                  <p className="text-center text-slate-500 py-8">No transactions yet</p>
-                )}
-              </div>
-            </div>
-          </div>
+          <ActivityTab
+            transactions={transactions}
+            allWallets={allWallets}
+            user={user}
+          />
         )}
 
-        {activeTab === 'monitoring' && metrics && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h2 className="text-xl font-bold text-slate-900 mb-6">Microservices Health</h2>
-              
-              {Object.entries({
-                'API Gateway': metrics.gateway,
-                'Wallet Service': metrics.walletService,
-                'Transaction Service': metrics.transactionService,
-                'Notification Service': metrics.notificationService
-              }).map(([name, service]) => (
-                <div key={name} className="mb-6 last:mb-0">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-slate-900">{name}</h3>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      service?.status === 'healthy' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {service?.status === 'healthy' ? 'HEALTHY' : 'UNHEALTHY'}
-                    </span>
-                  </div>
-                  {service?.database && (
-                    <div className="grid grid-cols-2 gap-4 mt-3">
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <p className="text-xs text-blue-600 mb-1">Database</p>
-                        <p className="text-sm font-medium text-blue-900">{service.database}</p>
-                      </div>
-                      {service.redis && (
-                        <div className="p-3 bg-purple-50 rounded-lg">
-                          <p className="text-xs text-purple-600 mb-1">Redis Cache</p>
-                          <p className="text-sm font-medium text-purple-900">{service.redis}</p>
-                        </div>
-                      )}
-                      {service.rabbitmq && (
-                        <div className="p-3 bg-orange-50 rounded-lg">
-                          <p className="text-xs text-orange-600 mb-1">RabbitMQ</p>
-                          <p className="text-sm font-medium text-orange-900">{service.rabbitmq}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-4">Production Architecture</h3>
-              <div className="space-y-3 text-sm text-slate-600">
-                <div className="flex items-start space-x-2">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-1.5" />
-                  <p><strong>JWT Auth:</strong> Bearer token authentication with refresh tokens</p>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <div className="w-2 h-2 bg-green-600 rounded-full mt-1.5" />
-                  <p><strong>PostgreSQL:</strong> ACID transactions with row-level locking</p>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <div className="w-2 h-2 bg-purple-600 rounded-full mt-1.5" />
-                  <p><strong>Redis:</strong> Session caching and idempotency tracking</p>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <div className="w-2 h-2 bg-orange-600 rounded-full mt-1.5" />
-                  <p><strong>RabbitMQ:</strong> Async processing with DLQ and retry logic</p>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <div className="w-2 h-2 bg-amber-600 rounded-full mt-1.5" />
-                  <p><strong>Circuit Breakers:</strong> Resilient service communication</p>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <div className="w-2 h-2 bg-red-600 rounded-full mt-1.5" />
-                  <p><strong>Observability:</strong> Prometheus metrics + structured logging</p>
-                </div>
-              </div>
-            </div>
-          </div>
+        {activeTab === 'monitoring' && (
+          <MonitoringTab metrics={metrics} />
         )}
       </main>
     </div>

@@ -1,10 +1,10 @@
-# #### PayFlow Auth Service ####
+# #### SwiftPay Auth Service ####
 # #### This Service exposes the authentication service internally ####
 apiVersion: v1  # #### Kubernetes API version ####
 kind: Service  # #### Resource type - exposes pods to network traffic ####
 metadata:
   name: auth-service  # #### Service name ####
-  namespace: payflow  # #### Namespace ####
+  namespace: swiftpay  # #### Namespace ####
 spec:
   selector:
     app: auth-service  # #### Select pods with this label ####
@@ -15,13 +15,13 @@ spec:
   type: ClusterIP  # #### Internal service (only accessible within cluster) ####
 
 ---
-# #### PayFlow Auth Service Deployment ####
+# #### SwiftPay Auth Service Deployment ####
 # #### This Deployment manages the authentication service pods ####
 apiVersion: apps/v1  # #### Kubernetes API version ####
 kind: Deployment  # #### Resource type - manages pod replicas ####
 metadata:
   name: auth-service  # #### Deployment name ####
-  namespace: payflow  # #### Namespace ####
+  namespace: swiftpay  # #### Namespace ####
 spec:
   replicas: 2  # #### Number of pod replicas for high availability ####
   selector:

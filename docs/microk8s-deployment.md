@@ -1,4 +1,4 @@
-# MicroK8s Deployment Guide - PayFlow Wallet
+# MicroK8s Deployment Guide - SwiftPay Wallet
 
 > **Learning path:** Week 1 of [`LEARNING-PATH.md`](../LEARNING-PATH.md) is built around MicroK8s first; Docker Compose is optional for a lighter start.
 
@@ -23,7 +23,7 @@
 
 2. **Clone and run:**
    ```bash
-   git clone <repo-url> payflow-wallet && cd payflow-wallet
+   git clone <repo-url> swiftpay-wallet && cd swiftpay-wallet
    ./scripts/deploy-microk8s.sh
    ```
    The script will:
@@ -35,8 +35,8 @@
 
 3. **Access the app** (as printed at the end):
    ```bash
-   kubectl port-forward service/api-gateway 3000:80 -n payflow &
-   kubectl port-forward service/frontend 8080:80 -n payflow &
+   kubectl port-forward service/api-gateway 3000:80 -n swiftpay &
+   kubectl port-forward service/frontend 8080:80 -n swiftpay &
    # Open: http://localhost:8080
    ```
 
@@ -59,12 +59,12 @@ export KUBECONFIG=~/.kube/microk8s-config
 kubectl apply -k k8s/overlays/local
 
 # 3. Wait for deployment
-kubectl wait --for=condition=ready pod -l app=postgres -n payflow --timeout=120s
-kubectl wait --for=condition=complete job/db-migration-job -n payflow --timeout=120s
+kubectl wait --for=condition=ready pod -l app=postgres -n swiftpay --timeout=120s
+kubectl wait --for=condition=complete job/db-migration-job -n swiftpay --timeout=120s
 
 # 4. Access application
-kubectl port-forward service/frontend 8080:80 -n payflow &
-kubectl port-forward service/api-gateway 3000:80 -n payflow &
+kubectl port-forward service/frontend 8080:80 -n swiftpay &
+kubectl port-forward service/api-gateway 3000:80 -n swiftpay &
 # Open: http://localhost:8080
 ```
 
@@ -168,15 +168,15 @@ kubectl apply -k k8s/overlays/local
 kubectl apply -k k8s/overlays/local
 
 # Wait for infrastructure
-kubectl wait --for=condition=ready pod -l app=postgres -n payflow --timeout=120s
-kubectl wait --for=condition=ready pod -l app=redis -n payflow --timeout=120s
-kubectl wait --for=condition=ready pod -l app=rabbitmq -n payflow --timeout=120s
+kubectl wait --for=condition=ready pod -l app=postgres -n swiftpay --timeout=120s
+kubectl wait --for=condition=ready pod -l app=redis -n swiftpay --timeout=120s
+kubectl wait --for=condition=ready pod -l app=rabbitmq -n swiftpay --timeout=120s
 
 # Wait for migration
-kubectl wait --for=condition=complete job/db-migration-job -n payflow --timeout=120s
+kubectl wait --for=condition=complete job/db-migration-job -n swiftpay --timeout=120s
 
 # Check all pods
-kubectl get pods -n payflow
+kubectl get pods -n swiftpay
 ```
 
 **What gets deployed**:
@@ -190,14 +190,14 @@ kubectl get pods -n payflow
 
 ```bash
 # Check all resources
-kubectl get all -n payflow
+kubectl get all -n swiftpay
 
 # Check specific services
-kubectl get pods -n payflow -l app=auth-service
-kubectl get services -n payflow
+kubectl get pods -n swiftpay -l app=auth-service
+kubectl get services -n swiftpay
 
 # View logs
-kubectl logs -n payflow -l app=auth-service --tail=10
+kubectl logs -n swiftpay -l app=auth-service --tail=10
 ```
 
 **Expected**: All pods in `Running` status, services have endpoints.
@@ -210,10 +210,10 @@ kubectl logs -n payflow -l app=auth-service --tail=10
 
 ```bash
 # Terminal 1: API Gateway
-kubectl port-forward service/api-gateway 3000:80 -n payflow
+kubectl port-forward service/api-gateway 3000:80 -n swiftpay
 
 # Terminal 2: Frontend
-kubectl port-forward service/frontend 8080:80 -n payflow
+kubectl port-forward service/frontend 8080:80 -n swiftpay
 
 # Access: http://localhost:8080
 ```
@@ -226,16 +226,16 @@ cd k8s/ingress
 ./generate-tls-cert.sh
 
 # Create TLS secret
-kubectl create secret tls payflow-local-tls \
-  --cert=certs/tls.crt --key=certs/tls.key -n payflow
+kubectl create secret tls swiftpay-local-tls \
+  --cert=certs/tls.crt --key=certs/tls.key -n swiftpay
 
 # Deploy ingress
 kubectl apply -f k8s/ingress/tls-ingress-local.yaml
 
 # Add to /etc/hosts
-echo "127.0.0.1 www.payflow.local api.payflow.local" | sudo tee -a /etc/hosts
+echo "127.0.0.1 www.swiftpay.local api.swiftpay.local" | sudo tee -a /etc/hosts
 
-# Access: https://www.payflow.local (accept self-signed cert warning)
+# Access: https://www.swiftpay.local (accept self-signed cert warning)
 ```
 
 ---
@@ -249,7 +249,7 @@ echo "127.0.0.1 www.payflow.local api.payflow.local" | sudo tee -a /etc/hosts
 kubectl apply -f k8s/backup/postgres-backup.yaml
 
 # Manual backup
-kubectl create job --from=cronjob/postgres-backup manual-backup-$(date +%s) -n payflow
+kubectl create job --from=cronjob/postgres-backup manual-backup-$(date +%s) -n swiftpay
 ```
 
 ### Image Scanning
@@ -259,7 +259,7 @@ kubectl create job --from=cronjob/postgres-backup manual-backup-$(date +%s) -n p
 kubectl apply -f k8s/security/image-scanning-cronjob-containerd.yaml
 
 # Manual scan
-kubectl create job --from=cronjob/image-scanning test-scan-$(date +%s) -n payflow
+kubectl create job --from=cronjob/image-scanning test-scan-$(date +%s) -n swiftpay
 ```
 
 ### Horizontal Pod Autoscaling
@@ -268,10 +268,10 @@ Already deployed via Kustomize. HPAs automatically scale services based on CPU (
 
 ```bash
 # View HPAs
-kubectl get hpa -n payflow
+kubectl get hpa -n swiftpay
 
 # Check scaling
-kubectl describe hpa api-gateway-hpa -n payflow
+kubectl describe hpa api-gateway-hpa -n swiftpay
 ```
 
 ---
@@ -282,8 +282,8 @@ kubectl describe hpa api-gateway-hpa -n payflow
 
 **Pods not starting**:
 ```bash
-kubectl describe pod <pod-name> -n payflow
-kubectl logs <pod-name> -n payflow
+kubectl describe pod <pod-name> -n swiftpay
+kubectl logs <pod-name> -n swiftpay
 ```
 
 **Image pull errors (`ImagePullBackOff` / `ErrImagePull`)**
@@ -292,7 +292,7 @@ This is the most common error on macOS + Multipass multi-node clusters. There ar
 
 **Why it happens (macOS + Multipass):**
 - Docker on Mac cannot reach `localhost:32000` — that port lives inside the Multipass VM, not on the Mac's loopback. `docker push localhost:32000/...` times out.
-- Even if you use `ctr image import` to load images into the control-plane VM's containerd, worker nodes (`payflow-worker-1`, `payflow-worker-2`) schedule pods that still try to pull from `localhost:32000`. They fail because the registry pod has nothing — `ctr import` bypassed it.
+- Even if you use `ctr image import` to load images into the control-plane VM's containerd, worker nodes (`swiftpay-worker-1`, `swiftpay-worker-2`) schedule pods that still try to pull from `localhost:32000`. They fail because the registry pod has nothing — `ctr import` bypassed it.
 - `imagePullPolicy: Always` (the default in the base manifests) makes this worse: every pod restart hits the registry, even if the image is already present.
 
 **What the deploy script does automatically:**
@@ -324,26 +324,26 @@ multipass exec microk8s-vm -- sudo microk8s ctr image ls | grep localhost:32000
 
 **Check which node a failing pod landed on:**
 ```bash
-kubectl get pods -n payflow -o wide   # NODE column shows which VM the pod is on
-kubectl describe pod <pod-name> -n payflow  # Events section shows the exact pull error
+kubectl get pods -n swiftpay -o wide   # NODE column shows which VM the pod is on
+kubectl describe pod <pod-name> -n swiftpay  # Events section shows the exact pull error
 ```
 
 **Service connection issues**:
 ```bash
 # Check network policies
-kubectl get networkpolicies -n payflow
+kubectl get networkpolicies -n swiftpay
 
 # Test connectivity
-kubectl exec -n payflow <pod-name> -- wget -qO- http://<service>:<port>/health
+kubectl exec -n swiftpay <pod-name> -- wget -qO- http://<service>:<port>/health
 ```
 
 **Database connection failed**:
 ```bash
 # Check PostgreSQL is running
-kubectl get pods -n payflow -l app=postgres
+kubectl get pods -n swiftpay -l app=postgres
 
 # Check resource quota (may block pod creation)
-kubectl describe resourcequota payflow-resource-quota -n payflow
+kubectl describe resourcequota swiftpay-resource-quota -n swiftpay
 ```
 
 **Pods stuck Pending / NotReady nodes (Multipass workers)**:
@@ -362,22 +362,22 @@ After nodes are Ready, pending pods should schedule.
 ```bash
 # Add a new worker VM so the cluster has more capacity (instead of scaling down replicas):
 ./scripts/deploy-microk8s.sh add-worker [VM_NAME] [CPUS] [MEM_GB] [DISK_GB]
-# Example: add payflow-worker-4 with 2 CPU and 4G RAM (20G disk default)
-./scripts/deploy-microk8s.sh add-worker payflow-worker-4 2 4
+# Example: add swiftpay-worker-4 with 2 CPU and 4G RAM (20G disk default)
+./scripts/deploy-microk8s.sh add-worker swiftpay-worker-4 2 4
 ```
 Then run `kubectl get nodes` and wait for the new node to be Ready; pending pods will schedule. See [scripts/README.md](../scripts/README.md#deploy-microk8ssh-recommended-for-local--beginners).
 
 ### Login Issues
 
 **502/504 Gateway Timeout**:
-1. Check backend services are running: `kubectl get pods -n payflow`
-2. Verify network policies allow API Gateway → backend: `kubectl get networkpolicies -n payflow`
-3. Check service logs: `kubectl logs -n payflow -l app=auth-service`
+1. Check backend services are running: `kubectl get pods -n swiftpay`
+2. Verify network policies allow API Gateway → backend: `kubectl get networkpolicies -n swiftpay`
+3. Check service logs: `kubectl logs -n swiftpay -l app=auth-service`
 
 **Transaction Failures**:
 1. Verify transaction-service → wallet-service connectivity
-2. Check network policy: `kubectl get networkpolicy wallet-service-allow-ingress-from-transaction -n payflow`
-3. Review logs: `kubectl logs -n payflow -l app=transaction-service`
+2. Check network policy: `kubectl get networkpolicy wallet-service-allow-ingress-from-transaction -n swiftpay`
+3. Review logs: `kubectl logs -n swiftpay -l app=transaction-service`
 
 See [Detailed Troubleshooting](#detailed-troubleshooting) for more.
 
@@ -410,18 +410,18 @@ k8s/
 kubectl apply -k k8s/overlays/local
 
 # Check status
-kubectl get all -n payflow
-kubectl get pods -n payflow
-kubectl get hpa -n payflow
+kubectl get all -n swiftpay
+kubectl get pods -n swiftpay
+kubectl get hpa -n swiftpay
 
 # View logs
-kubectl logs -n payflow -l app=<service-name>
+kubectl logs -n swiftpay -l app=<service-name>
 
 # Scale manually
-kubectl scale deployment <service> --replicas=3 -n payflow
+kubectl scale deployment <service> --replicas=3 -n swiftpay
 
 # Delete everything
-kubectl delete namespace payflow
+kubectl delete namespace swiftpay
 ```
 
 ### Service Ports
@@ -460,8 +460,8 @@ All services have resource requests/limits defined:
 
 **Diagnosis**:
 ```bash
-kubectl describe pod <pod-name> -n payflow
-kubectl logs <pod-name> -n payflow --previous
+kubectl describe pod <pod-name> -n swiftpay
+kubectl logs <pod-name> -n swiftpay --previous
 ```
 
 **Common causes**:
@@ -477,8 +477,8 @@ kubectl logs <pod-name> -n payflow --previous
 **Fix**:
 ```bash
 # Check policies
-kubectl get networkpolicies -n payflow
-kubectl describe networkpolicy <policy-name> -n payflow
+kubectl get networkpolicies -n swiftpay
+kubectl describe networkpolicy <policy-name> -n swiftpay
 
 # Verify both ingress and egress rules exist
 # Network policies are bidirectional - both sides need rules
@@ -486,15 +486,15 @@ kubectl describe networkpolicy <policy-name> -n payflow
 
 ### Issue: Resource Quota Preventing Pod Creation
 
-**Error**: `exceeded quota: payflow-resource-quota`
+**Error**: `exceeded quota: swiftpay-resource-quota`
 
 **Fix**:
 ```bash
 # Check quota usage
-kubectl describe resourcequota payflow-resource-quota -n payflow
+kubectl describe resourcequota swiftpay-resource-quota -n swiftpay
 
 # Add resources to missing pods or increase quota
-kubectl edit resourcequota payflow-resource-quota -n payflow
+kubectl edit resourcequota swiftpay-resource-quota -n swiftpay
 ```
 
 ### Issue: Node disk-pressure or Pods Pending (Insufficient cpu)
@@ -515,7 +515,7 @@ multipass exec kubelab-worker-3 -- sudo snap set microk8s disk.size=50G  # if us
 ```
 After free disk crosses the threshold, the kubelet removes the taint and the node is schedulable again. If the node is still critical, you can remove the taint manually (not recommended unless you've freed space): `kubectl taint nodes kubelab-worker-3 node.kubernetes.io/disk-pressure:NoSchedule-`
 
-**Fix (Insufficient cpu)**: Scale down old/crashing ReplicaSets to free CPU, or add a worker: `./scripts/deploy-microk8s.sh add-worker`. To scale down old RS: `kubectl get rs -n payflow` then `kubectl scale rs -n payflow <name> --replicas=0` for the ones that are crashing or redundant.
+**Fix (Insufficient cpu)**: Scale down old/crashing ReplicaSets to free CPU, or add a worker: `./scripts/deploy-microk8s.sh add-worker`. To scale down old RS: `kubectl get rs -n swiftpay` then `kubectl scale rs -n swiftpay <name> --replicas=0` for the ones that are crashing or redundant.
 
 ### Issue: HPA Shows `<unknown>` Metrics
 
@@ -525,7 +525,7 @@ After free disk crosses the threshold, the kubelet removes the taint and the nod
 ```bash
 microk8s enable metrics-server
 kubectl wait --for=condition=ready pod -l k8s-app=metrics-server -n kube-system --timeout=60s
-kubectl top pods -n payflow  # Should show metrics now
+kubectl top pods -n swiftpay  # Should show metrics now
 ```
 
 ---
@@ -563,7 +563,7 @@ kubectl top pods -n payflow  # Should show metrics now
 
 ```bash
 # Delete application
-kubectl delete namespace payflow
+kubectl delete namespace swiftpay
 
 # Stop MicroK8s
 microk8s stop

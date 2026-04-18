@@ -15,15 +15,15 @@ provider "azurerm" {
 }
 
 # Get existing Resource Group
-data "azurerm_resource_group" "payflow" {
+data "azurerm_resource_group" "swiftpay" {
   name = var.resource_group_name
 }
 
 # Service Bus Namespace
-resource "azurerm_servicebus_namespace" "payflow" {
-  name                = "payflow-sb-${var.environment}"
-  location            = data.azurerm_resource_group.payflow.location
-  resource_group_name = data.azurerm_resource_group.payflow.name
+resource "azurerm_servicebus_namespace" "swiftpay" {
+  name                = "swiftpay-sb-${var.environment}"
+  location            = data.azurerm_resource_group.swiftpay.location
+  resource_group_name = data.azurerm_resource_group.swiftpay.name
   sku                 = var.servicebus_sku
 
   # Network Configuration
@@ -36,21 +36,21 @@ resource "azurerm_servicebus_namespace" "payflow" {
   capacity = var.servicebus_capacity
 
   tags = {
-    Name        = "payflow-servicebus"
+    Name        = "swiftpay-servicebus"
     Environment = var.environment
   }
 }
 
 # Private Endpoint for Service Bus
 resource "azurerm_private_endpoint" "servicebus" {
-  name                = "payflow-sb-endpoint"
-  location            = data.azurerm_resource_group.payflow.location
-  resource_group_name = data.azurerm_resource_group.payflow.name
+  name                = "swiftpay-sb-endpoint"
+  location            = data.azurerm_resource_group.swiftpay.location
+  resource_group_name = data.azurerm_resource_group.swiftpay.name
   subnet_id           = var.servicebus_subnet_id
 
   private_service_connection {
-    name                           = "payflow-sb-connection"
-    private_connection_resource_id = azurerm_servicebus_namespace.payflow.id
+    name                           = "swiftpay-sb-connection"
+    private_connection_resource_id = azurerm_servicebus_namespace.swiftpay.id
     subresource_names              = ["namespace"]
     is_manual_connection           = false
   }
@@ -59,7 +59,7 @@ resource "azurerm_private_endpoint" "servicebus" {
 # Service Bus Queue (for transaction processing)
 resource "azurerm_servicebus_queue" "transactions" {
   name         = "transaction-queue"
-  namespace_id = azurerm_servicebus_namespace.payflow.id
+  namespace_id = azurerm_servicebus_namespace.swiftpay.id
 
   # Queue Configuration
   max_delivery_count                = 10
@@ -76,7 +76,7 @@ resource "azurerm_servicebus_queue" "transactions" {
 # Service Bus Queue (for notifications)
 resource "azurerm_servicebus_queue" "notifications" {
   name         = "notification-queue"
-  namespace_id = azurerm_servicebus_namespace.payflow.id
+  namespace_id = azurerm_servicebus_namespace.swiftpay.id
 
   max_delivery_count                = 10
   dead_lettering_on_message_expiration = true
@@ -90,9 +90,9 @@ resource "azurerm_servicebus_queue" "notifications" {
 }
 
 # Shared Access Policy (for applications)
-resource "azurerm_servicebus_namespace_authorization_rule" "payflow" {
-  name         = "payflow-send-listen"
-  namespace_id = azurerm_servicebus_namespace.payflow.id
+resource "azurerm_servicebus_namespace_authorization_rule" "swiftpay" {
+  name         = "swiftpay-send-listen"
+  namespace_id = azurerm_servicebus_namespace.swiftpay.id
 
   listen = true
   send   = true

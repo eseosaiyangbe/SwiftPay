@@ -1,5 +1,5 @@
 {
-  "name": "payflow-notification-service",
+  "name": "swiftpay-notification-service",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {

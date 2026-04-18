@@ -1,5 +1,5 @@
 {
-  "name": "payflow",
+  "name": "swiftpay",
   "version": "1.0.0",
   "description": "Production-ready fintech microservices platform",
   "scripts": {
@@ -16,6 +16,9 @@
     
     "test:all": "npm run test:services",
     "test:services": "cd services/auth-service && npm test && cd ../api-gateway && npm test && cd ../wallet-service && npm test && cd ../transaction-service && npm test && cd ../notification-service && npm test",
+    "smoke:send-money": "bash scripts/smoke-send-money.sh",
+    "smoke:failed-transaction": "bash scripts/smoke-failed-transaction.sh",
+    "smoke:notifications": "bash scripts/smoke-notifications.sh",
     
     "lint:all": "npm run lint:services",
     "lint:services": "cd services/auth-service && npm run lint && cd ../api-gateway && npm run lint && cd ../wallet-service && npm run lint && cd ../transaction-service && npm run lint && cd ../notification-service && npm run lint",
@@ -27,7 +30,7 @@
     
     "k8s:deploy": "kubectl apply -f k8s/",
     "k8s:delete": "kubectl delete -f k8s/",
-    "k8s:status": "kubectl get all -n payflow"
+    "k8s:status": "kubectl get all -n swiftpay"
   },
   "keywords": [
     "fintech",
@@ -36,6 +39,6 @@
     "nodejs",
     "digital-wallet"
   ],
-  "author": "PayFlow Team",
+  "author": "SwiftPay Team",
   "license": "MIT"
 }

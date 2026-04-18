@@ -1,4 +1,4 @@
-# PayFlow Infrastructure — Onboarding for New Engineers
+# SwiftPay Infrastructure — Onboarding for New Engineers
 
 > **Canonical first read for AWS/EKS story + order.** Terraform command tables and targets: [DEPLOYMENT-ORDER.md](DEPLOYMENT-ORDER.md). Long ops guide (SSM, ECR): [INFRASTRUCTURE-AND-DEPLOYMENT-GUIDE.md](INFRASTRUCTURE-AND-DEPLOYMENT-GUIDE.md). **All docs:** [README.md](README.md).
 
@@ -8,7 +8,7 @@ This document explains the **entire infrastructure** as a clear, step-by-step st
 
 ## 1. High-Level Overview: What Does This Infrastructure Deploy?
 
-We run **PayFlow** (a wallet/transaction app) on **AWS** with this shape:
+We run **SwiftPay** (a wallet/transaction app) on **AWS** with this shape:
 
 - **Hub-and-spoke networking:** A central **Hub VPC** with a **Transit Gateway** and a **Spoke VPC** where the **EKS (Kubernetes) cluster** lives. The bastion host sits in the Hub for secure access.
 - **EKS cluster:** Kubernetes runs our app (API Gateway, Auth, Wallet, Transaction, Notification, Frontend). Nodes are in **private subnets**; they reach the internet via **NAT Gateway**.
@@ -40,7 +40,7 @@ You **must** run Terraform in this order. Later modules depend on earlier ones (
 
 1. `terraform apply -target=aws_ec2_transit_gateway_vpc_attachment.eks`  
    → Brings in VPC, subnets, NAT, route tables, TGW attachment.
-2. `terraform apply -target=aws_eks_cluster.payflow`  
+2. `terraform apply -target=aws_eks_cluster.swiftpay`  
    → Cluster control plane only.
 3. `terraform apply -target=aws_eks_addon.vpc_cni`  
    → Pods need CNI to get IPs.
@@ -60,12 +60,12 @@ Full target list and rationale are in `docs/DEPLOYMENT-ORDER.md`.
 ```bash
 export AWS_REGION=us-east-1
 unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
-aws sts get-caller-identity   # should show payflow-bastion-role
-aws eks update-kubeconfig --region $AWS_REGION --name payflow-eks-cluster
+aws sts get-caller-identity   # should show swiftpay-bastion-role
+aws eks update-kubeconfig --region $AWS_REGION --name swiftpay-eks-cluster
 kubectl get nodes
 ```
 
-**Single node `SchedulingDisabled` (cordoned):** After a node group replace or scale-up, one node may be Ready but cordoned while others are still joining. Check with `kubectl get nodes -o wide` and `aws eks describe-nodegroup --cluster-name payflow-eks-cluster --nodegroup-name payflow-on-demand --region us-east-1 --query 'nodegroup.scalingConfig'`. If desired size is 3, wait a few minutes for the other nodes to become Ready and uncordoned.
+**Single node `SchedulingDisabled` (cordoned):** After a node group replace or scale-up, one node may be Ready but cordoned while others are still joining. Check with `kubectl get nodes -o wide` and `aws eks describe-nodegroup --cluster-name swiftpay-eks-cluster --nodegroup-name swiftpay-on-demand --region us-east-1 --query 'nodegroup.scalingConfig'`. If desired size is 3, wait a few minutes for the other nodes to become Ready and uncordoned.
 
 ### How to destroy (reverse of apply order)
 
@@ -106,9 +106,9 @@ So: **networking → IAM → cluster → access entry + (optional) aws-auth → 
 
 ### 3.2 Implicit / cross-stack dependencies
 
-- **Spoke → Hub:** Spoke uses **data sources** to find Hub VPC and Transit Gateway by **name tags** (`payflow-hub-vpc`, `payflow-hub-tgw`). It then creates `aws_route.hub_to_eks` on the **Hub’s private route table** (also looked up by data). So Hub must be applied first; there is **no** Terraform resource dependency, only “you ran Hub first.”
+- **Spoke → Hub:** Spoke uses **data sources** to find Hub VPC and Transit Gateway by **name tags** (`swiftpay-hub-vpc`, `swiftpay-hub-tgw`). It then creates `aws_route.hub_to_eks` on the **Hub’s private route table** (also looked up by data). So Hub must be applied first; there is **no** Terraform resource dependency, only “you ran Hub first.”
 - **Managed-services → Spoke:** Managed-services does **not** use Terraform remote state in the snippets we have. You pass **`eks_node_security_group_id`** (from Spoke’s output `eks_cluster_security_group_id`) as a **variable** when you apply managed-services. So operationally: Spoke first, then managed-services with that variable.
-- **RDS/Redis/MQ:** They use **data sources** to find the EKS VPC and private subnets by tags (`payflow-eks-vpc`, `payflow-eks-private-subnet-*`). So Spoke VPC and subnets must exist before managed-services apply.
+- **RDS/Redis/MQ:** They use **data sources** to find the EKS VPC and private subnets by tags (`swiftpay-eks-vpc`, `swiftpay-eks-private-subnet-*`). So Spoke VPC and subnets must exist before managed-services apply.
 
 **Summary:** Hub first → Spoke (with targets) → managed-services (with EKS SG ID). Bastion anytime after Hub.
 
@@ -134,7 +134,7 @@ Hub and Spoke are **not** in the same state file. Spoke finds Hub by **name**. M
 - **User → app (HTTPS)**  
   - User hits a domain (e.g. Route53 → ALB).  
   - **ALB** (created by AWS Load Balancer Controller from Kubernetes Ingress) is in **EKS public subnets**.  
-  - ALB forwards to **Kubernetes Services** (e.g. api-gateway, frontend) in the **payflow** namespace.  
+  - ALB forwards to **Kubernetes Services** (e.g. api-gateway, frontend) in the **swiftpay** namespace.  
   - Pods run on **private subnets**; they pull images from ECR and talk to RDS/Redis/MQ inside the same VPC.
 
 - **EKS nodes (private subnet)**  
@@ -212,7 +212,7 @@ So: **Network (Hub + Spoke) → Kubernetes (EKS) → Data (RDS, Redis, MQ) and S
 
 ## 10. Troubleshooting: kubectl get nodes — Postmortem
 
-**PayFlow EKS | Hub-Spoke Architecture | February 26, 2026**
+**SwiftPay EKS | Hub-Spoke Architecture | February 26, 2026**
 
 ### The Symptom
 
@@ -242,7 +242,7 @@ All 4 were broken or missing. We found them one by one.
 ### Steps we took (summary)
 
 1. **Spoke public route tables** — In `terraform/aws/spoke-vpc-eks/main.tf`, added route `10.0.0.0/16 → TGW` to every EKS public route table so return traffic from EKS API (including ENIs in public subnets) can reach the Hub. Applied spoke-vpc-eks.
-2. **Bastion EKS access** — From a machine with AWS CLI: `aws eks create-access-entry` and `aws eks associate-access-policy` for `payflow-bastion-role` with `AmazonEKSClusterAdminPolicy`. Then added `aws_eks_access_entry.bastion` and `aws_eks_access_policy_association.bastion_admin` in `terraform/aws/spoke-vpc-eks/aws-auth.tf` and applied spoke-vpc-eks so it’s permanent.
+2. **Bastion EKS access** — From a machine with AWS CLI: `aws eks create-access-entry` and `aws eks associate-access-policy` for `swiftpay-bastion-role` with `AmazonEKSClusterAdminPolicy`. Then added `aws_eks_access_entry.bastion` and `aws_eks_access_policy_association.bastion_admin` in `terraform/aws/spoke-vpc-eks/aws-auth.tf` and applied spoke-vpc-eks so it’s permanent.
 3. **Hub TGW attachment** — In `terraform/aws/hub-vpc/main.tf`, changed the hub TGW attachment to include both subnets: `subnet_ids = [aws_subnet.hub_public.id, aws_subnet.hub_private.id]`. Applied hub-vpc so the bastion’s AZ (public subnet) is attached to the TGW.
 4. **Hub public route (immediate unblock)** — Manually added the missing route: `aws ec2 create-route --route-table-id rtb-09c0e0248abb9757e --destination-cidr-block 10.10.0.0/16 --transit-gateway-id tgw-07fab25c49fed2786`. Then ran `terraform apply` on hub-vpc so `aws_route.hub_public_to_eks` is in state and the route stays.
 
@@ -254,7 +254,7 @@ After these four steps, `kubectl get nodes` from the bastion (via SSM) succeeded
 
 **What happened:** EKS placed one of its two endpoint ENIs in a public subnet (`subnet-0238320ced17fc908`, `10.10.10.0/24`). That subnet's route table had no route back to the hub VPC (`10.0.0.0/16`). Return packets from EKS had nowhere to go and were dropped.
 
-**How we found it:** Checked which subnets the EKS ENIs were in. One was named `payflow-eks-public-subnet-1` — public, not private. Its route table had only `local` and `0.0.0.0/0 → IGW`. No TGW route.
+**How we found it:** Checked which subnets the EKS ENIs were in. One was named `swiftpay-eks-public-subnet-1` — public, not private. Its route table had only `local` and `0.0.0.0/0 → IGW`. No TGW route.
 
 **Fix:** Added `10.0.0.0/16 → TGW` to all EKS public subnet route tables in `terraform/aws/spoke-vpc-eks/main.tf`:
 
@@ -269,12 +269,12 @@ resource "aws_route_table" "eks_public" {
 
 #### Bug 2 — Bastion role not in EKS access entries
 
-**What happened:** `payflow-bastion-role` was not in the EKS access entries list. EKS accepted the TCP connection, checked the token, found no binding, and closed the connection — which looked like a timeout from the client.
+**What happened:** `swiftpay-bastion-role` was not in the EKS access entries list. EKS accepted the TCP connection, checked the token, found no binding, and closed the connection — which looked like a timeout from the client.
 
 **How we found it:**
 
 ```bash
-aws eks list-access-entries --cluster-name payflow-eks-cluster
+aws eks list-access-entries --cluster-name swiftpay-eks-cluster
 # bastion role was not listed
 ```
 
@@ -282,12 +282,12 @@ aws eks list-access-entries --cluster-name payflow-eks-cluster
 
 ```bash
 aws eks create-access-entry \
-  --cluster-name payflow-eks-cluster \
-  --principal-arn arn:aws:iam::334091769766:role/payflow-bastion-role
+  --cluster-name swiftpay-eks-cluster \
+  --principal-arn arn:aws:iam::334091769766:role/swiftpay-bastion-role
 
 aws eks associate-access-policy \
-  --cluster-name payflow-eks-cluster \
-  --principal-arn arn:aws:iam::334091769766:role/payflow-bastion-role \
+  --cluster-name swiftpay-eks-cluster \
+  --principal-arn arn:aws:iam::334091769766:role/swiftpay-bastion-role \
   --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
   --access-scope type=cluster
 ```
@@ -296,14 +296,14 @@ aws eks associate-access-policy \
 
 ```hcl
 resource "aws_eks_access_entry" "bastion" {
-  cluster_name  = aws_eks_cluster.payflow.name
-  principal_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/payflow-bastion-role"
+  cluster_name  = aws_eks_cluster.swiftpay.name
+  principal_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/swiftpay-bastion-role"
   type          = "STANDARD"
 }
 
 resource "aws_eks_access_policy_association" "bastion_admin" {
-  cluster_name  = aws_eks_cluster.payflow.name
-  principal_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/payflow-bastion-role"
+  cluster_name  = aws_eks_cluster.swiftpay.name
+  principal_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/swiftpay-bastion-role"
   policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
   access_scope { type = "cluster" }
   depends_on = [aws_eks_access_entry.bastion]

@@ -9,14 +9,14 @@
 # What this does:
 #   1. Creates a private key (tls.key)
 #   2. Creates a certificate (tls.crt) valid for 365 days
-#   3. Includes both www.payflow.local and api.payflow.local
+#   3. Includes both www.swiftpay.local and api.swiftpay.local
 #
 # Note: Browsers will show a security warning (this is normal for self-signed certs)
 # In production, you'd use Let's Encrypt (real certificates, no warnings)
 
 set -e
 
-echo "🔐 Generating self-signed TLS certificate for PayFlow..."
+echo "🔐 Generating self-signed TLS certificate for SwiftPay..."
 echo ""
 
 # Create certificate directory
@@ -36,8 +36,8 @@ cd "$CERT_DIR"
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout tls.key \
   -out tls.crt \
-  -subj "/CN=payflow.local" \
-  -addext "subjectAltName=DNS:www.payflow.local,DNS:api.payflow.local"
+  -subj "/CN=swiftpay.local" \
+  -addext "subjectAltName=DNS:www.swiftpay.local,DNS:api.swiftpay.local"
 
 echo "Certificate generated successfully"
 echo ""
@@ -47,20 +47,20 @@ echo "  - $CERT_DIR/tls.crt (certificate)"
 echo ""
 echo "📋 Next steps:"
 echo "  1. Create Kubernetes secret:"
-echo "     kubectl create secret tls payflow-local-tls \\"
+echo "     kubectl create secret tls swiftpay-local-tls \\"
 echo "       --cert=$CERT_DIR/tls.crt \\"
 echo "       --key=$CERT_DIR/tls.key \\"
-echo "       -n payflow"
+echo "       -n swiftpay"
 echo ""
 echo "  2. Deploy TLS ingress:"
 echo "     kubectl apply -f k8s/ingress/tls-ingress-local.yaml"
 echo ""
 echo "  3. Add to /etc/hosts (macOS/Linux) or C:\\Windows\\System32\\drivers\\etc\\hosts (Windows):"
-echo "     <ingress-ip> www.payflow.local api.payflow.local"
+echo "     <ingress-ip> www.swiftpay.local api.swiftpay.local"
 echo ""
 echo "  4. Access:"
-echo "     - Frontend: https://www.payflow.local"
-echo "     - API: https://api.payflow.local"
+echo "     - Frontend: https://www.swiftpay.local"
+echo "     - API: https://api.swiftpay.local"
 echo ""
 echo "Note: Browsers will show a security warning. Click Advanced then Proceed to continue."
 echo "   This is normal for self-signed certificates. In production, you'd use Let's Encrypt."

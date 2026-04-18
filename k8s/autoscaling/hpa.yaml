@@ -1,5 +1,5 @@
 # ============================================
-# Horizontal Pod Autoscalers for PayFlow Services
+# Horizontal Pod Autoscalers for SwiftPay Services
 # ============================================
 # Purpose: Automatically scale pods based on CPU/Memory usage
 # Ensures optimal resource utilization and handles traffic spikes
@@ -13,7 +13,7 @@
 # Prerequisites:
 # - metrics-server must be enabled (microk8s enable metrics-server)
 # - Deployments must have resource requests/limits defined
-# - All PayFlow services already meet these requirements
+# - All SwiftPay services already meet these requirements
 
 # ============================================
 # API Gateway HPA
@@ -24,7 +24,7 @@ apiVersion: autoscaling/v2  # Kubernetes API version for HPA v2 (supports multip
 kind: HorizontalPodAutoscaler  # Resource type - automatically scales pods horizontally
 metadata:
   name: api-gateway-hpa  # Unique name for this HPA
-  namespace: payflow  # Namespace where the deployment exists
+  namespace: swiftpay  # Namespace where the deployment exists
 spec:
   # ============================================
   # Scale Target Configuration
@@ -116,7 +116,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: auth-service-hpa
-  namespace: payflow
+  namespace: swiftpay
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -155,7 +155,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: wallet-service-hpa
-  namespace: payflow
+  namespace: swiftpay
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -202,7 +202,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: notification-service-hpa
-  namespace: payflow
+  namespace: swiftpay
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -242,7 +242,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: frontend-hpa
-  namespace: payflow
+  namespace: swiftpay
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

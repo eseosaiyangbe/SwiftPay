@@ -1,10 +1,10 @@
-# #### PayFlow API Gateway Service ####
+# #### SwiftPay API Gateway Service ####
 # #### This Service exposes the API Gateway to other services and external traffic ####
 apiVersion: v1
 kind: Service
 metadata:
   name: api-gateway
-  namespace: payflow
+  namespace: swiftpay
 spec:
   type: ClusterIP  # #### Service type - use Ingress/ALB for external access ####
   ports:
@@ -19,13 +19,13 @@ spec:
   selector:
     app: api-gateway
 ---
-# #### PayFlow API Gateway Deployment ####
+# #### SwiftPay API Gateway Deployment ####
 # #### This Deployment manages the API Gateway pods ####
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api-gateway
-  namespace: payflow
+  namespace: swiftpay
 spec:
   replicas: 2  # #### Number of pod replicas for high availability ####
   selector:

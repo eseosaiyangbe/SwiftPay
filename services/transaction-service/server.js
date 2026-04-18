@@ -12,6 +12,8 @@ const retry = require('async-retry');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('./shared/logger');
 const { register: sharedRegister, metricsMiddleware, metricsHandler, transactionTotal, transactionDuration, queueDepth, rabbitmqPublishErrors, rabbitmqConsumeErrors, circuitBreakerState, circuitBreakerTransitions, pendingTransactionsGauge, oldestPendingTransactionGauge, pendingTransactionAmountGauge, dbConnectionPoolSize } = require('./shared/metrics');
+const { claimPendingTransaction } = require('./transaction-guard');
+const { completeClaimedTransaction } = require('./transaction-finalizer');
 require('dotenv').config();
 
 const app = express();
@@ -51,7 +53,7 @@ app.use(metricsMiddleware);
 // DATABASE CONNECTION
 // ============================================
 // rejectUnauthorized: false for AWS RDS (RDS TLS cert not in Node default trust store)
-const DEFAULT_INSECURE_DB_PASSWORD = 'payflow123';
+const DEFAULT_INSECURE_DB_PASSWORD = 'swiftpay123';
 if (process.env.NODE_ENV === 'production') {
   if (!process.env.DB_PASSWORD || process.env.DB_PASSWORD === DEFAULT_INSECURE_DB_PASSWORD) {
     throw new Error('DB_PASSWORD must be set to a non-default value in production (do not use the default placeholder)');
@@ -60,8 +62,8 @@ if (process.env.NODE_ENV === 'production') {
 const pool = new Pool({
   host: process.env.DB_HOST || 'postgres',
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'payflow',
-  user: process.env.DB_USER || 'payflow',
+  database: process.env.DB_NAME || 'swiftpay',
+  user: process.env.DB_USER || 'swiftpay',
   password: process.env.DB_PASSWORD || DEFAULT_INSECURE_DB_PASSWORD,
   max: parseInt(process.env.PG_POOL_MAX || '5', 10),
   idleTimeoutMillis: 30000,
@@ -98,20 +100,35 @@ const WALLET_SERVICE_URL = process.env.WALLET_SERVICE_URL || 'http://wallet-serv
 
 const walletServiceBreaker = new CircuitBreaker(
   async ({ fromUserId, toUserId, amount, correlationId }) => {
-    return axios.post(
-      `${WALLET_SERVICE_URL}/wallets/transfer`,
-      { fromUserId, toUserId, amount },
-      { 
-        headers: { 'X-Correlation-Id': correlationId },
-        timeout: 4000
+    try {
+      return await axios.post(
+        `${WALLET_SERVICE_URL}/wallets/transfer`,
+        { fromUserId, toUserId, amount },
+        {
+          headers: { 'X-Correlation-Id': correlationId },
+          timeout: 4000
+        }
+      );
+    } catch (error) {
+      const status = error.response?.status;
+      const message = error.response?.data?.error || error.message;
+
+      if (status && status >= 400 && status < 500 && status !== 429) {
+        const businessError = new Error(message);
+        businessError.status = status;
+        businessError.isBusinessFailure = true;
+        throw businessError;
       }
-    );
+
+      throw error;
+    }
   },
   {
     timeout: 5000,
     errorThresholdPercentage: 50,
     resetTimeout: 30000,
-    name: 'wallet-service'
+    name: 'wallet-service',
+    errorFilter: (error) => error.isBusinessFailure === true
   }
 );
 
@@ -137,10 +154,6 @@ walletServiceBreaker.on('close', () => {
   circuitBreakerState.labels('wallet-service', 'open').set(0);
   circuitBreakerState.labels('wallet-service', 'half-open').set(0);
   circuitBreakerTransitions.labels('wallet-service', 'half-open', 'closed').inc();
-});
-
-walletServiceBreaker.fallback(() => {
-  throw new Error('Wallet service temporarily unavailable');
 });
 
 // ============================================
@@ -421,117 +434,45 @@ async function processTransaction(transaction, retryCount = 0) {
       retryCount
     });
 
-    // STEP 1: Update status to PROCESSING
-    // This marks the transaction as "in progress"
-    // If worker crashes here, transaction stays in PROCESSING
-    // CronJob will eventually reverse it if stuck too long
-    await client.query(
-      `UPDATE transactions 
-       SET status = 'PROCESSING', processing_started_at = CURRENT_TIMESTAMP 
-       WHERE id = $1`,
-      [transaction.id]
-    );
+    // STEP 1: Lock the transaction row and only process PENDING work.
+    // RabbitMQ can redeliver messages after worker crashes or connection loss.
+    // The database row is the source of truth that keeps a duplicate message
+    // from calling Wallet Service and moving money twice.
+    const claim = await claimPendingTransaction(client, transaction.id, logger, { retryCount });
+    if (!claim.claimed) {
+      return {
+        skipped: true,
+        transactionId: transaction.id,
+        status: claim.status
+      };
+    }
 
-    // STEP 2: Call Wallet Service to transfer money
-    // This is where the actual money movement happens
-    // Wallet Service will:
-    // - Lock sender's wallet
-    // - Lock receiver's wallet
-    // - Check sufficient funds
-    // - Debit sender, credit receiver
-    // - Commit database transaction
-    //
-    // Circuit breaker: Prevents cascading failures
-    // If wallet service is down, circuit opens, prevents repeated calls
-    await retry(async () => {
-      return walletServiceBreaker.fire({
-        fromUserId: transaction.from_user_id,
-        toUserId: transaction.to_user_id,
-        amount: transaction.amount,
-        correlationId: transaction.id
-      });
-    }, { 
-      retries: 2,  // Retry up to 2 times on failure
-      minTimeout: 1000,  // Wait 1 second between retries
-      onRetry: (error, attempt) => {
-        logger.warn('Retrying wallet service call:', {
-          transactionId: transaction.id,
-          attempt,
-          error: error.message
+    return completeClaimedTransaction({
+      client,
+      transaction,
+      notificationChannel: getChannel(),
+      logger,
+      metrics: { transactionDuration, transactionTotal },
+      startTime,
+      transferWallet: () => retry(async () => {
+        return walletServiceBreaker.fire({
+          fromUserId: transaction.from_user_id,
+          toUserId: transaction.to_user_id,
+          amount: transaction.amount,
+          correlationId: transaction.id
         });
-      }
+      }, {
+        retries: 2,
+        minTimeout: 1000,
+        onRetry: (error, attempt) => {
+          logger.warn('Retrying wallet service call:', {
+            transactionId: transaction.id,
+            attempt,
+            error: error.message
+          });
+        }
+      })
     });
-
-    // STEP 3: Update status to COMPLETED
-    // Money has been transferred successfully
-    // This is the final state for successful transactions
-    await client.query(
-      `UPDATE transactions 
-       SET status = 'COMPLETED', completed_at = CURRENT_TIMESTAMP 
-       WHERE id = $1`,
-      [transaction.id]
-    );
-
-    const duration = (Date.now() - startTime) / 1000;
-    transactionDuration.labels('completed').observe(duration);
-    transactionTotal.labels('completed', 'transfer', 'transaction-service').inc();
-
-    logger.info('Transaction completed successfully:', {
-      transactionId: transaction.id,
-      duration
-    });
-
-    // Send notifications
-    const nc = getChannel();
-    if (nc) {
-      nc.sendToQueue('notifications', Buffer.from(JSON.stringify({
-        userId: transaction.from_user_id,
-        type: 'TRANSACTION_COMPLETED',
-        message: `Sent $${transaction.amount} to ${transaction.to_user_id}`,
-        transactionId: transaction.id,
-        amount: transaction.amount,
-        otherParty: transaction.to_user_id
-      })), { persistent: true });
-
-      nc.sendToQueue('notifications', Buffer.from(JSON.stringify({
-        userId: transaction.to_user_id,
-        type: 'TRANSACTION_RECEIVED',
-        message: `Received $${transaction.amount} from ${transaction.from_user_id}`,
-        transactionId: transaction.id,
-        amount: transaction.amount,
-        otherParty: transaction.from_user_id
-      })), { persistent: true });
-    }
-
-  } catch (error) {
-    const duration = (Date.now() - startTime) / 1000;
-    transactionDuration.labels('failed').observe(duration);
-    transactionTotal.labels('failed', 'transfer', 'transaction-service').inc();
-
-    logger.error('Transaction failed:', {
-      transactionId: transaction.id,
-      error: error.message,
-      duration
-    });
-
-    await client.query(
-      `UPDATE transactions 
-       SET status = 'FAILED', error_message = $1, completed_at = CURRENT_TIMESTAMP 
-       WHERE id = $2`,
-      [error.message, transaction.id]
-    );
-
-    const nc = getChannel();
-    if (nc) {
-      nc.sendToQueue('notifications', Buffer.from(JSON.stringify({
-        userId: transaction.from_user_id,
-        type: 'TRANSACTION_FAILED',
-        message: `Transaction failed: ${error.message}`,
-        transactionId: transaction.id
-      })), { persistent: true });
-    }
-
-    throw error;
   } finally {
     client.release();
   }
@@ -910,3 +851,4 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 module.exports = app; // For testing
+module.exports.processTransaction = processTransaction;

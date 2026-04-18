@@ -1,13 +1,13 @@
-# Contributing to PayFlow Wallet
+# Contributing to SwiftPay Wallet
 
 Thank you for helping improve this project. Contributions keep the learning path and production patterns accurate for everyone.
 
 ## Attribution — if you use this repository
 
-If you use PayFlow Wallet as a **starting point**, **course material**, **portfolio fork**, or **substantial reuse** of its code or documentation, **please give credit** to the original work. A short notice is enough—for example in your README, syllabus, or video description:
+If you use SwiftPay Wallet as a **starting point**, **course material**, **portfolio fork**, or **substantial reuse** of its code or documentation, **please give credit** to the original work. A short notice is enough—for example in your README, syllabus, or video description:
 
-- Name the project (**PayFlow Wallet**).
-- Link to the source repository: **https://github.com/Ship-With-Zee/payflow-wallet**
+- Name the project (**SwiftPay Wallet**).
+- Link to the source repository: **https://github.com/Ship-With-Zee/swiftpay-wallet**
 
 That helps others find the upstream project and keeps expectations clear about what is original versus derived.
 

@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: 'PayFlow Dashboards'
+  - name: 'SwiftPay Dashboards'
     orgId: 1
-    folder: 'PayFlow'
+    folder: 'SwiftPay'
     type: file
     disableDeletion: false
     updateIntervalSeconds: 10

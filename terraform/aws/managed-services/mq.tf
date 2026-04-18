@@ -3,7 +3,7 @@
 
 # Security Group for Amazon MQ
 resource "aws_security_group" "mq" {
-  name        = "payflow-mq-sg"
+  name        = "swiftpay-mq-sg"
   description = "Security group for Amazon MQ (RabbitMQ)"
   vpc_id      = data.aws_vpc.eks.id
 
@@ -40,13 +40,13 @@ resource "aws_security_group" "mq" {
   }
 
   tags = {
-    Name = "payflow-mq-sg"
+    Name = "swiftpay-mq-sg"
   }
 }
 
 # Amazon MQ Broker (RabbitMQ)
-resource "aws_mq_broker" "payflow" {
-  broker_name                 = "payflow-rabbitmq"
+resource "aws_mq_broker" "swiftpay" {
+  broker_name                 = "swiftpay-rabbitmq"
   engine_type                 = "RabbitMQ"
   engine_version              = var.rabbitmq_version
   host_instance_type           = var.mq_instance_type
@@ -84,7 +84,7 @@ resource "aws_mq_broker" "payflow" {
   }
 
   tags = {
-    Name        = "payflow-rabbitmq"
+    Name        = "swiftpay-rabbitmq"
     Environment = var.environment
   }
 
@@ -101,13 +101,13 @@ resource "aws_kms_key" "mq" {
   enable_key_rotation     = true
 
   tags = {
-    Name = "payflow-mq-kms-key"
+    Name = "swiftpay-mq-kms-key"
   }
 }
 
 # Hostname and secret JSON built in Terraform so the shell needs no substitution or escaping
 locals {
-  mq_endpoint_full = aws_mq_broker.payflow.instances[0].endpoints[0]
+  mq_endpoint_full = aws_mq_broker.swiftpay.instances[0].endpoints[0]
   mq_host          = split(":", replace(replace(local.mq_endpoint_full, "amqps://", ""), "amqp://", ""))[0]
   mq_secret_json   = jsonencode({
     username = var.rabbitmq_username
@@ -122,14 +122,14 @@ locals {
 # Update RabbitMQ secret in Secrets Manager with actual endpoint and URL
 # Note: Secret must exist in spoke-vpc-eks module first
 resource "null_resource" "update_rabbitmq_secret" {
-  depends_on = [aws_mq_broker.payflow]
+  depends_on = [aws_mq_broker.swiftpay]
 
   triggers = {
-    mq_endpoint = aws_mq_broker.payflow.instances[0].endpoints[0]
+    mq_endpoint = aws_mq_broker.swiftpay.instances[0].endpoints[0]
   }
 
   provisioner "local-exec" {
-    command     = "echo \"$${B64}\" | base64 -d > ${path.module}/.secret-mq.json && aws secretsmanager put-secret-value --secret-id payflow/${local.env}/rabbitmq --secret-string file://${path.module}/.secret-mq.json --region ${var.aws_region} || echo 'Warning: Secret may not exist yet.'"
+    command     = "echo \"$${B64}\" | base64 -d > ${path.module}/.secret-mq.json && aws secretsmanager put-secret-value --secret-id swiftpay/${local.env}/rabbitmq --secret-string file://${path.module}/.secret-mq.json --region ${var.aws_region} || echo 'Warning: Secret may not exist yet.'"
     environment = { B64 = base64encode(local.mq_secret_json) }
   }
 }

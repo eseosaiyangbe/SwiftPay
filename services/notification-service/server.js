@@ -78,7 +78,7 @@ app.use(metricsMiddleware);
 // DATABASE CONNECTION
 // ============================================
 // rejectUnauthorized: false for AWS RDS (RDS TLS cert not in Node default trust store)
-const DEFAULT_INSECURE_DB_PASSWORD = 'payflow123';
+const DEFAULT_INSECURE_DB_PASSWORD = 'swiftpay123';
 if (process.env.NODE_ENV === 'production') {
   if (!process.env.DB_PASSWORD || process.env.DB_PASSWORD === DEFAULT_INSECURE_DB_PASSWORD) {
     throw new Error('DB_PASSWORD must be set to a non-default value in production (do not use the default placeholder)');
@@ -87,8 +87,8 @@ if (process.env.NODE_ENV === 'production') {
 const pool = new Pool({
   host: process.env.DB_HOST || 'postgres',
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'payflow',
-  user: process.env.DB_USER || 'payflow',
+  database: process.env.DB_NAME || 'swiftpay',
+  user: process.env.DB_USER || 'swiftpay',
   password: process.env.DB_PASSWORD || DEFAULT_INSECURE_DB_PASSWORD,
   max: parseInt(process.env.PG_POOL_MAX || '5', 10),
   ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: false } : false,
@@ -190,7 +190,7 @@ class EmailService {
       }
 
       const info = await this.transporter.sendMail({
-        from: '"PayFlow" <noreply@payflow.com>',
+        from: '"SwiftPay" <noreply@swiftpay.com>',
         to,
         subject,
         html
@@ -220,10 +220,10 @@ class EmailService {
   }
 
   async sendWelcomeEmail(to, name) {
-    const subject = 'Welcome to PayFlow!';
+    const subject = 'Welcome to SwiftPay!';
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb;">Welcome to PayFlow, ${name}!</h1>
+        <h1 style="color: #2563eb;">Welcome to SwiftPay, ${name}!</h1>
         <p>Thank you for joining our digital wallet platform.</p>
         <p>Your account has been created successfully with an initial balance of <strong>$1,000</strong>.</p>
         <h3>Getting Started:</h3>
@@ -238,7 +238,7 @@ class EmailService {
           If you have any questions, feel free to contact our support team.
         </p>
         <p style="color: #6b7280; font-size: 12px;">
-          Best regards,<br>The PayFlow Team
+          Best regards,<br>The SwiftPay Team
         </p>
       </div>
     `;
@@ -250,7 +250,7 @@ class EmailService {
       }
 
       const info = await this.transporter.sendMail({
-        from: '"PayFlow" <welcome@payflow.com>',
+        from: '"SwiftPay" <welcome@swiftpay.com>',
         to,
         subject,
         html
@@ -297,8 +297,8 @@ class SMSService {
     }
 
     const message = type === 'SENT' 
-      ? `PayFlow: You sent $${amount}. Ref: ${Date.now()}`
-      : `PayFlow: You received $${amount}. Ref: ${Date.now()}`;
+      ? `SwiftPay: You sent $${amount}. Ref: ${Date.now()}`
+      : `SwiftPay: You received $${amount}. Ref: ${Date.now()}`;
 
     try {
       const result = await this.client.messages.create({
@@ -593,6 +593,47 @@ app.put('/notifications/:id/read',
       res.json(result.rows[0]);
     } catch (error) {
       logger.error('Failed to mark notification as read:', {
+        correlationId,
+        notificationId: id,
+        error: error.message
+      });
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Delete a notification (requires X-User-Id so only owner can delete own notifications)
+app.delete('/notifications/:id',
+  validate([
+    param('id').isInt().toInt()
+  ]),
+  async (req, res) => {
+    const { id } = req.params;
+    const userId = req.headers['x-user-id'];
+    const correlationId = req.correlationId;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'X-User-Id header required' });
+    }
+
+    try {
+      const result = await pool.query(
+        'DELETE FROM notifications WHERE id = $1 AND user_id = $2 RETURNING *',
+        [id, userId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Notification not found' });
+      }
+
+      logger.info('Notification deleted:', {
+        correlationId,
+        notificationId: id
+      });
+
+      res.json({ deleted: true, notification: result.rows[0] });
+    } catch (error) {
+      logger.error('Failed to delete notification:', {
         correlationId,
         notificationId: id,
         error: error.message

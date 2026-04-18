@@ -2,7 +2,7 @@ locals {
   env = terraform.workspace
 
   common_tags = {
-    project       = "payflow"
+    project       = "swiftpay"
     environment   = local.env
     team          = "engineering"
     owner         = "engineering"

@@ -61,12 +61,12 @@ resource "aws_iam_role_policy" "bootstrap" {
             "logs:PutLogEvents",
             "logs:DescribeLogStreams"
           ]
-          Resource = "arn:aws:logs:*:*:log-group:/payflow/bootstrap*"
+          Resource = "arn:aws:logs:*:*:log-group:/swiftpay/bootstrap*"
         },
         {
           Effect   = "Allow"
           Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
-          Resource = "arn:aws:secretsmanager:*:*:secret:payflow/*"
+          Resource = "arn:aws:secretsmanager:*:*:secret:swiftpay/*"
         }
       ],
       var.self_terminate ? [

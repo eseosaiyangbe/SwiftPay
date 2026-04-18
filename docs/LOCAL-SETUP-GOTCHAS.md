@@ -1,6 +1,6 @@
 # Local Setup Gotchas ("Works on My Machine")
 
-These are the most common environment-specific issues when running PayFlow locally. For general debugging see [RUNBOOK.md](RUNBOOK.md) and [troubleshooting.md](troubleshooting.md).
+These are the most common environment-specific issues when running SwiftPay locally. For general debugging see [RUNBOOK.md](RUNBOOK.md) and [troubleshooting.md](troubleshooting.md).
 
 **Learning path:** [`LEARNING-PATH.md`](../LEARNING-PATH.md) is **MicroK8s-first**. Most sections below target **Docker Compose on your host** (optional path) or cross-cutting issues (e.g. MicroK8s ingress/DNS).
 
@@ -44,7 +44,7 @@ See also: [troubleshooting.md — Port Already in Use](troubleshooting.md#issue-
 
 ## Apple Silicon (M1/M2/M3) / ARM
 
-Docker Desktop on Apple Silicon runs Linux ARM images. The images used by PayFlow are multi-arch (e.g. `postgres:15-alpine`, `redis:7-alpine`, `rabbitmq:3-management-alpine`), so they work on ARM without changes.
+Docker Desktop on Apple Silicon runs Linux ARM images. The images used by SwiftPay are multi-arch (e.g. `postgres:15-alpine`, `redis:7-alpine`, `rabbitmq:3-management-alpine`), so they work on ARM without changes.
 
 If you hit ARM-specific issues:
 
@@ -71,23 +71,23 @@ If you hit ARM-specific issues:
 
 ### Docker
 
-- Use **Docker Desktop** with the WSL2 backend. Ensure the project directory is under the WSL filesystem (e.g. `~/projects/payflow-wallet`) so volume mounts and file watching work correctly. Accessing the repo from `/mnt/c/...` can be slower and sometimes cause permission or path issues.
+- Use **Docker Desktop** with the WSL2 backend. Ensure the project directory is under the WSL filesystem (e.g. `~/projects/swiftpay-wallet`) so volume mounts and file watching work correctly. Accessing the repo from `/mnt/c/...` can be slower and sometimes cause permission or path issues.
 
 ---
 
-## payflow.local works in curl but not in browser (MicroK8s)
+## swiftpay.local works in curl but not in browser (MicroK8s)
 
-If `curl http://192.168.64.5/ -H "Host: payflow.local"` returns 200 but the browser shows "This site can't be reached" or ERR_CONNECTION_RESET when opening `payflow.local`:
+If `curl http://192.168.64.5/ -H "Host: swiftpay.local"` returns 200 but the browser shows "This site can't be reached" or ERR_CONNECTION_RESET when opening `swiftpay.local`:
 
 1. **/etc/hosts must use the VM IP**  
-   PayFlow ingress runs in the MicroK8s VM (usually **192.168.64.5**). Your hosts file must point the hostname there:
+   SwiftPay ingress runs in the MicroK8s VM (usually **192.168.64.5**). Your hosts file must point the hostname there:
    ```text
-   192.168.64.5   payflow.local www.payflow.local api.payflow.local
+   192.168.64.5   swiftpay.local www.swiftpay.local api.swiftpay.local
    ```
    If you still have `192.168.64.2` for these, the browser will connect to the wrong host. Edit with `sudo nano /etc/hosts` or `sudo vi /etc/hosts`.
 
 2. **Use http:// (not https://)**  
-   Type **http://payflow.local** in the address bar. If you use `https://` or let the browser upgrade, the connection will fail (no TLS on local ingress).
+   Type **http://swiftpay.local** in the address bar. If you use `https://` or let the browser upgrade, the connection will fail (no TLS on local ingress).
 
 3. **Flush DNS so the browser sees the new hosts**  
    ```bash
@@ -96,11 +96,11 @@ If `curl http://192.168.64.5/ -H "Host: payflow.local"` returns 200 but the brow
    Then reload the page or close and reopen the tab.
 
 4. **Try a private/incognito window**  
-   Avoids cached redirects or HSTS. Open **http://payflow.local** in that window.
+   Avoids cached redirects or HSTS. Open **http://swiftpay.local** in that window.
 
 5. **Verify resolution**  
    ```bash
-   ping -c 1 payflow.local
+   ping -c 1 swiftpay.local
    ```
    The IP shown must be **192.168.64.5** (or whatever IP you use in /etc/hosts). If it shows a different IP, fix /etc/hosts and flush DNS again.
 
@@ -112,10 +112,10 @@ If the login page loads but sign-in returns **502** or "Request failed", the API
 
 ```bash
 kubectl apply -k k8s/overlays/local
-kubectl get pods -n payflow -w   # wait until api-gateway and auth-service are Running and Ready
+kubectl get pods -n swiftpay -w   # wait until api-gateway and auth-service are Running and Ready
 ```
 
-Then try **http://payflow.local** and sign in again. No EKS/AKS changes—only `k8s/overlays/local/` is used for this.
+Then try **http://swiftpay.local** and sign in again. No EKS/AKS changes—only `k8s/overlays/local/` is used for this.
 
 ---
 
@@ -128,4 +128,4 @@ Then try **http://payflow.local** and sign in again. No EKS/AKS changes—only `
 | ARM / M1 errors    | Use multi-arch/official images (current stack is fine)   |
 | Windows scripts    | Use WSL2 or Git Bash; fix CRLF if needed                 |
 | Paths on Windows   | Prefer WSL project path; forward slashes in configs     |
-| payflow.local (browser) | /etc/hosts → 192.168.64.5; use http://; flush DNS; incognito |
+| swiftpay.local (browser) | /etc/hosts → 192.168.64.5; use http://; flush DNS; incognito |

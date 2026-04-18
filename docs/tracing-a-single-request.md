@@ -1,4 +1,4 @@
-# Tracing a Single Request Through PayFlow
+# Tracing a Single Request Through SwiftPay
 
 > **Phase 2 - Flow & Mental Models** - Read this after Phase 1. Most important doc for understanding the system.
 
@@ -32,7 +32,7 @@ A user wants to send $100 to another user. Let's follow this request from the br
 The user clicks "Send Money" in the React frontend. The frontend makes an HTTP request:
 
 ```
-POST https://www.payflow.local/api/transactions
+POST https://www.swiftpay.local/api/transactions
 Headers:
   Authorization: Bearer <jwt-token>
   Content-Type: application/json
@@ -437,14 +437,14 @@ No single component does it alone.
 **Try this:**
 
 1. Make a real request (send money in the app)
-2. Watch the logs: `kubectl logs -f -n payflow -l app=transaction-service`
+2. Watch the logs: `kubectl logs -f -n swiftpay -l app=transaction-service`
 3. See the messages: Check RabbitMQ management UI
 4. Check the database: Query the transactions table
 5. Follow the status changes: PENDING → PROCESSING → COMPLETED
 
 **Then try breaking something:**
 
-1. Stop Wallet Service: `kubectl scale deployment wallet-service --replicas=0 -n payflow`
+1. Stop Wallet Service: `kubectl scale deployment wallet-service --replicas=0 -n swiftpay`
 2. Make a request
 3. See what happens (transaction stays PROCESSING)
 4. Start Wallet Service again

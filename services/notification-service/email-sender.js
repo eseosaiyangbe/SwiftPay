@@ -57,7 +57,7 @@ class EmailService {
 
     try {
       const info = await this.transporter.sendMail({
-        from: '"PayFlow" <noreply@payflow.com>',
+        from: '"SwiftPay" <noreply@swiftpay.com>',
         to,
         subject,
         html
@@ -81,9 +81,9 @@ class EmailService {
   }
 
   async sendWelcomeEmail(to, name) {
-    const subject = 'Welcome to PayFlow!';
+    const subject = 'Welcome to SwiftPay!';
     const html = `
-      <h1>Welcome to PayFlow, ${name}!</h1>
+      <h1>Welcome to SwiftPay, ${name}!</h1>
       <p>Thank you for joining our digital wallet platform.</p>
       <p>Your account has been created successfully with an initial balance of $1,000.</p>
       <h3>Getting Started:</h3>
@@ -94,12 +94,12 @@ class EmailService {
         <li>Start sending and receiving payments</li>
       </ul>
       <p>If you have any questions, feel free to contact our support team.</p>
-      <p>Best regards,<br>The PayFlow Team</p>
+      <p>Best regards,<br>The SwiftPay Team</p>
     `;
 
     try {
       const info = await this.transporter.sendMail({
-        from: '"PayFlow" <welcome@payflow.com>',
+        from: '"SwiftPay" <welcome@swiftpay.com>',
         to,
         subject,
         html
@@ -128,12 +128,12 @@ class EmailService {
       <p style="color: #d32f2f;">
         If this was not you, please secure your account immediately by changing your password.
       </p>
-      <p><a href="https://payflow.com/account/security" style="color: #1976d2;">Secure My Account</a></p>
+      <p><a href="https://swiftpay.com/account/security" style="color: #1976d2;">Secure My Account</a></p>
     `;
 
     try {
       const info = await this.transporter.sendMail({
-        from: '"PayFlow Security" <security@payflow.com>',
+        from: '"SwiftPay Security" <security@swiftpay.com>',
         to,
         subject,
         html,
@@ -149,7 +149,7 @@ class EmailService {
   }
 
   async sendPasswordResetEmail(to, resetToken) {
-    const base = process.env.FRONTEND_BASE_URL || process.env.PASSWORD_RESET_BASE_URL || 'https://payflow.com';
+    const base = process.env.FRONTEND_BASE_URL || process.env.PASSWORD_RESET_BASE_URL || 'https://swiftpay.com';
     const resetLink = `${base.replace(/\/$/, '')}/reset-password?token=${resetToken}`;
     const subject = 'Password Reset Request';
     const html = `
@@ -163,7 +163,7 @@ class EmailService {
 
     try {
       const info = await this.transporter.sendMail({
-        from: '"PayFlow" <noreply@payflow.com>',
+        from: '"SwiftPay" <noreply@swiftpay.com>',
         to,
         subject,
         html

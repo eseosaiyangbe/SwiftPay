@@ -40,7 +40,7 @@ resource "aws_kms_key" "ecr" {
 }
 
 resource "aws_kms_alias" "ecr" {
-  name          = "alias/payflow-ecr"
+  name          = "alias/swiftpay-ecr"
   target_key_id = aws_kms_key.ecr.key_id
 }
 

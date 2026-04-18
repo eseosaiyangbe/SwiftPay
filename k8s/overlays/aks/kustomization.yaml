@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: payflow
+namespace: swiftpay
 
 resources:
   - ../../base
@@ -70,21 +70,21 @@ labels:
 # All images pulled from ACR — tag is substituted by deploy.sh at deploy time
 images:
   - name: veeno/api-gateway
-    newName: <ACR_NAME>.azurecr.io/payflow/api-gateway
+    newName: <ACR_NAME>.azurecr.io/swiftpay/api-gateway
     newTag: <IMAGE_TAG>
   - name: veeno/auth-service
-    newName: <ACR_NAME>.azurecr.io/payflow/auth-service
+    newName: <ACR_NAME>.azurecr.io/swiftpay/auth-service
     newTag: <IMAGE_TAG>
   - name: veeno/wallet-service
-    newName: <ACR_NAME>.azurecr.io/payflow/wallet-service
+    newName: <ACR_NAME>.azurecr.io/swiftpay/wallet-service
     newTag: <IMAGE_TAG>
   - name: veeno/transaction-service
-    newName: <ACR_NAME>.azurecr.io/payflow/transaction-service
+    newName: <ACR_NAME>.azurecr.io/swiftpay/transaction-service
     newTag: <IMAGE_TAG>
   - name: veeno/notification-service
-    newName: <ACR_NAME>.azurecr.io/payflow/notification-service
+    newName: <ACR_NAME>.azurecr.io/swiftpay/notification-service
     newTag: <IMAGE_TAG>
   - name: veeno/frontend
-    newName: <ACR_NAME>.azurecr.io/payflow/frontend
+    newName: <ACR_NAME>.azurecr.io/swiftpay/frontend
     newTag: <IMAGE_TAG>
 

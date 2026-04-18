@@ -1,12 +1,12 @@
 # Local CI/CD: Self-hosted GitHub Actions → MicroK8s registry → Argo CD
 
-This guide is for **PayFlow on MicroK8s** with everything on your machine: no AWS, no Docker Hub, no cloud registry. For **cloud** builds on GitHub-hosted runners (Docker Hub / ECR / ACR), see `.github/workflows/build-and-deploy.yml` and the [documentation index](README.md).
+This guide is for **SwiftPay on MicroK8s** with everything on your machine: no AWS, no Docker Hub, no cloud registry. For **cloud** builds on GitHub-hosted runners (Docker Hub / ECR / ACR), see `.github/workflows/build-and-deploy.yml` and the [documentation index](README.md).
 
-**What you get:** push to `main` → self-hosted runner builds images → images land in the MicroK8s registry (`localhost:32000` inside the cluster) → workflow commits updated tags in `k8s/overlays/local/kustomization.yaml` → Argo CD syncs the app to namespace `payflow`.
+**What you get:** push to `main` → self-hosted runner builds images → images land in the MicroK8s registry (`localhost:32000` inside the cluster) → workflow commits updated tags in `k8s/overlays/local/kustomization.yaml` → Argo CD syncs the app to namespace `swiftpay`.
 
 **Repository workflow file:** `.github/workflows/gitops-local.yml`
 
-**Git remote for this project:** `https://github.com/Ship-With-Zee/payflow-wallet.git`
+**Git remote for this project:** `https://github.com/Ship-With-Zee/swiftpay-wallet.git`
 
 ---
 
@@ -73,7 +73,7 @@ On the **same Mac** that runs Docker and Multipass (so the workflow can reach `m
 ```bash
 mkdir -p ~/actions-runner && cd ~/actions-runner
 # … download and extract the runner zip/tar from the UI …
-./config.sh --url https://github.com/Ship-With-Zee/payflow-wallet --token YOUR_REGISTRATION_TOKEN
+./config.sh --url https://github.com/Ship-With-Zee/swiftpay-wallet --token YOUR_REGISTRATION_TOKEN
 ./run.sh
 ```
 
@@ -102,23 +102,23 @@ For a persistent service, follow GitHub’s docs for `./svc.sh install` on your 
 **Public repo:**
 
 ```bash
-argocd repo add https://github.com/Ship-With-Zee/payflow-wallet.git --name payflow
+argocd repo add https://github.com/Ship-With-Zee/swiftpay-wallet.git --name swiftpay
 ```
 
 **Private repo (HTTPS + PAT):**
 
 ```bash
-argocd repo add https://github.com/Ship-With-Zee/payflow-wallet.git --username git --password 'YOUR_GITHUB_PAT'
+argocd repo add https://github.com/Ship-With-Zee/swiftpay-wallet.git --username git --password 'YOUR_GITHUB_PAT'
 ```
 
 **Create the Application** (tracks the same overlay you use for local deploy):
 
 ```bash
-argocd app create payflow-local \
-  --repo https://github.com/Ship-With-Zee/payflow-wallet.git \
+argocd app create swiftpay-local \
+  --repo https://github.com/Ship-With-Zee/swiftpay-wallet.git \
   --path k8s/overlays/local \
   --dest-server https://kubernetes.default.svc \
-  --dest-namespace payflow \
+  --dest-namespace swiftpay \
   --sync-policy automated \
   --auto-prune \
   --self-heal
@@ -127,8 +127,8 @@ argocd app create payflow-local \
 First sync:
 
 ```bash
-argocd app sync payflow-local
-argocd app get payflow-local
+argocd app sync swiftpay-local
+argocd app get swiftpay-local
 ```
 
 ---
@@ -136,14 +136,14 @@ argocd app get payflow-local
 ## 5. End-to-end test
 
 1. Runner online (`./run.sh` or service).
-2. Argo CD application **Synced** / **Healthy** (or run `argocd app sync payflow-local` once).
+2. Argo CD application **Synced** / **Healthy** (or run `argocd app sync swiftpay-local` once).
 3. Push a small change on `main` (e.g. a comment in a service).
 4. Confirm:
    - **Actions** → workflow **Local GitOps (MicroK8s)** succeeded.
    - Registry catalog (from the VM):  
      `multipass exec microk8s-vm -- curl -sS http://127.0.0.1:32000/v2/_catalog`
    - Argo CD shows a new revision and sync.
-   - Pods roll: `kubectl get pods -n payflow -w`
+   - Pods roll: `kubectl get pods -n swiftpay -w`
 
 ---
 

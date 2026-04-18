@@ -1,5 +1,5 @@
 # ============================================
-# Resource Quotas for PayFlow Namespace
+# Resource Quotas for SwiftPay Namespace
 # ============================================
 # Purpose: Limit total resource consumption per namespace
 # 
@@ -35,8 +35,8 @@
 apiVersion: v1
 kind: ResourceQuota
 metadata:
-  name: payflow-resource-quota
-  namespace: payflow
+  name: swiftpay-resource-quota
+  namespace: swiftpay
 spec:
   hard:
     # ============================================

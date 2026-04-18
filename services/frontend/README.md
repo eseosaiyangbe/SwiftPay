@@ -10,11 +10,11 @@ A single-page React application served by nginx. It owns no data — everything 
 
 Two reasons:
 
-1. **Proxy** — the browser sends `/api/wallets` and nginx rewrites it to `http://api-gateway.payflow.svc.cluster.local:80/api/wallets`. Without this proxy, the browser would need to know the API Gateway's address directly — which changes between environments (localhost, MicroK8s, EKS, AKS). With nginx, the frontend always talks to itself and nginx handles the routing.
+1. **Proxy** — the browser sends `/api/wallets` and nginx rewrites it to `http://api-gateway.swiftpay.svc.cluster.local:80/api/wallets`. Without this proxy, the browser would need to know the API Gateway's address directly — which changes between environments (localhost, MicroK8s, EKS, AKS). With nginx, the frontend always talks to itself and nginx handles the routing.
 
-   > **What's `.svc.cluster.local`?** It's Kubernetes's internal DNS suffix. `api-gateway.payflow.svc.cluster.local` means "the Service named `api-gateway` in the `payflow` namespace." It only resolves inside the cluster — your browser can't use it, but nginx running inside a pod can.
+   > **What's `.svc.cluster.local`?** It's Kubernetes's internal DNS suffix. `api-gateway.swiftpay.svc.cluster.local` means "the Service named `api-gateway` in the `swiftpay` namespace." It only resolves inside the cluster — your browser can't use it, but nginx running inside a pod can.
 
-2. **SPA routing** — React apps handle routing in JavaScript. If you reload `http://www.payflow.local/dashboard`, nginx must serve `index.html` (not 404), and React's router takes over. The `try_files $uri $uri/ /index.html;` line in nginx.conf handles this.
+2. **SPA routing** — React apps handle routing in JavaScript. If you reload `http://www.swiftpay.local/dashboard`, nginx must serve `index.html` (not 404), and React's router takes over. The `try_files $uri $uri/ /index.html;` line in nginx.conf handles this.
 
 ## Key files
 
@@ -33,7 +33,7 @@ The only runtime env vars are nginx config values set in `docker-entrypoint.sh`:
 
 | Variable | Local MicroK8s | Docker Compose |
 |----------|---------------|----------------|
-| `API_GATEWAY_URL` | `http://api-gateway.payflow.svc.cluster.local:80` | `http://api-gateway:3000` |
+| `API_GATEWAY_URL` | `http://api-gateway.swiftpay.svc.cluster.local:80` | `http://api-gateway:3000` |
 | `NGINX_RESOLVER` | `10.152.183.10` (kube-dns ClusterIP) | `127.0.0.11` |
 
 > **Why must NGINX_RESOLVER be an IP?** When `proxy_pass` uses a variable (`$api_upstream`), nginx resolves the hostname at request time using this DNS server. nginx's `resolver` directive only accepts IP addresses — not hostnames. `10.152.183.10` is the kube-dns Service IP in MicroK8s; `127.0.0.11` is Docker's built-in DNS.
@@ -50,13 +50,13 @@ docker compose up -d frontend
 
 ```bash
 # Run from the repository root (not from inside services/frontend/)
-docker build -t payflow-frontend ./services/frontend
+docker build -t swiftpay-frontend ./services/frontend
 
 # Check what nginx.conf.template produces after substitution
 docker run --rm \
   -e API_GATEWAY_URL=http://api-gateway:3000 \
   -e NGINX_RESOLVER=127.0.0.11 \
-  payflow-frontend \
+  swiftpay-frontend \
   cat /etc/nginx/conf.d/default.conf
 ```
 

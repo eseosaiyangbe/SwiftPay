@@ -1,16 +1,16 @@
-# PayFlow Wallet
+# SwiftPay Wallet
 
-![PayFlow Wallet](assets/logo.png)
+![SwiftPay Wallet](assets/logo.png)
 
 > A production-grade fintech microservices platform for digital payments with multi-cloud Kubernetes deployment.
 
-PayFlow Wallet is a complete payment platform demonstrating real-world microservices architecture. It processes money transfers asynchronously, prevents duplicate charges through idempotency, and scales across AWS EKS and Azure AKS. Built with Node.js, PostgreSQL, Redis, and RabbitMQ—the same stack used by Stripe and Square.
+SwiftPay Wallet is a complete payment platform demonstrating real-world microservices architecture. It processes money transfers asynchronously, prevents duplicate charges through idempotency, and scales across AWS EKS and Azure AKS. Built with Node.js, PostgreSQL, Redis, and RabbitMQ—the same stack used by Stripe and Square.
 
 > **New here?** Start with [`LEARNING-PATH.md`](LEARNING-PATH.md) (week-by-week). **Docs are indexed** in [`docs/README.md`](docs/README.md) so you can pick one path instead of every guide at once.
 
-**Deep dive (design choices, fintech mindset, end-to-end traces):** [*Building PayFlow* — a developer’s field guide](https://osomudeya.gumroad.com/l/payflow) walks through why the system is built the way it is (atomicity, idempotency, queues vs HTTP, Terraform/Kubernetes, security, observability, CI/CD). It complements this repo’s markdown docs; when something disagrees, **the repo and running code are the source of truth**.
+**Deep dive (design choices, fintech mindset, end-to-end traces):** [*Building SwiftPay* — a developer’s field guide](https://osomudeya.gumroad.com/l/swiftpay) walks through why the system is built the way it is (atomicity, idempotency, queues vs HTTP, Terraform/Kubernetes, security, observability, CI/CD). It complements this repo’s markdown docs; when something disagrees, **the repo and running code are the source of truth**.
 
-**Credit:** If you use this repo as a base for your own project, course, or content, please **acknowledge PayFlow Wallet** and link to [https://github.com/Ship-With-Zee/payflow-wallet](https://github.com/Ship-With-Zee/payflow-wallet). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution guidelines and attribution details.
+**Credit:** If you use this repo as a base for your own project, course, or content, please **acknowledge SwiftPay Wallet** and link to [https://github.com/Ship-With-Zee/swiftpay-wallet](https://github.com/Ship-With-Zee/swiftpay-wallet). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution guidelines and attribution details.
 
 ## Architecture
 
@@ -76,10 +76,10 @@ From the repo root, run **`./scripts/deploy-microk8s.sh`**. It installs or uses 
 **After deploy:** add hosts, validate, open the app:
 
 ```bash
-bash scripts/setup-hosts-payflow-local.sh   # 127.0.0.1  www.payflow.local api.payflow.local
+bash scripts/setup-hosts-swiftpay-local.sh   # 127.0.0.1  www.swiftpay.local api.swiftpay.local
 export KUBECONFIG="${HOME}/.kube/microk8s-config"   # if deploy script printed this
-./scripts/validate.sh --env k8s --host http://api.payflow.local
-open http://www.payflow.local
+./scripts/validate.sh --env k8s --host http://api.swiftpay.local
+open http://www.swiftpay.local
 ```
 
 **Manual MicroK8s:** `microk8s enable dns storage registry ingress metrics-server`, kubeconfig, then `kubectl apply -k k8s/overlays/local`—see [`docs/microk8s-deployment.md`](docs/microk8s-deployment.md).
@@ -88,7 +88,7 @@ open http://www.payflow.local
 
 **Teardown:**
 ```bash
-kubectl delete namespace payflow
+kubectl delete namespace swiftpay
 ```
 
 ---
@@ -98,12 +98,12 @@ kubectl delete namespace payflow
 Fastest way to see the UI and API on **`http://localhost`** when you cannot or do not want MicroK8s yet (still covered in Week 1 optional block in the learning path).
 
 ```bash
-git clone https://github.com/<your-username>/payflow-wallet-2.git && cd payflow-wallet-2
+git clone https://github.com/<your-username>/swiftpay-wallet-2.git && cd swiftpay-wallet-2
 docker compose up -d
 # Wait ~30 seconds for Postgres, then:
 ./scripts/validate.sh
 open http://localhost
-# API: http://localhost:3000/health — RabbitMQ UI: http://localhost:15672 (payflow / payflow123)
+# API: http://localhost:3000/health — RabbitMQ UI: http://localhost:15672 (swiftpay / swiftpay123)
 ```
 
 **Monitoring profile** (Prometheus + Grafana + Alertmanager)—great for the learning path “minimal triad”:
@@ -148,11 +148,11 @@ cd ../bastion           && terraform init && terraform apply -auto-approve
 ```bash
 # 3. Open bastion tunnel so kubectl can reach the private EKS endpoint (from repo root)
 BASTION_IP=$(terraform -chdir=terraform/aws/bastion output -raw bastion_public_ip)
-EKS_ENDPOINT=$(aws eks describe-cluster --name payflow-eks-cluster --query 'cluster.endpoint' --output text | sed 's|https://||')
-ssh -i ~/.ssh/payflow-bastion.pem -L 6443:${EKS_ENDPOINT}:443 ec2-user@${BASTION_IP} -N &
+EKS_ENDPOINT=$(aws eks describe-cluster --name swiftpay-eks-cluster --query 'cluster.endpoint' --output text | sed 's|https://||')
+ssh -i ~/.ssh/swiftpay-bastion.pem -L 6443:${EKS_ENDPOINT}:443 ec2-user@${BASTION_IP} -N &
 
 # 4. Configure kubectl
-aws eks update-kubeconfig --region us-east-1 --name payflow-eks-cluster
+aws eks update-kubeconfig --region us-east-1 --name swiftpay-eks-cluster
 
 # 5. Install External Secrets Operator (one-time)
 helm repo add external-secrets https://charts.external-secrets.io
@@ -167,7 +167,7 @@ helm install external-secrets external-secrets/external-secrets \
 IMAGE_TAG=<git-sha-from-ci> ./k8s/overlays/eks/deploy.sh
 
 # 8. Validate
-./scripts/validate.sh --env cloud --host https://$(kubectl get ingress -n payflow -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
+./scripts/validate.sh --env cloud --host https://$(kubectl get ingress -n swiftpay -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
 ```
 
 `./spinup.sh` can also target **Azure (AKS)** if you choose `aks` at the prompt; use the AKS deploy path in the short form below when deploying the app.

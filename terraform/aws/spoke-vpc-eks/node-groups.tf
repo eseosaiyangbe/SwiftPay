@@ -2,7 +2,7 @@
 
 # IAM Role for EKS Node Group
 resource "aws_iam_role" "eks_node" {
-  name = "payflow-eks-node-role"
+  name = "swiftpay-eks-node-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -18,7 +18,7 @@ resource "aws_iam_role" "eks_node" {
   })
 
   tags = merge(local.common_tags, {
-    Name   = "payflow-eks-node-role"
+    Name   = "swiftpay-eks-node-role"
     module = "spoke-vpc-eks"
   })
 }
@@ -86,7 +86,7 @@ resource "aws_security_group_rule" "cluster_from_nodes" {
   from_port                = 443
   to_port                  = 443
   protocol                 = "tcp"
-  security_group_id        = aws_eks_cluster.payflow.vpc_config[0].cluster_security_group_id
+  security_group_id        = aws_eks_cluster.swiftpay.vpc_config[0].cluster_security_group_id
   source_security_group_id = aws_security_group.eks_nodes.id
   description              = "EKS nodes to control plane (explicit wiring)"
 }
@@ -97,7 +97,7 @@ resource "aws_security_group_rule" "cluster_from_hub" {
   from_port         = 443
   to_port           = 443
   protocol          = "tcp"
-  security_group_id = aws_eks_cluster.payflow.vpc_config[0].cluster_security_group_id
+  security_group_id = aws_eks_cluster.swiftpay.vpc_config[0].cluster_security_group_id
   cidr_blocks       = [var.hub_vpc_cidr]
   description       = "Bastion (Hub VPC) to EKS API for kubectl"
 }
@@ -109,7 +109,7 @@ resource "aws_launch_template" "eks_nodes" {
 
   vpc_security_group_ids = [
     aws_security_group.eks_nodes.id,
-    aws_eks_cluster.payflow.vpc_config[0].cluster_security_group_id,
+    aws_eks_cluster.swiftpay.vpc_config[0].cluster_security_group_id,
   ]
 
   tags = merge(local.common_tags, {
@@ -122,14 +122,14 @@ resource "aws_launch_template" "eks_nodes" {
     create_before_destroy = true
   }
 
-  depends_on = [aws_eks_cluster.payflow]
+  depends_on = [aws_eks_cluster.swiftpay]
 }
 
 # On-Demand Node Group (for stateful services)
 # ami_type = AL2023: required for EKS; AL2 support ends Nov 2025, no AL2 AMIs for K8s 1.33+
 resource "aws_eks_node_group" "on_demand" {
-  cluster_name    = aws_eks_cluster.payflow.name
-  node_group_name = "payflow-${local.env}-nodes"
+  cluster_name    = aws_eks_cluster.swiftpay.name
+  node_group_name = "swiftpay-${local.env}-nodes"
   node_role_arn   = aws_iam_role.eks_node.arn
   subnet_ids      = aws_subnet.eks_private[*].id
   ami_type        = "AL2023_x86_64_STANDARD"
@@ -175,14 +175,14 @@ resource "aws_eks_node_group" "on_demand" {
 
   depends_on = [
     time_sleep.wait_for_node_iam,
-    aws_eks_cluster.payflow,
+    aws_eks_cluster.swiftpay,
     aws_eks_addon.vpc_cni,  # VPC CNI MUST be installed before nodes
     aws_launch_template.eks_nodes,
     aws_security_group_rule.cluster_from_nodes,  # Rule must exist before nodes join
   ]
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-on-demand-nodes"
+    Name      = "swiftpay-eks-on-demand-nodes"
     module    = "spoke-vpc-eks"
     Component = "eks-node-group"
   })

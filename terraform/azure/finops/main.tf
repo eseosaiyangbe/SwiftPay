@@ -15,7 +15,7 @@ provider "azurerm" {
 
 locals {
   common_tags = {
-    project       = "payflow"
+    project       = "swiftpay"
     environment   = var.environment
     team          = var.team
     owner         = var.owner
@@ -30,10 +30,10 @@ locals {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_policy_definition" "required_tags_rg" {
-  name         = "payflow-required-tags-rg"
+  name         = "swiftpay-required-tags-rg"
   policy_type  = "Custom"
   mode         = "All"
-  display_name = "PayFlow - Required tags on resource groups"
+  display_name = "SwiftPay - Required tags on resource groups"
 
   metadata = jsonencode({
     category = "Cost Management"
@@ -65,15 +65,15 @@ resource "azurerm_policy_definition" "required_tags_rg" {
 }
 
 resource "azurerm_policy_assignment" "required_tags_rg_dev" {
-  name                 = "payflow-required-tags-rg-dev"
-  display_name         = "PayFlow - Required tags on dev RG"
+  name                 = "swiftpay-required-tags-rg-dev"
+  display_name         = "SwiftPay - Required tags on dev RG"
   scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name_dev}"
   policy_definition_id = azurerm_policy_definition.required_tags_rg.id
 }
 
 resource "azurerm_policy_assignment" "required_tags_rg_prod" {
-  name                 = "payflow-required-tags-rg-prod"
-  display_name         = "PayFlow - Required tags on prod RG"
+  name                 = "swiftpay-required-tags-rg-prod"
+  display_name         = "SwiftPay - Required tags on prod RG"
   scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name_prod}"
   policy_definition_id = azurerm_policy_definition.required_tags_rg.id
 }
@@ -83,7 +83,7 @@ resource "azurerm_policy_assignment" "required_tags_rg_prod" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_monitor_action_group" "finops" {
-  name                = "payflow-finops-action-group"
+  name                = "swiftpay-finops-action-group"
   resource_group_name = var.resource_group_name_prod
   short_name          = "pf-finops"
 
@@ -101,7 +101,7 @@ resource "azurerm_monitor_action_group" "finops" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_consumption_budget_resource_group" "dev" {
-  name              = "payflow-dev-monthly-budget"
+  name              = "swiftpay-dev-monthly-budget"
   resource_group_id = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name_dev}"
 
   amount     = var.monthly_budget_dev
@@ -131,7 +131,7 @@ resource "azurerm_consumption_budget_resource_group" "dev" {
 }
 
 resource "azurerm_consumption_budget_resource_group" "prod" {
-  name              = "payflow-prod-monthly-budget"
+  name              = "swiftpay-prod-monthly-budget"
   resource_group_id = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name_prod}"
 
   amount     = var.monthly_budget_prod
@@ -165,7 +165,7 @@ resource "azurerm_consumption_budget_resource_group" "prod" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_cost_management_export" "tagged_costs" {
-  name                = "payflow-tagged-costs"
+  name                = "swiftpay-tagged-costs"
   scope               = "/subscriptions/${var.subscription_id}"
   recurrence_type     = "Daily"
   recurrence_period_start = "2024-01-01T00:00:00Z"
@@ -175,7 +175,7 @@ resource "azurerm_cost_management_export" "tagged_costs" {
 
   storage_location {
     container_id = "${var.cost_export_storage_account_id}/blobServices/default/containers/cost-exports"
-    root_folder_path = "payflow"
+    root_folder_path = "swiftpay"
   }
 }
 

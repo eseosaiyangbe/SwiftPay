@@ -2,13 +2,13 @@
 
 ## What spinup.sh does and how it works
 
-**In one sentence:** `spinup.sh` brings up all PayFlow AWS infrastructure in the right order, with no manual steps, so that after it finishes you can run `deploy.sh` to deploy the app.
+**In one sentence:** `spinup.sh` brings up all SwiftPay AWS infrastructure in the right order, with no manual steps, so that after it finishes you can run `deploy.sh` to deploy the app.
 
 **Step by step:**
 
 1. **Figures out who you are and where to store state**
    - Uses your AWS CLI to get your **account ID** and sets the **environment** from `TF_WORKSPACE` (default `dev`) and **region** from `AWS_REGION` (default `us-east-1`).
-   - The Terraform state bucket name is derived from your account: `payflow-tfstate-<ACCOUNT>` so nothing is hardcoded.
+   - The Terraform state bucket name is derived from your account: `swiftpay-tfstate-<ACCOUNT>` so nothing is hardcoded.
 
 2. **Creates the Terraform “backend” (once)**
    - Ensures an **S3 bucket** exists for storing Terraform state.
@@ -38,18 +38,18 @@ These are the main issues we ran into during infra and deploy setup, and what we
 
 - **Problem:** Apps were pointing at the wrong Redis endpoint or using `redis://` while ElastiCache had TLS on, so health checks failed with connection timeouts.
 - **Fix:**  
-  - In **Terraform** (`terraform/aws/managed-services/elasticache.tf`): enabled `transit_encryption_enabled = true` and added a `null_resource` that, after the replication group exists, writes the real endpoint and a **`rediss://`** URL into the `payflow/<env>/redis` secret in Secrets Manager.  
+  - In **Terraform** (`terraform/aws/managed-services/elasticache.tf`): enabled `transit_encryption_enabled = true` and added a `null_resource` that, after the replication group exists, writes the real endpoint and a **`rediss://`** URL into the `swiftpay/<env>/redis` secret in Secrets Manager.  
   - **EKS**: External Secrets syncs that into the `db-secrets` Kubernetes Secret; base deployments and api-gateway read **`REDIS_URL`** from `db-secrets` (and api-gateway uses `process.env.REDIS_URL || 'redis://redis:6379'` so local dev still works).
 
 ### 2. **RabbitMQ TLS and wrong port**
 
 - **Problem:** Config used `amqp://` and port 5672; Amazon MQ uses TLS and port 5671.
-- **Fix:** In **Terraform** (`terraform/aws/managed-services/mq.tf`): broker security group allows only **5671** (and 15671 for management). A `null_resource` writes an **`amqps://`** URL with port **5671** into the `payflow/<env>/rabbitmq` secret. EKS External Secrets maps that into `db-secrets`; services already read `RABBITMQ_URL` from `db-secrets`.
+- **Fix:** In **Terraform** (`terraform/aws/managed-services/mq.tf`): broker security group allows only **5671** (and 15671 for management). A `null_resource` writes an **`amqps://`** URL with port **5671** into the `swiftpay/<env>/rabbitmq` secret. EKS External Secrets maps that into `db-secrets`; services already read `RABBITMQ_URL` from `db-secrets`.
 
 ### 3. **RDS / DB endpoint not in Secrets Manager**
 
 - **Problem:** RDS host and credentials were not reliably in Secrets Manager, so ESO had nothing to sync for DB connection.
-- **Fix:** In **Terraform** (`terraform/aws/managed-services/rds.tf`): added a `null_resource` that runs after the RDS instance exists and writes **host, port, username, password, dbname, engine** into the `payflow/<env>/rds` secret. EKS External Secret already mapped these into `db-secrets`; we made sure deployments and the migration job read **DB_HOST** and **DB_PORT** from `db-secrets` (see below).
+- **Fix:** In **Terraform** (`terraform/aws/managed-services/rds.tf`): added a `null_resource` that runs after the RDS instance exists and writes **host, port, username, password, dbname, engine** into the `swiftpay/<env>/rds` secret. EKS External Secret already mapped these into `db-secrets`; we made sure deployments and the migration job read **DB_HOST** and **DB_PORT** from `db-secrets` (see below).
 
 ### 4. **Pods reading DB/Redis/RabbitMQ from ConfigMap instead of Secret**
 
@@ -80,12 +80,12 @@ These are the main issues we ran into during infra and deploy setup, and what we
 ### 8. **Managed services security groups not allowing EKS traffic**
 
 - **Problem:** RDS/Redis/MQ security groups didn’t know the EKS node/cluster security group IDs, so they couldn’t allow traffic from the cluster.
-- **Fix:** In **Terraform** (`terraform/aws/managed-services/data.tf`): use **remote state** from the EKS (spoke) module to read cluster and node security group IDs when **`tfstate_bucket`** is set. **spinup.sh** passes **`-var=tfstate_bucket=payflow-tfstate-<ACCOUNT>`** into the managed-services apply so this works without hardcoding the account.
+- **Fix:** In **Terraform** (`terraform/aws/managed-services/data.tf`): use **remote state** from the EKS (spoke) module to read cluster and node security group IDs when **`tfstate_bucket`** is set. **spinup.sh** passes **`-var=tfstate_bucket=swiftpay-tfstate-<ACCOUNT>`** into the managed-services apply so this works without hardcoding the account.
 
 ### 9. **Secrets Manager not actually populated after apply**
 
 - **Problem:** The Terraform `null_resource` steps that write RDS/Redis/RabbitMQ data into Secrets Manager can fail (e.g. IAM or CLI) without failing the apply; then deploy would run with empty secrets.
-- **Fix:** In **spinup.sh**: after the managed-services apply, a **verification loop** checks that `payflow/<env>/rds` has **host**, `payflow/<env>/redis` has **url**, and `payflow/<env>/rabbitmq` has **url**. If any is empty, the script errors out with a clear message so you don’t run deploy with missing credentials.
+- **Fix:** In **spinup.sh**: after the managed-services apply, a **verification loop** checks that `swiftpay/<env>/rds` has **host**, `swiftpay/<env>/redis` has **url**, and `swiftpay/<env>/rabbitmq` has **url**. If any is empty, the script errors out with a clear message so you don’t run deploy with missing credentials.
 
 ### 10. **CI only pushed to Docker Hub; EKS pulls from ECR**
 
@@ -135,7 +135,7 @@ These are the main issues we ran into during infra and deploy setup, and what we
   - **Order:** `teardown.sh` runs the EKS destroy with `TF_CLI_ARGS_destroy="-parallelism=1"` so resources are destroyed one at a time, which can avoid some ordering issues.
 - **If it still hangs or times out:**
   1. Cancel the destroy (Ctrl+C). If you get a state lock message, run `terraform force-unlock <LOCK_ID>` in `terraform/aws/spoke-vpc-eks`.
-  2. In **AWS Console** → **VPC** → **Subnets**, find subnets named `payflow-eks-public-subnet-*` (or your EKS public subnets).
+  2. In **AWS Console** → **VPC** → **Subnets**, find subnets named `swiftpay-eks-public-subnet-*` (or your EKS public subnets).
   3. For each public subnet, open it → **Network interfaces** tab. Delete any ENIs that are free (or delete the interface if it’s a leftover from a deleted LB). ENIs from an existing LB will show attachment; wait for the LB to be gone (EKS destroy should have removed it) and retry.
   4. In **VPC** → **Internet gateways**, if the EKS IGW still exists, detach it from the VPC (select IGW → **Actions** → **Detach from VPC**).
   5. Re-run: `./teardown.sh` (or from `terraform/aws/spoke-vpc-eks`: `terraform destroy -auto-approve -var=...`). Remaining resources should destroy.

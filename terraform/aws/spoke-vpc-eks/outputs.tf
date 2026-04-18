@@ -5,27 +5,27 @@ output "bootstrap_instance_id" {
 
 output "cluster_name" {
   description = "EKS cluster name"
-  value       = aws_eks_cluster.payflow.name
+  value       = aws_eks_cluster.swiftpay.name
 }
 
 output "eks_cluster_id" {
   description = "EKS Cluster ID"
-  value       = aws_eks_cluster.payflow.id
+  value       = aws_eks_cluster.swiftpay.id
 }
 
 output "eks_cluster_arn" {
   description = "EKS Cluster ARN"
-  value       = aws_eks_cluster.payflow.arn
+  value       = aws_eks_cluster.swiftpay.arn
 }
 
 output "eks_cluster_endpoint" {
   description = "EKS Cluster API endpoint"
-  value       = aws_eks_cluster.payflow.endpoint
+  value       = aws_eks_cluster.swiftpay.endpoint
 }
 
 output "eks_cluster_security_group_id" {
   description = "Security group ID attached to the EKS cluster"
-  value       = aws_eks_cluster.payflow.vpc_config[0].cluster_security_group_id
+  value       = aws_eks_cluster.swiftpay.vpc_config[0].cluster_security_group_id
 }
 
 output "eks_node_security_group_id" {
@@ -83,24 +83,24 @@ output "secrets_manager_arns" {
 # WAF Outputs
 output "waf_web_acl_arn" {
   description = "WAF Web ACL ARN"
-  value       = aws_wafv2_web_acl.payflow.arn
+  value       = aws_wafv2_web_acl.swiftpay.arn
 }
 
 # Route53 Outputs
 output "route53_zone_id" {
   description = "Route53 Hosted Zone ID"
-  value       = var.domain_name != "" ? aws_route53_zone.payflow[0].zone_id : null
+  value       = var.domain_name != "" ? aws_route53_zone.swiftpay[0].zone_id : null
 }
 
 output "acm_certificate_arn" {
   description = "ACM Certificate ARN"
-  value       = var.domain_name != "" ? aws_acm_certificate_validation.payflow[0].certificate_arn : null
+  value       = var.domain_name != "" ? aws_acm_certificate_validation.swiftpay[0].certificate_arn : null
 }
 
 # GuardDuty Outputs (prod only)
 output "guardduty_detector_id" {
   description = "GuardDuty Detector ID (null in dev)"
-  value       = local.env == "prod" ? aws_guardduty_detector.payflow[0].id : null
+  value       = local.env == "prod" ? aws_guardduty_detector.swiftpay[0].id : null
 }
 
 # ALB Controller IRSA Role (for Ingress → ALB)

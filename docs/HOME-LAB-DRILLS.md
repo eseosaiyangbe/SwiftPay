@@ -6,7 +6,7 @@ Hands-on exercises you run on your own machine. Each drill practices **one** ski
 
 **Before you start:** App healthy?
 
-- **MicroK8s (default path):** `./scripts/validate.sh --env k8s --host http://api.payflow.local`
+- **MicroK8s (default path):** `./scripts/validate.sh --env k8s --host http://api.swiftpay.local`
 - **Docker Compose (optional Week 1 shortcut):** `./scripts/validate.sh`
 
 **After each drill:** Write one line in a notebook or `LAB-NOTES.md`:
@@ -22,8 +22,8 @@ Hands-on exercises you run on your own machine. Each drill practices **one** ski
 **Do:**
 
 1. Open the UI, log in, confirm dashboard loads.
-2. `kubectl get pods -n payflow` (MicroK8s) — all app pods `Running` / jobs `Completed`.
-3. Pick any backend pod: `kubectl logs -n payflow deploy/transaction-service --tail=5` — no repeating errors.
+2. `kubectl get pods -n swiftpay` (MicroK8s) — all app pods `Running` / jobs `Completed`.
+3. Pick any backend pod: `kubectl logs -n swiftpay deploy/transaction-service --tail=5` — no repeating errors.
 
 **Note:** `transaction-timeout-handler-*` pods showing `Completed` is normal (CronJob).
 
@@ -39,7 +39,7 @@ Hands-on exercises you run on your own machine. Each drill practices **one** ski
 
 1. Open two browsers (or profiles), two users, send a small amount.
 2. In DevTools → Network, find `POST .../transactions` — copy response `id` or note time.
-3. `kubectl logs -n payflow deploy/transaction-service --tail=50 | grep -i correlation`
+3. `kubectl logs -n swiftpay deploy/transaction-service --tail=50 | grep -i correlation`
 4. Find the same request by timestamp or transaction id in the log line.
 
 **Expected:** You see `correlationId` (or equivalent) in transaction-service logs.
@@ -52,19 +52,19 @@ Hands-on exercises you run on your own machine. Each drill practices **one** ski
 
 **Goal:** Deployments replace deleted pods.
 
-**Setup:** MicroK8s, `payflow` namespace applied.
+**Setup:** MicroK8s, `swiftpay` namespace applied.
 
 **Do:**
 
 ```bash
-kubectl get pods -n payflow -l app=transaction-service
-kubectl delete pod -n payflow -l app=transaction-service   # deletes one pod
-kubectl get pods -n payflow -l app=transaction-service -w  # new pod appears
+kubectl get pods -n swiftpay -l app=transaction-service
+kubectl delete pod -n swiftpay -l app=transaction-service   # deletes one pod
+kubectl get pods -n swiftpay -l app=transaction-service -w  # new pod appears
 ```
 
 **Expected:** New pod name, `Running` within ~30–90s.
 
-**If stuck:** `kubectl describe pod -n payflow <name>` → Events (ImagePull, quota, etc.).
+**If stuck:** `kubectl describe pod -n swiftpay <name>` → Events (ImagePull, quota, etc.).
 
 **Read next:** [`TROUBLESHOOTING.md`](../TROUBLESHOOTING.md) → MicroK8s section.
 
@@ -77,10 +77,10 @@ kubectl get pods -n payflow -l app=transaction-service -w  # new pod appears
 **Do:**
 
 ```bash
-kubectl scale deployment/frontend -n payflow --replicas=0
+kubectl scale deployment/frontend -n swiftpay --replicas=0
 # Browser: site should fail or not load
-kubectl scale deployment/frontend -n payflow --replicas=1
-kubectl rollout status deployment/frontend -n payflow
+kubectl scale deployment/frontend -n swiftpay --replicas=1
+kubectl rollout status deployment/frontend -n swiftpay
 ```
 
 **Expected:** Brief outage, then recovery.
@@ -96,7 +96,7 @@ kubectl rollout status deployment/frontend -n payflow
 **Do:**
 
 ```bash
-kubectl get events -n payflow --sort-by='.lastTimestamp' | tail -30
+kubectl get events -n swiftpay --sort-by='.lastTimestamp' | tail -30
 ```
 
 Then repeat Drill 2 and watch new events appear.
@@ -109,14 +109,14 @@ Then repeat Drill 2 and watch new events appear.
 
 **Goal:** Diagnose “browser can’t reach app” when the cluster is fine.
 
-**Setup:** You use `www.payflow.local` / `api.payflow.local` via ingress.
+**Setup:** You use `www.swiftpay.local` / `api.swiftpay.local` via ingress.
 
 **Do:**
 
 1. Run `multipass list | grep microk8s-vm` — note the **current** IPv4.
-2. Deliberately set `/etc/hosts` to a **wrong** IP for `www.payflow.local`.
-3. Try `curl -s -o /dev/null -w "%{http_code}\n" http://www.payflow.local` — often `000` or timeout.
-4. Fix: `./scripts/setup-hosts-payflow-local.sh` (updates hosts from live Multipass IP) or edit `/etc/hosts` manually.
+2. Deliberately set `/etc/hosts` to a **wrong** IP for `www.swiftpay.local`.
+3. Try `curl -s -o /dev/null -w "%{http_code}\n" http://www.swiftpay.local` — often `000` or timeout.
+4. Fix: `./scripts/setup-hosts-swiftpay-local.sh` (updates hosts from live Multipass IP) or edit `/etc/hosts` manually.
 
 **Expected:** After fix, `curl` returns `200` (or `301`/`302`).
 
@@ -181,7 +181,7 @@ docker compose logs rabbitmq --tail=20
 ```bash
 ./scripts/validate.sh
 # MicroK8s + ingress:
-./scripts/validate.sh --env k8s --host http://api.payflow.local
+./scripts/validate.sh --env k8s --host http://api.swiftpay.local
 ```
 
 **Expected:** `All checks passed` (wording may vary slightly).
@@ -192,7 +192,7 @@ docker compose logs rabbitmq --tail=20
 
 ## Safety
 
-- Run destructive commands **only** in your lab namespace (`payflow`) and repo you own.
+- Run destructive commands **only** in your lab namespace (`swiftpay`) and repo you own.
 - After drills that change manifests or scale, **undo** (rollout undo, scale back, fix hosts) so the next session starts clean.
 - Do **not** commit real passwords or production kubeconfigs into the repo.
 

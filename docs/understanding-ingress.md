@@ -16,14 +16,14 @@
 
 ## The Big Picture
 
-When you type `www.payflow.local` in your browser, here's what happens:
+When you type `www.swiftpay.local` in your browser, here's what happens:
 
 ```
 Your Browser
     ↓
 DNS lookup (/etc/hosts)
     ↓
-Finds: www.payflow.local = 192.168.64.2
+Finds: www.swiftpay.local = 192.168.64.2
     ↓
 Sends HTTPS request to 192.168.64.2:443
     ↓
@@ -58,12 +58,12 @@ microk8s-node3   Ready    192.168.64.4   Worker node
 
 ### Your `/etc/hosts` file:
 ```bash
-cat /etc/hosts | grep payflow
+cat /etc/hosts | grep swiftpay
 ```
 
 **Expected output:**
 ```
-192.168.64.2 api.payflow.local www.payflow.local
+192.168.64.2 api.swiftpay.local www.swiftpay.local
 ```
 
 > **Note**: You're pointing to `192.168.64.2` (the primary node), but it would work with ANY of the 3 IPs!
@@ -119,14 +119,14 @@ The ingress controller reads your ingress resource to know where to route traffi
 
 ### Command: See your ingress rules
 ```bash
-kubectl get ingress -n payflow -o yaml
+kubectl get ingress -n swiftpay -o yaml
 ```
 
 ### What you'll see (simplified):
 ```yaml
 spec:
   rules:
-  - host: www.payflow.local
+  - host: www.swiftpay.local
     http:
       paths:
       - path: /
@@ -135,7 +135,7 @@ spec:
             name: frontend
             port:
               number: 80
-  - host: api.payflow.local
+  - host: api.swiftpay.local
     http:
       paths:
       - path: /
@@ -147,8 +147,8 @@ spec:
 ```
 
 **Translation**: 
-- Requests to `www.payflow.local` → forward to `frontend:80`
-- Requests to `api.payflow.local` → forward to `api-gateway:80`
+- Requests to `www.swiftpay.local` → forward to `frontend:80`
+- Requests to `api.swiftpay.local` → forward to `api-gateway:80`
 
 ---
 
@@ -156,13 +156,13 @@ spec:
 
 ### Step 1: Check which ingress is deployed
 ```bash
-kubectl get ingress -n payflow
+kubectl get ingress -n swiftpay
 ```
 
 **Expected:**
 ```
 NAME                    HOSTS                                 ADDRESS     PORTS
-payflow-local-ingress   api.payflow.local,www.payflow.local   127.0.0.1   80, 443
+swiftpay-local-ingress   api.swiftpay.local,www.swiftpay.local   127.0.0.1   80, 443
 ```
 
 > **Why 127.0.0.1?** This is the internal cluster address. The real magic happens via hostPort!
@@ -182,29 +182,29 @@ kubectl get pods -n ingress -o wide
 
 #### Test Node 1:
 ```bash
-curl -k https://192.168.64.2 -H "Host: www.payflow.local"
+curl -k https://192.168.64.2 -H "Host: www.swiftpay.local"
 ```
 
 #### Test Node 2:
 ```bash
-curl -k https://192.168.64.3 -H "Host: www.payflow.local"
+curl -k https://192.168.64.3 -H "Host: www.swiftpay.local"
 ```
 
 #### Test Node 3:
 ```bash
-curl -k https://192.168.64.4 -H "Host: www.payflow.local"
+curl -k https://192.168.64.4 -H "Host: www.swiftpay.local"
 ```
 
 **All three should return your frontend HTML!**
 
 > `-k` = ignore SSL certificate warnings (because you're using self-signed certs)
-> `-H "Host: www.payflow.local"` = tells ingress which rule to use
+> `-H "Host: www.swiftpay.local"` = tells ingress which rule to use
 
 ---
 
 ### Step 4: See which services the ingress routes to
 ```bash
-kubectl get svc -n payflow | grep -E "frontend|api-gateway"
+kubectl get svc -n swiftpay | grep -E "frontend|api-gateway"
 ```
 
 **Expected:**
@@ -220,25 +220,25 @@ These are **ClusterIP** services — they're only accessible inside the cluster.
 
 ### Step 5: Verify your /etc/hosts entry
 ```bash
-cat /etc/hosts | grep payflow
+cat /etc/hosts | grep swiftpay
 ```
 
 **Expected:**
 ```
-192.168.64.2 api.payflow.local www.payflow.local
+192.168.64.2 api.swiftpay.local www.swiftpay.local
 ```
 
 ---
 
 ### Step 6: Test your domain names
 ```bash
-curl -k https://www.payflow.local
+curl -k https://www.swiftpay.local
 ```
 
-This should return your PayFlow frontend HTML.
+This should return your SwiftPay frontend HTML.
 
 ```bash
-curl -k https://api.payflow.local/health
+curl -k https://api.swiftpay.local/health
 ```
 
 This should return the API Gateway health check response.
@@ -250,13 +250,13 @@ This should return the API Gateway health check response.
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Step 1: Your Browser                                        │
-│  URL: https://www.payflow.local                              │
+│  URL: https://www.swiftpay.local                              │
 └────────────────────────┬─────────────────────────────────────┘
                          │
                          ▼
 ┌──────────────────────────────────────────────────────────────┐
 │  Step 2: DNS Resolution                                      │
-│  /etc/hosts: www.payflow.local → 192.168.64.2               │
+│  /etc/hosts: www.swiftpay.local → 192.168.64.2               │
 └────────────────────────┬─────────────────────────────────────┘
                          │
                          ▼
@@ -270,7 +270,7 @@ This should return the API Gateway health check response.
 │  Step 4: NGINX Ingress Controller                            │
 │  - Pod running on microk8s-vm                                │
 │  - Listening on 192.168.64.2:443 (via hostPort)             │
-│  - Reads Host header: www.payflow.local                      │
+│  - Reads Host header: www.swiftpay.local                      │
 │  - Matches ingress rule                                      │
 └────────────────────────┬─────────────────────────────────────┘
                          │
@@ -279,7 +279,7 @@ This should return the API Gateway health check response.
 │  Step 5: Service Discovery                                   │
 │  - Looks up "frontend" service                               │
 │  - Gets ClusterIP: 10.152.183.x                             │
-│  - Kubernetes DNS: frontend.payflow.svc.cluster.local       │
+│  - Kubernetes DNS: frontend.swiftpay.svc.cluster.local       │
 └────────────────────────┬─────────────────────────────────────┘
                          │
                          ▼
@@ -348,14 +348,14 @@ This should return the API Gateway health check response.
 ### Q2: What if I had a real domain (not .local)?
 **A:** Instead of `/etc/hosts`, you'd create a **DNS A record**:
 ```
-www.payflow.com  →  192.168.64.2
+www.swiftpay.com  →  192.168.64.2
 ```
 
 Or for high availability, you'd use **multiple A records** (DNS round-robin):
 ```
-www.payflow.com  →  192.168.64.2
-www.payflow.com  →  192.168.64.3
-www.payflow.com  →  192.168.64.4
+www.swiftpay.com  →  192.168.64.2
+www.swiftpay.com  →  192.168.64.3
+www.swiftpay.com  →  192.168.64.4
 ```
 
 ---
@@ -377,23 +377,23 @@ www.payflow.com  →  192.168.64.4
 
 ### Q4: Where is the TLS certificate?
 ```bash
-kubectl get secrets -n payflow | grep tls
+kubectl get secrets -n swiftpay | grep tls
 ```
 
 Your self-signed certificate is stored as a Kubernetes secret and referenced in `tls-ingress-local.yaml`:
 ```yaml
 tls:
 - hosts:
-  - api.payflow.local
-  - www.payflow.local
-  secretName: payflow-tls-cert
+  - api.swiftpay.local
+  - www.swiftpay.local
+  secretName: swiftpay-tls-cert
 ```
 
 ---
 
 ### Q5: How do I see the actual ingress configuration?
 ```bash
-kubectl get ingress payflow-local-ingress -n payflow -o yaml
+kubectl get ingress swiftpay-local-ingress -n swiftpay -o yaml
 ```
 
 This shows you:
@@ -443,13 +443,13 @@ tcp  10.1.69.123:80  LISTEN  node
 sudo nano /etc/hosts
 
 # Change from:
-192.168.64.2 api.payflow.local www.payflow.local
+192.168.64.2 api.swiftpay.local www.swiftpay.local
 
 # To:
-192.168.64.3 api.payflow.local www.payflow.local
+192.168.64.3 api.swiftpay.local www.swiftpay.local
 
 # Test
-curl -k https://www.payflow.local
+curl -k https://www.swiftpay.local
 ```
 
 **Expected**: Still works! Because the ingress controller is on all nodes.
@@ -462,7 +462,7 @@ curl -k https://www.payflow.local
 kubectl logs -f -n ingress -l app.kubernetes.io/name=ingress-nginx --all-containers=true
 
 # In another terminal, send requests
-for i in {1..10}; do curl -k https://www.payflow.local; done
+for i in {1..10}; do curl -k https://www.swiftpay.local; done
 ```
 
 You'll see logs from the ingress pod on the node you're pointing to.
@@ -472,10 +472,10 @@ You'll see logs from the ingress pod on the node you're pointing to.
 ### Scenario 3: Test API Gateway Routing
 ```bash
 # Test API health check
-curl -k https://api.payflow.local/health
+curl -k https://api.swiftpay.local/health
 
 # Test a protected endpoint (will fail without auth, but proves routing works)
-curl -k https://api.payflow.local/wallets/123
+curl -k https://api.swiftpay.local/wallets/123
 ```
 
 ---
@@ -504,7 +504,7 @@ curl -k https://api.payflow.local/wallets/123
 ```
 ╔════════════════════════════════════════════════════════════╗
 ║  YOUR LAPTOP                                               ║
-║  /etc/hosts: www.payflow.local → 192.168.64.2            ║
+║  /etc/hosts: www.swiftpay.local → 192.168.64.2            ║
 ╚═══════════════════════╦════════════════════════════════════╝
                         ║
          ┌──────────────╨──────────────┐
@@ -547,20 +547,20 @@ curl -k https://api.payflow.local/wallets/123
 kubectl get pods -n ingress
 
 # 2. Check ingress resource exists
-kubectl get ingress -n payflow
+kubectl get ingress -n swiftpay
 
 # 3. Check service endpoints exist
-kubectl get endpoints frontend -n payflow
-kubectl get endpoints api-gateway -n payflow
+kubectl get endpoints frontend -n swiftpay
+kubectl get endpoints api-gateway -n swiftpay
 
 # 4. Check ingress controller logs
 kubectl logs -n ingress -l app.kubernetes.io/name=ingress-nginx --tail=50
 
 # 5. Verify /etc/hosts
-cat /etc/hosts | grep payflow
+cat /etc/hosts | grep swiftpay
 
 # 6. Test direct connection to node IP
-curl -k https://192.168.64.2 -H "Host: www.payflow.local"
+curl -k https://192.168.64.2 -H "Host: www.swiftpay.local"
 ```
 
 ---

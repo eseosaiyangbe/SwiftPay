@@ -1,8 +1,8 @@
-# PayFlow scripts
+# SwiftPay scripts
 
 ## deploy-microk8s.sh (recommended for local / beginners)
 
-One script to run PayFlow on MicroK8s: **clone repo → run script**. It will:
+One script to run SwiftPay on MicroK8s: **clone repo → run script**. It will:
 
 - Install MicroK8s if you don’t have it (macOS: VM with 6 CPU, 12 GB RAM by default; Linux: snap).
 - Start the VM if it was stopped, enable addons, deploy the app, and wait for DB migration.
@@ -22,10 +22,10 @@ See [MicroK8s deployment guide](../docs/microk8s-deployment.md#quick-start-one-s
 
 ```bash
 ./scripts/deploy-microk8s.sh add-worker [VM_NAME] [CPUS] [MEM_GB] [DISK_GB]
-# VM_NAME defaults to the next free payflow-worker-N (2 CPU, 4G RAM, 20G disk if omitted)
+# VM_NAME defaults to the next free swiftpay-worker-N (2 CPU, 4G RAM, 20G disk if omitted)
 ```
 
-**Tear down workers + PayFlow namespace** (e.g. before a clean re-deploy):
+**Tear down workers + SwiftPay namespace** (e.g. before a clean re-deploy):
 
 ```bash
 ./scripts/deploy-microk8s.sh remove-workers
@@ -33,12 +33,12 @@ See [MicroK8s deployment guide](../docs/microk8s-deployment.md#quick-start-one-s
 
 ---
 
-## setup-hosts-payflow-local.sh
+## setup-hosts-swiftpay-local.sh
 
-Add `www.payflow.local` and `api.payflow.local` to `/etc/hosts` so you can use the local Ingress without port-forwarding. Run once on your Mac after deploying with the local overlay. See [Access Application](../docs/microk8s-deployment.md#method-2-ingress-with-payflowlocal-no-port-forward-local-overlay-only).
+Add `www.swiftpay.local` and `api.swiftpay.local` to `/etc/hosts` so you can use the local Ingress without port-forwarding. Run once on your Mac after deploying with the local overlay. See [Access Application](../docs/microk8s-deployment.md#method-2-ingress-with-swiftpaylocal-no-port-forward-local-overlay-only).
 
 ```bash
-./scripts/setup-hosts-payflow-local.sh
+./scripts/setup-hosts-swiftpay-local.sh
 ```
 
 ## fix-microk8s-nodes.sh

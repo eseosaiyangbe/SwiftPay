@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # =============================================================================
-# PayFlow Validation Script — Golden Path Smoke Test
+# SwiftPay Validation Script — Golden Path Smoke Test
 # =============================================================================
-# Validates that a running PayFlow deployment is fully operational end-to-end.
+# Validates that a running SwiftPay deployment is fully operational end-to-end.
 # Run this after starting any environment to confirm everything works.
 #
 # Usage:
 #   ./scripts/validate.sh                        # Docker Compose (default)
-#   ./scripts/validate.sh --env k8s              # MicroK8s (www.payflow.local)
-#   ./scripts/validate.sh --env k8s --host api.payflow.local
+#   ./scripts/validate.sh --env k8s              # MicroK8s (www.swiftpay.local)
+#   ./scripts/validate.sh --env k8s --host api.swiftpay.local
 #   ./scripts/validate.sh --env cloud --host https://api.yourdomain.com
 #
 # Exit codes:
@@ -31,7 +31,7 @@ done
 
 case "$ENV" in
   docker) BASE_URL="${BASE_URL:-http://localhost:3000}" ;;
-  k8s)    BASE_URL="${BASE_URL:-http://api.payflow.local}" ;;
+  k8s)    BASE_URL="${BASE_URL:-http://api.swiftpay.local}" ;;
   cloud)  : ;; # user must provide --host
 esac
 
@@ -81,7 +81,7 @@ check_contains() {
 
 # ---- Run checks ----
 echo ""
-echo "PayFlow Validation — environment: $ENV"
+echo "SwiftPay Validation — environment: $ENV"
 echo "Base URL: $BASE_URL"
 echo "─────────────────────────────────────────"
 
@@ -92,7 +92,7 @@ check_contains "API Gateway reports healthy" "$BASE_URL/health" '"healthy"'
 
 echo ""
 echo "[ Auth flow ]"
-TEST_EMAIL="validate-$(date +%s)@payflow.test"
+TEST_EMAIL="validate-$(date +%s)@swiftpay.test"
 TEST_PASS="Validate1!"
 
 REGISTER_BODY=$(curl -s --max-time 10 -X POST "$BASE_URL/api/auth/register" \
@@ -148,12 +148,12 @@ if [[ $FAIL -gt 0 ]]; then
     echo "  docker compose logs auth-service"
     echo "  docker compose ps"
   else
-    echo "  kubectl logs -n payflow deploy/api-gateway"
-    echo "  kubectl logs -n payflow deploy/auth-service"
-    echo "  kubectl get pods -n payflow"
+    echo "  kubectl logs -n swiftpay deploy/api-gateway"
+    echo "  kubectl logs -n swiftpay deploy/auth-service"
+    echo "  kubectl get pods -n swiftpay"
   fi
   exit 1
 else
-  green "All checks passed — PayFlow is healthy"
+  green "All checks passed — SwiftPay is healthy"
   exit 0
 fi

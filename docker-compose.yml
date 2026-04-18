@@ -1,7 +1,7 @@
 version: '3.8'
 
 # #### Docker Compose Configuration ####
-# #### This file defines all services needed to run PayFlow locally ####
+# #### This file defines all services needed to run SwiftPay locally ####
 
 services:
   # ============================================
@@ -13,22 +13,22 @@ services:
   postgres:
     image: postgres:15-alpine  # Use PostgreSQL version 15 with Alpine Linux (smaller image)
     environment:
-      POSTGRES_DB: payflow      # Database name
-      POSTGRES_USER: payflow    # Database user
-      POSTGRES_PASSWORD: payflow123  # Database password (use secrets in production!)
+      POSTGRES_DB: swiftpay      # Database name
+      POSTGRES_USER: swiftpay    # Database user
+      POSTGRES_PASSWORD: swiftpay123  # Database password (use secrets in production!)
     ports:
       - "5432:5432"  # Expose PostgreSQL port to host
     volumes:
       - postgres_data:/var/lib/postgresql/data  # Persist database data
       - ./migrations:/docker-entrypoint-initdb.d  # Run database migrations on startup
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U payflow"]  # Check if database is ready
+      test: ["CMD-SHELL", "pg_isready -U swiftpay"]  # Check if database is ready
       interval: 10s    # Check every 10 seconds
       timeout: 5s      # Wait 5 seconds for response
       retries: 5       # Try 5 times before marking as unhealthy
     restart: always
     networks:
-      - payflow-network  # Connect to our custom network
+      - swiftpay-network  # Connect to our custom network
 
   # #### Redis Cache ####
   # #### This stores temporary data (sessions, cache, rate limiting) ####
@@ -45,7 +45,7 @@ services:
       retries: 5
     restart: always
     networks:
-      - payflow-network
+      - swiftpay-network
 
   # #### RabbitMQ Message Queue ####
   # #### This handles asynchronous communication between services ####
@@ -56,8 +56,8 @@ services:
       - "5672:5672"   # #### AMQP port for message publishing ####
       - "15672:15672" # #### Management UI port ####
     environment:
-      RABBITMQ_DEFAULT_USER: payflow     # #### RabbitMQ username ####
-      RABBITMQ_DEFAULT_PASS: payflow123  # #### RabbitMQ password ####
+      RABBITMQ_DEFAULT_USER: swiftpay     # #### RabbitMQ username ####
+      RABBITMQ_DEFAULT_PASS: swiftpay123  # #### RabbitMQ password ####
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq  # #### Persist RabbitMQ data ####
     healthcheck:
@@ -67,7 +67,7 @@ services:
       retries: 5
     restart: always
     networks:
-      - payflow-network
+      - swiftpay-network
 
   # ============================================
   # MONITORING STACK
@@ -93,7 +93,7 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-lifecycle'
     networks:
-      - payflow-network
+      - swiftpay-network
     restart: unless-stopped
 
   grafana:
@@ -111,7 +111,7 @@ services:
     depends_on:
       - prometheus
     networks:
-      - payflow-network
+      - swiftpay-network
     restart: unless-stopped
 
   alertmanager:
@@ -126,7 +126,7 @@ services:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
     networks:
-      - payflow-network
+      - swiftpay-network
     restart: unless-stopped
 
   # ============================================
@@ -144,7 +144,7 @@ services:
     volumes:
       - loki_data:/loki
     networks:
-      - payflow-network
+      - swiftpay-network
     restart: unless-stopped
 
   promtail:
@@ -156,7 +156,7 @@ services:
       - ./k8s/monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
     command: -config.file=/etc/promtail/config.yml
     networks:
-      - payflow-network
+      - swiftpay-network
     restart: unless-stopped
 
   # ============================================
@@ -172,9 +172,9 @@ services:
       PORT: 3004
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: payflow
-      DB_USER: payflow
-      DB_PASSWORD: payflow123
+      DB_NAME: swiftpay
+      DB_USER: swiftpay
+      DB_PASSWORD: swiftpay123
       REDIS_URL: redis://redis:6379
       JWT_SECRET: J8vmoWX/NIIcBunMHhkMmok7ZViKS/OaQovGmp9ETm2+puxFEL/lt+egqTNRLM3J
       JWT_EXPIRES_IN: 24h
@@ -186,9 +186,12 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - payflow-network
+      swiftpay-network:
+      observability-net:
+        aliases:
+          - swiftpay-auth-service
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3004/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -204,9 +207,9 @@ services:
       PORT: 3001
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: payflow
-      DB_USER: payflow
-      DB_PASSWORD: payflow123
+      DB_NAME: swiftpay
+      DB_USER: swiftpay
+      DB_PASSWORD: swiftpay123
       REDIS_URL: redis://redis:6379
       NODE_ENV: development
       CONTAINER_ENV: "true"
@@ -217,28 +220,31 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
     restart: unless-stopped
     networks:
-      - payflow-network
+      swiftpay-network:
+      observability-net:
+        aliases:
+          - swiftpay-wallet-service
 
   transaction-service:
     build:
       context: ./services
       dockerfile: transaction-service/Dockerfile
     ports:
-      - "3005:3002"
+      - "3008:3002"
     environment:
       PORT: 3002
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: payflow
-      DB_USER: payflow
-      DB_PASSWORD: payflow123
-      RABBITMQ_URL: amqp://payflow:payflow123@rabbitmq:5672
+      DB_NAME: swiftpay
+      DB_USER: swiftpay
+      DB_PASSWORD: swiftpay123
+      RABBITMQ_URL: amqp://swiftpay:swiftpay123@rabbitmq:5672
       REDIS_URL: redis://redis:6379
       WALLET_SERVICE_URL: http://wallet-service:3001
       NODE_ENV: development
@@ -254,9 +260,12 @@ services:
       wallet-service:
         condition: service_healthy
     networks:
-      - payflow-network
+      swiftpay-network:
+      observability-net:
+        aliases:
+          - swiftpay-transaction-service
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -272,10 +281,10 @@ services:
       PORT: 3003
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: payflow
-      DB_USER: payflow
-      DB_PASSWORD: payflow123
-      RABBITMQ_URL: amqp://payflow:payflow123@rabbitmq:5672
+      DB_NAME: swiftpay
+      DB_USER: swiftpay
+      DB_PASSWORD: swiftpay123
+      RABBITMQ_URL: amqp://swiftpay:swiftpay123@rabbitmq:5672
       NODE_ENV: development
       CONTAINER_ENV: "true"
       SERVICE_NAME: notification-service
@@ -285,9 +294,12 @@ services:
       rabbitmq:
         condition: service_healthy
     networks:
-      - payflow-network
+      swiftpay-network:
+      observability-net:
+        aliases:
+          - swiftpay-notification-service
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3003/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -298,7 +310,7 @@ services:
       context: ./services
       dockerfile: api-gateway/Dockerfile
     ports:
-      - "3000:3000"
+      - "3007:3000"
     environment:
       PORT: 3000
       # Service URLs — Docker Compose DNS uses service names as hostnames
@@ -309,9 +321,9 @@ services:
       # Database — required for the health-check connection pool (server.js:74)
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: payflow
-      DB_USER: payflow
-      DB_PASSWORD: payflow123
+      DB_NAME: swiftpay
+      DB_USER: swiftpay
+      DB_PASSWORD: swiftpay123
       REDIS_URL: redis://redis:6379
       JWT_SECRET: J8vmoWX/NIIcBunMHhkMmok7ZViKS/OaQovGmp9ETm2+puxFEL/lt+egqTNRLM3J
       NODE_ENV: development
@@ -325,9 +337,12 @@ services:
       - transaction-service
       - notification-service
     networks:
-      - payflow-network
+      swiftpay-network:
+      observability-net:
+        aliases:
+          - swiftpay-api-gateway
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -337,15 +352,16 @@ services:
   # FRONTEND
   # ============================================
   frontend:
-    # REACT_APP_API_URL is a BUILD-TIME variable baked into the JS bundle.
-    # Do NOT pass it here — the Dockerfile default (/api) produces the correct relative
+    # REACT_APP_* values are BUILD-TIME variables baked into the JS bundle.
+    # Do NOT pass REACT_APP_API_URL here — the Dockerfile default (/api) produces the correct relative
     # URL that works in Docker Compose, MicroK8s, EKS, and AKS without rebuilding.
+    # REACT_APP_SESSION_TIMEOUT_MS defaults to 900000 (15 minutes) in the Dockerfile.
     # The same image built here can be pushed to any registry and deployed to K8s.
     build:
       context: ./services
       dockerfile: frontend/Dockerfile
     ports:
-      - "80:80"
+      - "8081:80"
     environment:
       # nginx proxies /api/* → api-gateway at this URL (substituted at container start)
       API_GATEWAY_URL: http://api-gateway:3000
@@ -355,7 +371,10 @@ services:
       - api-gateway
     restart: unless-stopped
     networks:
-      - payflow-network
+      swiftpay-network:
+      observability-net:
+        aliases:
+          - swiftpay-frontend
 
 volumes:
   postgres_data:
@@ -367,5 +386,8 @@ volumes:
   loki_data:
 
 networks:
-  payflow-network:
+  swiftpay-network:
     driver: bridge
+  observability-net:
+    name: observability-net
+    external: true

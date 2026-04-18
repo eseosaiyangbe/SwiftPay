@@ -1,5 +1,5 @@
 # ============================================
-# Pod Disruption Budgets for PayFlow Services
+# Pod Disruption Budgets for SwiftPay Services
 # ============================================
 # Purpose: Ensure high availability during voluntary disruptions
 # 
@@ -38,7 +38,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: api-gateway-pdb
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minAvailable: 1  # At least 1 pod must be available (out of 2 replicas)
   selector:
@@ -52,7 +52,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: auth-service-pdb
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minAvailable: 1  # At least 1 pod must be available (out of 2 replicas)
   selector:
@@ -66,7 +66,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: wallet-service-pdb
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minAvailable: 1  # At least 1 pod must be available (out of 2 replicas)
   selector:
@@ -81,7 +81,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: transaction-service-pdb
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minAvailable: 2  # At least 2 pods must be available (out of 3+ replicas)
   # Why 2? Transaction service is critical - handles money transfers
@@ -97,7 +97,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: notification-service-pdb
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minAvailable: 1  # At least 1 pod must be available (out of 2 replicas)
   # Lower priority - notifications can be queued if service is temporarily unavailable
@@ -112,7 +112,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: frontend-pdb
-  namespace: payflow
+  namespace: swiftpay
 spec:
   minAvailable: 1  # At least 1 pod must be available (out of 2 replicas)
   selector:

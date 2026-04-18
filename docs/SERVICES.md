@@ -8,7 +8,7 @@
 **Port:** 3000
 
 **Why does this exist as a separate service?**
-The frontend only needs to know one address — `api.payflow.local` — regardless of how many backend services there are or how they're deployed. The gateway is the single door. It handles authentication checks, rate limiting, and request routing in one place so every backend service doesn't need to implement those things itself. In production systems (Stripe, Square, Uber) this pattern is called an API Gateway and it's how you prevent a single slow or broken service from being directly exposed to users.
+The frontend only needs to know one address — `api.swiftpay.local` — regardless of how many backend services there are or how they're deployed. The gateway is the single door. It handles authentication checks, rate limiting, and request routing in one place so every backend service doesn't need to implement those things itself. In production systems (Stripe, Square, Uber) this pattern is called an API Gateway and it's how you prevent a single slow or broken service from being directly exposed to users.
 
 **Purpose:** Single entry point for all client requests. Handles authentication, rate limiting, request validation, and routes to appropriate microservices.
 
@@ -104,9 +104,9 @@ Authentication is the most sensitive part of the system — it touches passwords
 | PORT | No | 3004 | Auth service port |
 | DB_HOST | No | postgres | PostgreSQL host |
 | DB_PORT | No | 5432 | PostgreSQL port |
-| DB_NAME | No | payflow | Database name |
-| DB_USER | No | payflow | Database user |
-| DB_PASSWORD | No | payflow123 | Database password |
+| DB_NAME | No | swiftpay | Database name |
+| DB_USER | No | swiftpay | Database user |
+| DB_PASSWORD | No | swiftpay123 | Database password |
 | REDIS_URL | No | redis://redis:6379 | Redis connection URL |
 | JWT_SECRET | Yes | your-secret-key | Secret for signing JWT tokens |
 | JWT_EXPIRES_IN | No | 24h | Access token expiration |
@@ -171,9 +171,9 @@ COMMIT;
 | PORT | No | 3001 | Wallet service port |
 | DB_HOST | No | postgres | PostgreSQL host |
 | DB_PORT | No | 5432 | PostgreSQL port |
-| DB_NAME | No | payflow | Database name |
-| DB_USER | No | payflow | Database user |
-| DB_PASSWORD | No | payflow123 | Database password |
+| DB_NAME | No | swiftpay | Database name |
+| DB_USER | No | swiftpay | Database user |
+| DB_PASSWORD | No | swiftpay123 | Database password |
 | REDIS_URL | No | redis://redis:6379 | Redis connection URL |
 
 ---
@@ -246,10 +246,10 @@ Sending money is not instant — it involves checking balances, locking funds, d
 | PORT | No | 3002 | Transaction service port |
 | DB_HOST | No | postgres | PostgreSQL host |
 | DB_PORT | No | 5432 | PostgreSQL port |
-| DB_NAME | No | payflow | Database name |
-| DB_USER | No | payflow | Database user |
-| DB_PASSWORD | No | payflow123 | Database password |
-| RABBITMQ_URL | No | amqp://payflow:payflow123@rabbitmq:5672 | RabbitMQ connection URL |
+| DB_NAME | No | swiftpay | Database name |
+| DB_USER | No | swiftpay | Database user |
+| DB_PASSWORD | No | swiftpay123 | Database password |
+| RABBITMQ_URL | No | amqp://swiftpay:swiftpay123@rabbitmq:5672 | RabbitMQ connection URL |
 | REDIS_URL | No | redis://redis:6379 | Redis connection URL (for idempotency) |
 | WALLET_SERVICE_URL | No | http://wallet-service:3001 | Wallet service URL |
 
@@ -308,13 +308,13 @@ Sending an email or SMS is a side effect — it should never block or fail a mon
 | PORT | No | 3003 | Notification service port |
 | DB_HOST | No | postgres | PostgreSQL host |
 | DB_PORT | No | 5432 | PostgreSQL port |
-| DB_NAME | No | payflow | Database name |
-| DB_USER | No | payflow | Database user |
-| DB_PASSWORD | No | payflow123 | Database password |
-| RABBITMQ_URL | No | amqp://payflow:payflow123@rabbitmq:5672 | RabbitMQ connection URL |
+| DB_NAME | No | swiftpay | Database name |
+| DB_USER | No | swiftpay | Database user |
+| DB_PASSWORD | No | swiftpay123 | Database password |
+| RABBITMQ_URL | No | amqp://swiftpay:swiftpay123@rabbitmq:5672 | RabbitMQ connection URL |
 | SMTP_HOST | No | smtp.gmail.com | SMTP server host |
 | SMTP_PORT | No | 587 | SMTP server port |
-| SMTP_USER | No | noreply@payflow.com | SMTP username |
+| SMTP_USER | No | noreply@swiftpay.com | SMTP username |
 | SMTP_PASSWORD | No | password | SMTP password |
 | TWILIO_ACCOUNT_SID | No | AC... | Twilio account SID (optional) |
 | TWILIO_AUTH_TOKEN | No | token | Twilio auth token (optional) |

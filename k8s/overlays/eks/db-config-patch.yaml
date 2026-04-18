@@ -4,9 +4,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: app-config
-  namespace: payflow
+  namespace: swiftpay
 data:
-  DB_NAME: "payflow"
+  DB_NAME: "swiftpay"
   PGSSLMODE: "require"  # RDS requires SSL; backup and migration use this
   AUTH_SERVICE_URL: "http://auth-service:3004"
   WALLET_SERVICE_URL: "http://wallet-service:3001"

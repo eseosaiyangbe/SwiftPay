@@ -1,4 +1,4 @@
-# PayFlow Learning Path
+# SwiftPay Learning Path
 
 > This repo is a **production-shaped** fintech stack on purpose: more moving parts than a toy demo, but every piece is documented. Follow the weeks in order and you will have run the same app on **local Kubernetes**, **broken it on purpose**, **reasoned about architecture like a senior**, and (optionally) **provisioned real cloud infra with Terraform**—a credible “I did not just watch a video” story.
 
@@ -10,7 +10,7 @@
 
 | Week | You will |
 |------|----------|
-| **1** | Run PayFlow on **MicroK8s**, validate it, use the UI, trace **send money**, read service code and **why** the stack is built this way |
+| **1** | Run SwiftPay on **MicroK8s**, validate it, use the UI, trace **send money**, read service code and **why** the stack is built this way |
 | **2** | Understand **Ingress, Kustomize overlays, network policies**, run **HOME-LAB-DRILLS**, optional **local GitOps** (Argo CD + runner) |
 | **3** | Go deep on **architecture, tracing, monitoring, security**—interview-grade synthesis |
 | **Optional** | **Minimal triad**: SLO-style metrics, correlation-ID trace + blast radius, idempotency / DB sanity |
@@ -41,21 +41,21 @@ From the repo root:
 
 ```bash
 git clone <your-fork-url>
-cd payflow-wallet-2   # or your clone directory name
+cd swiftpay-wallet-2   # or your clone directory name
 
 ./scripts/deploy-microk8s.sh
 # Answer prompts (build images to local registry when asked if this is your first time)
 
 # Local ingress hostnames (once per machine)
-bash scripts/setup-hosts-payflow-local.sh
+bash scripts/setup-hosts-swiftpay-local.sh
 
 export KUBECONFIG="${HOME}/.kube/microk8s-config"   # if the script printed this
 
-./scripts/validate.sh --env k8s --host http://api.payflow.local
-# Expected: "All checks passed — PayFlow is healthy"
+./scripts/validate.sh --env k8s --host http://api.swiftpay.local
+# Expected: "All checks passed — SwiftPay is healthy"
 ```
 
-Open **http://www.payflow.local** → register two users → send money between them.
+Open **http://www.swiftpay.local** → register two users → send money between them.
 
 **Then read (in order):**
 
@@ -145,20 +145,20 @@ Skim [`k8s/base/policies/network-policies.yaml`](k8s/base/policies/network-polic
 **Quick chaos (run on MicroK8s):**
 
 ```bash
-kubectl delete pod -n payflow -l app=transaction-service
-kubectl rollout status deployment/transaction-service -n payflow
-kubectl get events -n payflow --sort-by='.lastTimestamp' | tail -20
+kubectl delete pod -n swiftpay -l app=transaction-service
+kubectl rollout status deployment/transaction-service -n swiftpay
+kubectl get events -n swiftpay --sort-by='.lastTimestamp' | tail -20
 ```
 
-Scale: `kubectl scale deployment api-gateway -n payflow --replicas=3`
+Scale: `kubectl scale deployment api-gateway -n swiftpay --replicas=3`
 
 **Resource pressure (undo after):**
 
 ```bash
-kubectl patch deployment api-gateway -n payflow \
+kubectl patch deployment api-gateway -n swiftpay \
   -p '{"spec":{"template":{"spec":{"containers":[{"name":"api-gateway","resources":{"requests":{"cpu":"99"}}}]}}}}'
-kubectl get pods -n payflow
-kubectl rollout undo deployment/api-gateway -n payflow
+kubectl get pods -n swiftpay
+kubectl rollout undo deployment/api-gateway -n swiftpay
 ```
 
 **Checkpoint:** You can explain **Deployment + Service + Ingress** and why all three matter.
@@ -290,7 +290,7 @@ Then deploy with `k8s/overlays/aks` and vars as in README short form. Read [`doc
 
 ## When things go wrong
 
-1. **`./scripts/validate.sh`** — with `--env k8s --host http://api.payflow.local` on MicroK8s, or default for Compose, or `--env cloud` for EKS ingress URL.  
+1. **`./scripts/validate.sh`** — with `--env k8s --host http://api.swiftpay.local` on MicroK8s, or default for Compose, or `--env cloud` for EKS ingress URL.  
 2. **[`docs/README.md`](docs/README.md)** — which doc to open (deploy vs runtime).  
 3. **[`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)** — quick fixes.  
 4. **[`docs/troubleshooting.md`](docs/troubleshooting.md)** — deep dives.  

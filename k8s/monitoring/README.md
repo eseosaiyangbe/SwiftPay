@@ -1,6 +1,6 @@
-# PayFlow Monitoring Stack
+# SwiftPay Monitoring Stack
 
-> **Purpose**: Deploy Prometheus and Grafana to monitor PayFlow services
+> **Purpose**: Deploy Prometheus and Grafana to monitor SwiftPay services
 
 ---
 
@@ -75,7 +75,7 @@ kubectl port-forward -n monitoring svc/prometheus 9090:9090
 
 Prometheus automatically discovers pods using Kubernetes service discovery:
 
-- **Auto-discovery**: Finds pods in `payflow` namespace
+- **Auto-discovery**: Finds pods in `swiftpay` namespace
 - **Filtering**: Only scrapes pods with matching labels
 - **Ports**: Uses service-specific ports (3000, 3001, 3002, etc.)
 
@@ -147,7 +147,7 @@ kubectl logs -n monitoring -l app=prometheus
 kubectl get configmap prometheus-config -n monitoring -o yaml
 
 # Check if services expose /metrics endpoint
-kubectl exec -n payflow <pod-name> -- wget -qO- http://localhost:3000/metrics
+kubectl exec -n swiftpay <pod-name> -- wget -qO- http://localhost:3000/metrics
 
 # Check Prometheus targets in UI
 # Go to: Status → Targets
@@ -226,7 +226,7 @@ process_resident_memory_bytes
 3. **Resource Limits**: Adjust based on metrics volume
 4. **Retention**: Adjust retention time based on storage capacity
 5. **Security**: Add authentication to Prometheus UI
-6. **Network Policies**: Allow Prometheus to scrape from payflow namespace
+6. **Network Policies**: Allow Prometheus to scrape from swiftpay namespace
 
 ---
 

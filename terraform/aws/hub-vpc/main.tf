@@ -22,7 +22,7 @@ resource "aws_vpc" "hub" {
   enable_dns_support   = true
 
   tags = merge(local.common_tags, {
-    Name   = "payflow-hub-vpc"
+    Name   = "swiftpay-hub-vpc"
     module = "hub-vpc"
   })
 }
@@ -32,7 +32,7 @@ resource "aws_internet_gateway" "hub" {
   vpc_id = aws_vpc.hub.id
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-hub-igw"
+    Name      = "swiftpay-hub-igw"
     module    = "hub-vpc"
     Component = "internet-gateway"
   })
@@ -46,7 +46,7 @@ resource "aws_subnet" "hub_public" {
   map_public_ip_on_launch = true
 
   tags = merge(local.common_tags, {
-    Name                        = "payflow-hub-public-subnet"
+    Name                        = "swiftpay-hub-public-subnet"
     "kubernetes.io/role/elb"    = "1"
     module                      = "hub-vpc"
     Component                   = "public-subnet"
@@ -60,7 +60,7 @@ resource "aws_subnet" "hub_private" {
   availability_zone = data.aws_availability_zones.available.names[1]
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-hub-private-subnet"
+    Name      = "swiftpay-hub-private-subnet"
     module    = "hub-vpc"
     Component = "private-subnet"
   })
@@ -76,7 +76,7 @@ resource "aws_route_table" "hub_public" {
   }
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-hub-public-rt"
+    Name      = "swiftpay-hub-public-rt"
     module    = "hub-vpc"
     Component = "route-table-public"
   })
@@ -104,7 +104,7 @@ resource "aws_route_table" "hub_private" {
   vpc_id = aws_vpc.hub.id
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-hub-private-rt"
+    Name      = "swiftpay-hub-private-rt"
     module    = "hub-vpc"
     Component = "route-table-private"
   })
@@ -117,12 +117,12 @@ resource "aws_route_table_association" "hub_private" {
 
 # Transit Gateway for Hub-and-Spoke connectivity
 resource "aws_ec2_transit_gateway" "hub" {
-  description                     = "PayFlow Hub Transit Gateway"
+  description                     = "SwiftPay Hub Transit Gateway"
   default_route_table_association = "enable"
   default_route_table_propagation = "enable"
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-hub-tgw"
+    Name      = "swiftpay-hub-tgw"
     module    = "hub-vpc"
     Component = "tgw"
   })
@@ -135,7 +135,7 @@ resource "aws_ec2_transit_gateway_vpc_attachment" "hub" {
   vpc_id             = aws_vpc.hub.id
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-hub-tgw-attachment"
+    Name      = "swiftpay-hub-tgw-attachment"
     module    = "hub-vpc"
     Component = "tgw-attachment"
   })

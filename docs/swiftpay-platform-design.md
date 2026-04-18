@@ -1,6 +1,6 @@
-# PayFlow Platform-Agnostic Design
+# SwiftPay Platform-Agnostic Design
 
-> **Purpose**: This document captures the architectural design principles of PayFlow, independent of any specific platform (Kubernetes, AWS ECS, GCP Cloud Run, etc.). Use this to understand **why** we made each design choice, not **how** to implement it.
+> **Purpose**: This document captures the architectural design principles of SwiftPay, independent of any specific platform (Kubernetes, AWS ECS, GCP Cloud Run, etc.). Use this to understand **why** we made each design choice, not **how** to implement it.
 
 ---
 
@@ -44,7 +44,7 @@
 │                                          │   │                                          │
 │  Nginx Ingress Controller                │   │  Application Load Balancer (ALB)         │
 │  ├─ TLS Certificate (self-signed/LE)     │   │  ├─ TLS Certificate (ACM)                │
-│  ├─ Routes: www.payflow.local            │   │  ├─ Routes: www.payflow.com              │
+│  ├─ Routes: www.swiftpay.local            │   │  ├─ Routes: www.swiftpay.com              │
 │  ├─ Rate Limiting: 100 req/min           │   │  ├─ Rate Limiting: AWS WAF               │
 │  └─ Backend: frontend:80, api-gateway:80 │   │  └─ Target Groups: frontend, api-gateway │
 │                                          │   │                                          │
@@ -387,9 +387,9 @@
 - **To**: Frontend service (port 80) and API Gateway service (port 80)
 - **Protocol**: HTTP (TLS terminated at ingress, internal traffic is plain HTTP)
 - **Routing**:
-  - `www.payflow.local/` → Frontend (React app)
-  - `www.payflow.local/api/*` → API Gateway (backend API)
-  - `api.payflow.local/` → API Gateway (alternative domain)
+  - `www.swiftpay.local/` → Frontend (React app)
+  - `www.swiftpay.local/api/*` → API Gateway (backend API)
+  - `api.swiftpay.local/` → API Gateway (alternative domain)
 
 **Layer 3: API Gateway → Backend Services**
 - **Who**: API Gateway
@@ -502,12 +502,12 @@
 
 **Routing Rules**:
 
-1. **Frontend Routing** (`www.payflow.local`):
+1. **Frontend Routing** (`www.swiftpay.local`):
    - `/` → Frontend service (React app)
    - `/api/*` → API Gateway (backend API)
-   - **Why**: Users visit `www.payflow.local`, frontend makes API calls to `/api/*`
+   - **Why**: Users visit `www.swiftpay.local`, frontend makes API calls to `/api/*`
 
-2. **API Gateway Routing** (`api.payflow.local`):
+2. **API Gateway Routing** (`api.swiftpay.local`):
    - `/` → API Gateway directly
    - **Why**: Alternative domain for API-only clients (mobile apps, third-party integrations)
 

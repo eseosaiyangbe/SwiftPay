@@ -2,24 +2,24 @@
 # Required for HTTPS endpoints
 
 # Route53 Hosted Zone
-resource "aws_route53_zone" "payflow" {
+resource "aws_route53_zone" "swiftpay" {
   count = var.domain_name != "" ? 1 : 0
   name  = var.domain_name
 
   tags = {
-    Name        = "payflow-${var.environment}-zone"
+    Name        = "swiftpay-${var.environment}-zone"
     Environment = var.environment
   }
 }
 
 # ACM Certificate for HTTPS
-resource "aws_acm_certificate" "payflow" {
+resource "aws_acm_certificate" "swiftpay" {
   count             = var.domain_name != "" ? 1 : 0
   domain_name       = var.domain_name
   validation_method = "DNS"
 
   subject_alternative_names = [
-    "*.${var.domain_name}"  # Wildcard for all subdomains (api.payflow.com, www.payflow.com, etc.)
+    "*.${var.domain_name}"  # Wildcard for all subdomains (api.swiftpay.com, www.swiftpay.com, etc.)
   ]
 
   lifecycle {
@@ -27,7 +27,7 @@ resource "aws_acm_certificate" "payflow" {
   }
 
   tags = {
-    Name        = "payflow-${var.environment}-cert"
+    Name        = "swiftpay-${var.environment}-cert"
     Environment = var.environment
   }
 }
@@ -35,14 +35,14 @@ resource "aws_acm_certificate" "payflow" {
 # DNS Validation Record for Root Domain
 resource "aws_route53_record" "cert_validation" {
   for_each = var.domain_name != "" ? {
-    for dvo in aws_acm_certificate.payflow[0].domain_validation_options : dvo.domain_name => {
+    for dvo in aws_acm_certificate.swiftpay[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
       type   = dvo.resource_record_type
     }
   } : {}
 
-  zone_id = aws_route53_zone.payflow[0].zone_id
+  zone_id = aws_route53_zone.swiftpay[0].zone_id
   name    = each.value.name
   type    = each.value.type
   records = [each.value.record]
@@ -50,9 +50,9 @@ resource "aws_route53_record" "cert_validation" {
 }
 
 # ACM Certificate Validation
-resource "aws_acm_certificate_validation" "payflow" {
+resource "aws_acm_certificate_validation" "swiftpay" {
   count           = var.domain_name != "" ? 1 : 0
-  certificate_arn = aws_acm_certificate.payflow[0].arn
+  certificate_arn = aws_acm_certificate.swiftpay[0].arn
   validation_record_fqdns = [
     for record in aws_route53_record.cert_validation : record.fqdn
   ]
@@ -66,7 +66,7 @@ resource "aws_acm_certificate_validation" "payflow" {
 # Note: External DNS will manage this automatically if enabled
 # resource "aws_route53_record" "api" {
 #   count   = var.domain_name != "" && var.enable_external_dns ? 0 : (var.domain_name != "" ? 1 : 0)
-#   zone_id = aws_route53_zone.payflow[0].zone_id
+#   zone_id = aws_route53_zone.swiftpay[0].zone_id
 #   name    = "api.${var.domain_name}"
 #   type    = "A"
 #

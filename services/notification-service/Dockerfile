@@ -1,5 +1,5 @@
 # ============================================
-# PayFlow Notification Service - Optimized Multi-Stage Build
+# SwiftPay Notification Service - Optimized Multi-Stage Build
 # Target: <110MB (reduced from 221MB)
 # ============================================
 

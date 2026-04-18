@@ -1,7 +1,7 @@
 # Amazon GuardDuty - Threat Detection Service (prod only)
 # Monitors for malicious activity and unauthorized behavior
 
-resource "aws_guardduty_detector" "payflow" {
+resource "aws_guardduty_detector" "swiftpay" {
   count  = local.env == "prod" ? 1 : 0
   enable = true
 
@@ -25,7 +25,7 @@ resource "aws_guardduty_detector" "payflow" {
   }
 
   tags = {
-    Name        = "payflow-guardduty"
+    Name        = "swiftpay-guardduty"
     Environment = var.environment
   }
 }
@@ -38,18 +38,18 @@ resource "aws_kms_key" "security_findings" {
 }
 
 resource "aws_kms_alias" "security_findings" {
-  name          = "alias/payflow-security-findings"
+  name          = "alias/swiftpay-security-findings"
   target_key_id = aws_kms_key.security_findings.key_id
 }
 
 # GuardDuty Findings SNS Topic (for alerts) — prod only
 resource "aws_sns_topic" "guardduty_findings" {
   count             = local.env == "prod" ? 1 : 0
-  name              = "payflow-guardduty-findings"
+  name              = "swiftpay-guardduty-findings"
   kms_master_key_id = aws_kms_key.security_findings.id
 
   tags = {
-    Name        = "payflow-guardduty-findings"
+    Name        = "swiftpay-guardduty-findings"
     Environment = var.environment
   }
 }
@@ -57,7 +57,7 @@ resource "aws_sns_topic" "guardduty_findings" {
 # GuardDuty EventBridge Rule - Send findings to SNS
 resource "aws_cloudwatch_event_rule" "guardduty_findings" {
   count       = local.env == "prod" ? 1 : 0
-  name        = "payflow-guardduty-findings-rule"
+  name        = "swiftpay-guardduty-findings-rule"
   description = "Capture GuardDuty findings"
 
   event_pattern = jsonencode({
@@ -66,7 +66,7 @@ resource "aws_cloudwatch_event_rule" "guardduty_findings" {
   })
 
   tags = {
-    Name = "payflow-guardduty-findings-rule"
+    Name = "swiftpay-guardduty-findings-rule"
   }
 }
 
@@ -103,7 +103,7 @@ resource "aws_sns_topic_policy" "guardduty_findings" {
 #   for_each = var.guardduty_member_accounts
 #
 #   account_id                 = each.value.account_id
-#   detector_id                = aws_guardduty_detector.payflow.id
+#   detector_id                = aws_guardduty_detector.swiftpay.id
 #   email                      = each.value.email
 #   invite                     = true
 #   disable_email_notification = false

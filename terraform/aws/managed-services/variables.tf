@@ -50,13 +50,13 @@ variable "db_instance_class" {
 variable "db_name" {
   description = "Database name"
   type        = string
-  default     = "payflow"
+  default     = "swiftpay"
 }
 
 variable "db_username" {
   description = "Database master username"
   type        = string
-  default     = "payflow"
+  default     = "swiftpay"
 }
 
 variable "db_password" {
@@ -178,7 +178,7 @@ variable "mq_instance_type" {
 variable "rabbitmq_username" {
   description = "RabbitMQ username"
   type        = string
-  default     = "payflow"
+  default     = "swiftpay"
 }
 
 variable "rabbitmq_password" {

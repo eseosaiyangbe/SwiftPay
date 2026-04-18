@@ -77,8 +77,8 @@ if (!process.env.DB_PASSWORD) {
 const healthCheckPool = new Pool({
   host: process.env.DB_HOST || 'postgres',
   port: parseInt(process.env.DB_PORT || '5432', 10),
-  database: process.env.DB_NAME || 'payflow',
-  user: process.env.DB_USER || 'payflow',
+  database: process.env.DB_NAME || 'swiftpay',
+  user: process.env.DB_USER || 'swiftpay',
   password: process.env.DB_PASSWORD,
   max: 1,
   idleTimeoutMillis: 10000,
@@ -116,7 +116,7 @@ const checkInfrastructureHealth = async () => {
     infrastructureHealth.set({ service: 'rabbitmq', type: 'queue' }, 1);
 
     // #### Check Internal Microservices ####
-    // #### Test all PayFlow services by calling their health endpoints ####
+    // #### Test all SwiftPay services by calling their health endpoints ####
     const services = [
       { name: 'auth-service', port: 3004 },
       { name: 'wallet-service', port: 3001 },
@@ -567,6 +567,26 @@ app.put('/api/notifications/:id/read',
       transactionTotal.inc({ status: 'failed', type: 'mark_notification_read', service: 'notification-service' });
       res.status(error.response?.status || 500).json(
         error.response?.data || { error: 'Failed to mark notification as read' }
+      );
+    }
+  }
+);
+
+app.delete('/api/notifications/:id',
+  authenticate,
+  validate([validators.notificationId]),
+  async (req, res) => {
+    try {
+      const response = await axios.delete(
+        `${NOTIFICATION_SERVICE}/notifications/${req.params.id}`,
+        { headers: { 'X-User-Id': req.user.userId } }
+      );
+      transactionTotal.inc({ status: 'success', type: 'delete_notification', service: 'notification-service' });
+      res.json(response.data);
+    } catch (error) {
+      transactionTotal.inc({ status: 'failed', type: 'delete_notification', service: 'notification-service' });
+      res.status(error.response?.status || 500).json(
+        error.response?.data || { error: 'Failed to delete notification' }
       );
     }
   }

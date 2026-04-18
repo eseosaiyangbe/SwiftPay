@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# PayFlow – One-shot MicroK8s deploy for beginners
+# SwiftPay – One-shot MicroK8s deploy for beginners
 # =============================================================================
 # Installs MicroK8s if missing, enables addons, optionally builds/pushes images,
-# deploys PayFlow (k8s/overlays/local).
+# deploys SwiftPay (k8s/overlays/local).
 #
 # Platforms
 # ---------
@@ -21,8 +21,8 @@
 #   ./scripts/deploy-microk8s.sh                    full deploy (prompts for build + worker count)
 #   WORKER_COUNT=0 ./scripts/deploy-microk8s.sh       skip worker prompt (single-node)
 #   ./scripts/deploy-microk8s.sh add-worker [NAME] [CPUS] [MEMORY_GB] [DISK_GB]
-#                                                     add one Multipass worker (macOS); NAME defaults to next payflow-worker-N
-#   ./scripts/deploy-microk8s.sh remove-workers       drain/remove payflow-worker-* nodes, purge VMs, delete payflow namespace
+#                                                     add one Multipass worker (macOS); NAME defaults to next swiftpay-worker-N
+#   ./scripts/deploy-microk8s.sh remove-workers       drain/remove swiftpay-worker-* nodes, purge VMs, delete swiftpay namespace
 #
 # Requires: Docker running (full deploy only). macOS also needs Multipass.
 # =============================================================================
@@ -100,9 +100,9 @@ case "${1:-}" in
   help|-h|--help)
     printf '%s\n' \
       "Usage: ./scripts/deploy-microk8s.sh [add-worker [NAME] [CPUS] [MEM_GB] [DISK_GB] | remove-workers | help]" \
-      "  (no args)       — full PayFlow deploy to MicroK8s" \
+      "  (no args)       — full SwiftPay deploy to MicroK8s" \
       "  add-worker      — create one worker VM and join cluster (macOS Multipass)" \
-      "  remove-workers  — remove payflow-worker-* from cluster, purge VMs, delete namespace payflow" \
+      "  remove-workers  — remove swiftpay-worker-* from cluster, purge VMs, delete namespace swiftpay" \
       "  WORKER_COUNT=N  — set in environment to skip worker-count prompt on full deploy"
     exit 0
     ;;
@@ -117,9 +117,9 @@ SERVICES="api-gateway auth-service wallet-service transaction-service notificati
 
 printf "\n${BLUE}=============================================================${NC}\n"
 case "$DEPLOY_MODE" in
-  add-worker)  printf "${BLUE}   PayFlow – MicroK8s add worker${NC}\n" ;;
-  remove-workers) printf "${BLUE}   PayFlow – MicroK8s remove workers${NC}\n" ;;
-  *)           printf "${BLUE}   PayFlow – MicroK8s 4-node cluster deploy${NC}\n" ;;
+  add-worker)  printf "${BLUE}   SwiftPay – MicroK8s add worker${NC}\n" ;;
+  remove-workers) printf "${BLUE}   SwiftPay – MicroK8s remove workers${NC}\n" ;;
+  *)           printf "${BLUE}   SwiftPay – MicroK8s 4-node cluster deploy${NC}\n" ;;
 esac
 printf "${BLUE}=============================================================${NC}\n\n"
 
@@ -323,7 +323,7 @@ refresh_microk8s_kubeconfig() {
   export KUBECONFIG="${HOME}/.kube/microk8s-config"
 }
 
-# Tear down Multipass payflow-worker-* VMs and PayFlow workloads (macOS). Safe to re-run.
+# Tear down Multipass swiftpay-worker-* VMs and SwiftPay workloads (macOS). Safe to re-run.
 # MicroK8s creates one-off hostpath "mkdir" pods with nodeSelector kubernetes.io/hostname=<node>.
 # After a worker node is removed, those pods stay Pending and can confuse storage provisioning.
 delete_orphan_kube_system_node_selector_pods() {
@@ -340,13 +340,13 @@ $(kubectl get pods -n kube-system -o jsonpath='{range .items[*]}{.metadata.name}
 EOF
 }
 
-remove_payflow_workers_mac() {
-  info "Removing payflow-worker-* Kubernetes nodes and Multipass VMs..."
+remove_swiftpay_workers_mac() {
+  info "Removing swiftpay-worker-* Kubernetes nodes and Multipass VMs..."
   k_nodes=""
   if command -v kubectl > /dev/null 2>&1; then
-    k_nodes="$(kubectl get nodes -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | grep '^payflow-worker-' || true)"
+    k_nodes="$(kubectl get nodes -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | grep '^swiftpay-worker-' || true)"
   fi
-  vms="$(multipass list --format csv 2>/dev/null | awk -F, 'NR>1 && $1 ~ /^payflow-worker-/ {print $1}' | tr '\n' ' ')"
+  vms="$(multipass list --format csv 2>/dev/null | awk -F, 'NR>1 && $1 ~ /^swiftpay-worker-/ {print $1}' | tr '\n' ' ')"
 
   for node in $k_nodes; do
     info "Draining ${node}..."
@@ -372,9 +372,9 @@ remove_payflow_workers_mac() {
 
   delete_orphan_kube_system_node_selector_pods
 
-  info "Deleting namespace payflow (if present)..."
-  kubectl delete namespace payflow --ignore-not-found --wait=false 2>/dev/null || true
-  ok "remove-workers finished. If payflow was deleting, wait until: kubectl get ns payflow (NotFound)"
+  info "Deleting namespace swiftpay (if present)..."
+  kubectl delete namespace swiftpay --ignore-not-found --wait=false 2>/dev/null || true
+  ok "remove-workers finished. If swiftpay was deleting, wait until: kubectl get ns swiftpay (NotFound)"
 }
 
 # -----------------------------------------------------------------------------
@@ -385,7 +385,7 @@ refresh_microk8s_kubeconfig
 ok "KUBECONFIG=$KUBECONFIG"
 
 if [ "$DEPLOY_MODE" = "remove-workers" ]; then
-  remove_payflow_workers_mac
+  remove_swiftpay_workers_mac
   exit 0
 fi
 
@@ -508,7 +508,7 @@ spin_up_workers_mac() {
 
   i=1
   while [ "$i" -le "$WORKER_COUNT" ]; do
-    NODE="payflow-worker-${i}"
+    NODE="swiftpay-worker-${i}"
 
     # Re-runs / manual setup: node already registered — no create, wait, or join.
     if kubectl get node "$NODE" > /dev/null 2>&1; then
@@ -569,12 +569,12 @@ spin_up_workers_mac() {
 }
 
 # Block full deploy until every expected worker is registered and Ready (macOS Multipass).
-verify_payflow_workers_ready_mac() {
+verify_swiftpay_workers_ready_mac() {
   [ "$WORKER_COUNT" -gt 0 ] || return 0
   info "Confirming ${WORKER_COUNT} worker node(s) are joined and Ready before continuing..."
   i=1
   while [ "$i" -le "$WORKER_COUNT" ]; do
-    NODE="payflow-worker-${i}"
+    NODE="swiftpay-worker-${i}"
     if ! kubectl get node "$NODE" > /dev/null 2>&1; then
       die "Worker ${NODE} is not in the cluster (kubectl get nodes). Re-run remove-workers, fix Multipass/join, or use WORKER_COUNT=0."
     fi
@@ -586,14 +586,14 @@ verify_payflow_workers_ready_mac() {
   ok "All ${WORKER_COUNT} worker(s) joined and Ready"
 }
 
-add_payflow_worker_mac() {
+add_swiftpay_worker_mac() {
   VM="${ADD_WORKER_VM}"
   if [ -z "$VM" ]; then
     n=1
-    while multipass list --format csv 2>/dev/null | grep -q "^payflow-worker-${n},"; do
+    while multipass list --format csv 2>/dev/null | grep -q "^swiftpay-worker-${n},"; do
       n=$((n + 1))
     done
-    VM="payflow-worker-${n}"
+    VM="swiftpay-worker-${n}"
   fi
   if multipass list --format csv 2>/dev/null | grep -q "^${VM},"; then
     die "Multipass VM '${VM}' already exists. Pick another name or: multipass delete ${VM} --purge"
@@ -631,7 +631,7 @@ add_payflow_worker_mac() {
 }
 
 if [ "$DEPLOY_MODE" = "add-worker" ]; then
-  add_payflow_worker_mac
+  add_swiftpay_worker_mac
   exit 0
 fi
 
@@ -647,7 +647,7 @@ if [ "$WORKER_COUNT" -gt 0 ]; then
   case "$OS" in
     Darwin)
       spin_up_workers_mac
-      verify_payflow_workers_ready_mac
+      verify_swiftpay_workers_ready_mac
       ;;
     Linux) spin_up_workers_linux ;;
   esac
@@ -768,7 +768,7 @@ enable_addon() {
 printf "\n"
 info "Enabling addons..."
 
-# Core — required for PayFlow
+# Core — required for SwiftPay
 enable_addon dns
 enable_addon hostpath-storage
 enable_addon registry
@@ -788,14 +788,14 @@ microk8s status --wait-ready || warn "  API server slow to recover after RBAC �
 ok "  API server ready after RBAC"
 
 # Observability stack (Prometheus + Grafana + Alertmanager + Loki + Tempo)
-# Optional — PayFlow works without it. Defaults to skip (prompt) to avoid
+# Optional — SwiftPay works without it. Defaults to skip (prompt) to avoid
 # a 10-min hang on first deploy.
 # Override: INSTALL_OBSERVABILITY=true ./scripts/deploy-microk8s.sh
 #           INSTALL_OBSERVABILITY=false ./scripts/deploy-microk8s.sh
 if [ -z "${INSTALL_OBSERVABILITY+set}" ]; then
   printf "\n"
   printf "  ${YELLOW}Install observability?${NC} (Prometheus + Grafana + Loki + Tempo)\n"
-  printf "  Takes 5-10 min to download. ${GREEN}PayFlow runs fine without it.${NC}\n"
+  printf "  Takes 5-10 min to download. ${GREEN}SwiftPay runs fine without it.${NC}\n"
   printf "  Add it later:  multipass exec microk8s-vm -- sudo microk8s enable observability\n\n"
   printf "  Install now? [y/N]: "
   read -r OBS_ANSWER
@@ -925,7 +925,7 @@ if [ "$DO_BUILD" = true ]; then
         # binary stdin streams (unexpected EOF). Use multipass transfer instead:
         # save to a temp file on the Mac, transfer the file to the VM, import, clean up.
         info "  Importing ${SERVICE} into containerd (via file transfer)..."
-        _TMPTAR="$(mktemp /tmp/payflow-${SERVICE}-XXXXXX.tar)"
+        _TMPTAR="$(mktemp /tmp/swiftpay-${SERVICE}-XXXXXX.tar)"
         docker save "${DOCKER_REGISTRY}/${SERVICE}:${IMAGE_TAG}" > "$_TMPTAR"
         multipass transfer "$_TMPTAR" "microk8s-vm:/tmp/${SERVICE}-import.tar"
         multipass exec microk8s-vm -- sudo microk8s ctr image import "/tmp/${SERVICE}-import.tar"
@@ -954,10 +954,10 @@ if [ "$DO_BUILD" = true ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# 9) Deploy PayFlow
+# 9) Deploy SwiftPay
 # -----------------------------------------------------------------------------
 printf "\n"
-info "Deploying PayFlow (k8s/overlays/local)..."
+info "Deploying SwiftPay (k8s/overlays/local)..."
 kubectl apply -k k8s/overlays/local
 
 # If we built images, update ONLY the local overlay to the exact tag and re-apply.
@@ -983,7 +983,7 @@ if [ "$DO_BUILD" = true ]; then
 
   info "Waiting for rollouts..."
   for SERVICE in $SERVICES; do
-    kubectl -n payflow rollout status "deployment/${SERVICE}" --timeout=180s >/dev/null 2>&1 || true
+    kubectl -n swiftpay rollout status "deployment/${SERVICE}" --timeout=180s >/dev/null 2>&1 || true
   done
 fi
 
@@ -1003,7 +1003,7 @@ get_pod_scheduling_message() {
 }
 
 self_heal_hostpath_affinity() {
-  NS="payflow"
+  NS="swiftpay"
   # Only relevant for our local MicroK8s overlay
   if [ ! -d "k8s/overlays/local" ]; then
     return 0
@@ -1069,7 +1069,7 @@ sha256_or_empty() {
 }
 
 self_heal_jwt_secret_drift() {
-  NS="payflow"
+  NS="swiftpay"
   if ! kubectl get secret -n "$NS" db-secrets >/dev/null 2>&1; then
     return 0
   fi
@@ -1097,56 +1097,56 @@ self_heal_jwt_secret_drift
 
 printf "\n"
 info "Waiting for infrastructure pods..."
-kubectl wait --for=condition=ready pod -l app=postgres  -n payflow --timeout=180s \
-  || warn "postgres not ready — check: kubectl describe pod -l app=postgres -n payflow"
-kubectl wait --for=condition=ready pod -l app=redis     -n payflow --timeout=120s \
-  || warn "redis not ready — check: kubectl describe pod -l app=redis -n payflow"
-kubectl wait --for=condition=ready pod -l app=rabbitmq  -n payflow --timeout=120s \
-  || warn "rabbitmq not ready — check: kubectl describe pod -l app=rabbitmq -n payflow"
+kubectl wait --for=condition=ready pod -l app=postgres  -n swiftpay --timeout=180s \
+  || warn "postgres not ready — check: kubectl describe pod -l app=postgres -n swiftpay"
+kubectl wait --for=condition=ready pod -l app=redis     -n swiftpay --timeout=120s \
+  || warn "redis not ready — check: kubectl describe pod -l app=redis -n swiftpay"
+kubectl wait --for=condition=ready pod -l app=rabbitmq  -n swiftpay --timeout=120s \
+  || warn "rabbitmq not ready — check: kubectl describe pod -l app=rabbitmq -n swiftpay"
 
 info "Waiting for DB migration to complete..."
-kubectl wait --for=condition=complete job/db-migration-job -n payflow --timeout=180s \
-  || warn "DB migration incomplete — check: kubectl logs job/db-migration-job -n payflow"
+kubectl wait --for=condition=complete job/db-migration-job -n swiftpay --timeout=180s \
+  || warn "DB migration incomplete — check: kubectl logs job/db-migration-job -n swiftpay"
 
 printf "\n"
 info "Waiting for application services..."
-kubectl wait --for=condition=ready pod -l app=api-gateway          -n payflow --timeout=180s || true
-kubectl wait --for=condition=ready pod -l app=auth-service         -n payflow --timeout=180s || true
-kubectl wait --for=condition=ready pod -l app=wallet-service       -n payflow --timeout=180s || true
-kubectl wait --for=condition=ready pod -l app=transaction-service  -n payflow --timeout=180s || true
-kubectl wait --for=condition=ready pod -l app=notification-service -n payflow --timeout=180s || true
-kubectl wait --for=condition=ready pod -l app=frontend             -n payflow --timeout=180s || true
+kubectl wait --for=condition=ready pod -l app=api-gateway          -n swiftpay --timeout=180s || true
+kubectl wait --for=condition=ready pod -l app=auth-service         -n swiftpay --timeout=180s || true
+kubectl wait --for=condition=ready pod -l app=wallet-service       -n swiftpay --timeout=180s || true
+kubectl wait --for=condition=ready pod -l app=transaction-service  -n swiftpay --timeout=180s || true
+kubectl wait --for=condition=ready pod -l app=notification-service -n swiftpay --timeout=180s || true
+kubectl wait --for=condition=ready pod -l app=frontend             -n swiftpay --timeout=180s || true
 
 printf "\n"
 info "Cluster nodes:"
 kubectl get nodes
 printf "\n"
 info "Pod status:"
-kubectl get pods -n payflow
+kubectl get pods -n swiftpay
 
 # -----------------------------------------------------------------------------
 # 10) Done
 # -----------------------------------------------------------------------------
 printf "\n"
 printf "${GREEN}=============================================================${NC}\n"
-printf "${GREEN}   PayFlow deployed!${NC}\n"
+printf "${GREEN}   SwiftPay deployed!${NC}\n"
 printf "${GREEN}=============================================================${NC}\n\n"
 printf "  Access the app:\n\n"
 printf "  A) Port-forward (no /etc/hosts setup needed):\n"
-printf "       kubectl port-forward service/frontend 8080:80 -n payflow &\n"
+printf "       kubectl port-forward service/frontend 8080:80 -n swiftpay &\n"
 printf "       Open: http://localhost:8080\n\n"
 printf "  B) Ingress (hostname routing):\n"
-printf "       ./scripts/setup-hosts-payflow-local.sh\n"
-printf "       Open: http://www.payflow.local\n\n"
+printf "       ./scripts/setup-hosts-swiftpay-local.sh\n"
+printf "       Open: http://www.swiftpay.local\n\n"
 printf "  Grafana (observability):\n"
 printf "       kubectl port-forward -n observability svc/kube-prom-stack-grafana 3000:80 &\n"
 printf "       Open: http://localhost:3000  (admin / prom-operator)\n\n"
 printf "  Kubernetes dashboard:\n"
 printf "       microk8s dashboard-proxy\n\n"
 printf "  Useful commands:\n"
-printf "       kubectl get pods -n payflow            # service health\n"
+printf "       kubectl get pods -n swiftpay            # service health\n"
 printf "       kubectl get pods -n observability      # monitoring stack\n"
-printf "       kubectl logs -f <pod> -n payflow       # tail a log\n"
-printf "       kubectl top pods -n payflow            # resource usage\n\n"
+printf "       kubectl logs -f <pod> -n swiftpay       # tail a log\n"
+printf "       kubectl top pods -n swiftpay            # resource usage\n\n"
 printf "  Tear down:\n"
 printf "       ./scripts/teardown-microk8s.sh\n\n"

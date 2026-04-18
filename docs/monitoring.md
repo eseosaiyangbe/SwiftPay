@@ -231,7 +231,7 @@ scrape_configs:
     kubernetes_sd_configs:  # Auto-discover pods
       - role: pod
         namespaces:
-          names: ['payflow']
+          names: ['swiftpay']
     relabel_configs:
       - source_labels: [__meta_kubernetes_pod_label_app]
         regex: api-gateway
@@ -613,11 +613,11 @@ Timestamp           | Value
 kubernetes_sd_configs:
   - role: pod
     namespaces:
-      names: ['payflow']
+      names: ['swiftpay']
 ```
 
 **What happens:**
-1. Prometheus queries Kubernetes API: "Give me all pods in payflow namespace"
+1. Prometheus queries Kubernetes API: "Give me all pods in swiftpay namespace"
 2. Kubernetes returns: List of pods with labels
 3. Prometheus filters: Only pods with `app=api-gateway` label
 4. Prometheus scrapes: `http://pod-ip:3000/metrics`
@@ -897,7 +897,7 @@ kubectl port-forward -n monitoring svc/loki 3100:3100
 ```
 
 **In Prometheus UI:**
-1. **Status → Targets**: Should see all PayFlow services (green = scraping)
+1. **Status → Targets**: Should see all SwiftPay services (green = scraping)
 2. **Status → Configuration**: Should see your scrape configs
 3. **Alerts**: Should see alert rules loaded
 4. **Graph**: Try query: `rate(http_requests_total[5m])`
@@ -927,7 +927,7 @@ scrape_configs:
     kubernetes_sd_configs:  # Use Kubernetes service discovery
       - role: pod           # Discover pods (not services)
         namespaces:
-          names: ['payflow'] # Only in payflow namespace
+          names: ['swiftpay'] # Only in swiftpay namespace
     relabel_configs:
       # Filter: Only keep pods with app=api-gateway label
       - source_labels: [__meta_kubernetes_pod_label_app]
@@ -940,7 +940,7 @@ scrape_configs:
 ```
 
 **What this does:**
-1. Prometheus queries Kubernetes API: "Give me all pods in payflow namespace"
+1. Prometheus queries Kubernetes API: "Give me all pods in swiftpay namespace"
 2. Kubernetes returns list of pods with metadata (labels, IPs)
 3. Prometheus filters: Only pods where `app=api-gateway`
 4. Prometheus scrapes: `http://pod-ip:3000/metrics` every 15 seconds

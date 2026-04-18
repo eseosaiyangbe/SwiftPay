@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# Build all PayFlow service images and push to ECR
+# Build all SwiftPay service images and push to ECR
 # ============================================
 # Use after code changes so the cluster runs the new code.
 # ECR repos are created by Terraform (spoke-vpc-eks); run spinup.sh first if missing.
@@ -18,8 +18,8 @@ REGION="${AWS_REGION:-us-east-1}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# ECR repo name matches Terraform EKS module (payflow-eks-cluster)
-EKS_CLUSTER_NAME="${EKS_CLUSTER_NAME:-payflow-eks-cluster}"
+# ECR repo name matches Terraform EKS module (swiftpay-eks-cluster)
+EKS_CLUSTER_NAME="${EKS_CLUSTER_NAME:-swiftpay-eks-cluster}"
 
 echo "Build context: $REPO_ROOT/services"
 echo "Image tag: $IMAGE_TAG"

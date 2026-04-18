@@ -1,5 +1,5 @@
 groups:
-  - name: payflow-critical-business
+  - name: swiftpay-critical-business
     rules:
       # ============================================
       # CRITICAL: Business Impact Alerts
@@ -7,7 +7,7 @@ groups:
       
       # CRITICAL: Pending Transactions Stuck (THE BIG ONE)
       - alert: PendingTransactionsStuck
-        expr: payflow_pending_transactions_total > 0
+        expr: swiftpay_pending_transactions_total > 0
         for: 2m
         labels:
           severity: P0
@@ -15,12 +15,12 @@ groups:
         annotations:
           summary: "{{ $value }} transactions stuck in PENDING status"
           description: "User funds are locked! Immediate investigation required."
-          runbook: "https://github.com/payflow/docs/troubleshooting-pending-transactions.md"
-          dashboard: "https://grafana.payflow.com/d/payflow-business"
+          runbook: "https://github.com/swiftpay/docs/troubleshooting-pending-transactions.md"
+          dashboard: "https://grafana.swiftpay.com/d/swiftpay-business"
       
       # CRITICAL: Money Stuck
       - alert: MoneyStuckInPendingTransactions
-        expr: payflow_pending_transaction_amount_total > 1000
+        expr: swiftpay_pending_transaction_amount_total > 1000
         for: 2m
         labels:
           severity: P0
@@ -28,11 +28,11 @@ groups:
         annotations:
           summary: "${{ $value }} stuck in pending transactions"
           description: "Real money is locked. Users cannot access funds."
-          runbook: "https://github.com/payflow/docs/troubleshooting-pending-transactions.md"
+          runbook: "https://github.com/swiftpay/docs/troubleshooting-pending-transactions.md"
       
       # CRITICAL: Old Pending Transaction
       - alert: OldestPendingTransactionTooOld
-        expr: (time() - payflow_transactions_oldest_pending_timestamp) > 120
+        expr: (time() - swiftpay_transactions_oldest_pending_timestamp) > 120
         for: 1m
         labels:
           severity: P0
@@ -40,15 +40,15 @@ groups:
         annotations:
           summary: "Oldest pending transaction is {{ $value | humanizeDuration }} old"
           description: "Expected auto-reversal after 1 minute. CronJob might be broken."
-          runbook: "https://github.com/payflow/docs/troubleshooting-pending-transactions.md"
+          runbook: "https://github.com/swiftpay/docs/troubleshooting-pending-transactions.md"
       
       # CRITICAL: Transaction Failure Rate
       - alert: TransactionFailureRateHigh
         expr: |
           (
-            rate(payflow_transactions_total{status="failed"}[5m]) 
+            rate(swiftpay_transactions_total{status="failed"}[5m]) 
             / 
-            rate(payflow_transactions_total[5m])
+            rate(swiftpay_transactions_total[5m])
           ) > 0.05
         for: 2m
         labels:
@@ -57,11 +57,11 @@ groups:
         annotations:
           summary: "{{ $value | humanizePercentage }} of transactions are failing"
           description: "Normal rate is <1%. Current: {{ $value | humanizePercentage }}"
-          runbook: "https://github.com/payflow/docs/transaction-failures.md"
+          runbook: "https://github.com/swiftpay/docs/transaction-failures.md"
       
       # CRITICAL: Zero Transactions
       - alert: NoTransactionsProcessed
-        expr: rate(payflow_transactions_total[5m]) == 0
+        expr: rate(swiftpay_transactions_total[5m]) == 0
         for: 10m
         labels:
           severity: critical
@@ -70,7 +70,7 @@ groups:
           summary: "No transactions in last 10 minutes"
           description: "System appears dead or users can't transact"
 
-  - name: payflow-cronjob-health
+  - name: swiftpay-cronjob-health
     rules:
       # ============================================
       # CronJob Monitoring (Would have caught our issue!)
@@ -87,7 +87,7 @@ groups:
         annotations:
           summary: "🚨 Transaction timeout CronJob hasn't run in 3+ minutes"
           description: "Expected every minute. Pending transactions won't be reversed!"
-          runbook: "https://github.com/payflow/docs/troubleshooting-pending-transactions.md#cronjob-not-running"
+          runbook: "https://github.com/swiftpay/docs/troubleshooting-pending-transactions.md#cronjob-not-running"
       
       # CRITICAL: CronJob Failures
       - alert: CronJobFailureRate
@@ -123,7 +123,7 @@ groups:
           summary: "🚨 Transaction timeout CronJob is SUSPENDED"
           description: "Manual suspension or incident response. Pending transactions won't be reversed!"
 
-  - name: payflow-service-health
+  - name: swiftpay-service-health
     rules:
       # Service Health Alerts
       - alert: ServiceDown
@@ -208,7 +208,7 @@ groups:
 
       # Transaction Failure Rate
       - alert: HighTransactionFailureRate
-        expr: rate(payflow_transactions_total{status="failed"}[5m]) / rate(payflow_transactions_total[5m]) > 0.05
+        expr: rate(swiftpay_transactions_total{status="failed"}[5m]) / rate(swiftpay_transactions_total[5m]) > 0.05
         for: 2m
         labels:
           severity: critical
@@ -218,7 +218,7 @@ groups:
 
       # Circuit Breaker Open
       - alert: CircuitBreakerOpen
-        expr: payflow_circuit_breaker_state{state="open"} == 1
+        expr: swiftpay_circuit_breaker_state{state="open"} == 1
         for: 1m
         labels:
           severity: warning
@@ -237,7 +237,7 @@ groups:
           summary: "Low success rate for {{ $labels.job }}"
           description: "Success rate for {{ $labels.job }} is {{ $value | humanizePercentage }}"
 
-  - name: payflow-infrastructure
+  - name: swiftpay-infrastructure
     rules:
       # ============================================
       # Infrastructure Health
@@ -253,7 +253,7 @@ groups:
         annotations:
           summary: "🚨 CoreDNS is DOWN"
           description: "DNS resolution broken. All service discovery will fail. CronJobs will fail with DNS errors."
-          runbook: "https://github.com/payflow/docs/troubleshooting-pending-transactions.md#coredns-issues"
+          runbook: "https://github.com/swiftpay/docs/troubleshooting-pending-transactions.md#coredns-issues"
       
       # CRITICAL: CoreDNS Errors
       - alert: CoreDNSErrorsHigh
@@ -270,9 +270,9 @@ groups:
       - alert: PodQuotaNearLimit
         expr: |
           (
-            kube_resourcequota{namespace="payflow", type="used", resource="pods"} 
+            kube_resourcequota{namespace="swiftpay", type="used", resource="pods"} 
             / 
-            kube_resourcequota{namespace="payflow", type="hard", resource="pods"}
+            kube_resourcequota{namespace="swiftpay", type="hard", resource="pods"}
           ) > 0.85
         for: 5m
         labels:
@@ -286,9 +286,9 @@ groups:
       - alert: CPUQuotaNearLimit
         expr: |
           (
-            kube_resourcequota{namespace="payflow", type="used", resource="requests.cpu"} 
+            kube_resourcequota{namespace="swiftpay", type="used", resource="requests.cpu"} 
             / 
-            kube_resourcequota{namespace="payflow", type="hard", resource="requests.cpu"}
+            kube_resourcequota{namespace="swiftpay", type="hard", resource="requests.cpu"}
           ) > 0.90
         for: 5m
         labels:
@@ -302,9 +302,9 @@ groups:
       - alert: MemoryQuotaNearLimit
         expr: |
           (
-            kube_resourcequota{namespace="payflow", type="used", resource="requests.memory"} 
+            kube_resourcequota{namespace="swiftpay", type="used", resource="requests.memory"} 
             / 
-            kube_resourcequota{namespace="payflow", type="hard", resource="requests.memory"}
+            kube_resourcequota{namespace="swiftpay", type="hard", resource="requests.memory"}
           ) > 0.90
         for: 5m
         labels:
@@ -314,7 +314,7 @@ groups:
           summary: "Memory quota at {{ $value | humanizePercentage }}"
           description: "Cannot deploy new pods. Need to increase quota or reduce requests."
 
-  - name: payflow-rabbitmq
+  - name: swiftpay-rabbitmq
     rules:
       # ============================================
       # RabbitMQ Monitoring
@@ -380,7 +380,7 @@ groups:
           summary: "RabbitMQ memory at {{ $value | humanizePercentage }}"
           description: "Will trigger flow control and block publishers soon."
 
-  - name: payflow-database
+  - name: swiftpay-database
     rules:
       # ============================================
       # Database Monitoring
@@ -388,7 +388,7 @@ groups:
       
       # CRITICAL: Database Connection Pool Exhausted
       - alert: DatabaseConnectionPoolExhausted
-        expr: payflow_db_connection_pool_size{state="active"} / payflow_db_connection_pool_size{state="total"} > 0.9
+        expr: swiftpay_db_connection_pool_size{state="active"} / swiftpay_db_connection_pool_size{state="total"} > 0.9
         for: 2m
         labels:
           severity: critical
@@ -401,7 +401,7 @@ groups:
       - alert: SlowDatabaseQueries
         expr: |
           histogram_quantile(0.95, 
-            rate(payflow_database_query_duration_seconds_bucket[5m])
+            rate(swiftpay_database_query_duration_seconds_bucket[5m])
           ) > 1
         for: 5m
         labels:
@@ -413,7 +413,7 @@ groups:
       
       # CRITICAL: Database Query Errors
       - alert: DatabaseQueryErrorsHigh
-        expr: rate(payflow_db_query_errors_total[5m]) > 1
+        expr: rate(swiftpay_db_query_errors_total[5m]) > 1
         for: 2m
         labels:
           severity: critical
@@ -444,7 +444,7 @@ groups:
           summary: "PostgreSQL deadlocks detected"
           description: "{{ $value }} deadlocks per second. Check transaction isolation and query patterns."
 
-  - name: payflow-slo
+  - name: swiftpay-slo
     rules:
       # ============================================
       # SLI/SLO Tracking
@@ -484,9 +484,9 @@ groups:
       - alert: TransactionSLOViolation
         expr: |
           (
-            rate(payflow_transactions_total{status="COMPLETED"}[5m]) 
+            rate(swiftpay_transactions_total{status="COMPLETED"}[5m]) 
             / 
-            rate(payflow_transactions_total[5m])
+            rate(swiftpay_transactions_total[5m])
           ) < 0.99
         for: 5m
         labels:

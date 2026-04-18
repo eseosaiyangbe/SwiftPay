@@ -1,4 +1,4 @@
-# PayFlow Troubleshooting Guide — Quick Fix Reference
+# SwiftPay Troubleshooting Guide — Quick Fix Reference
 
 > **This is the fast one.** Every failure mode found during a full system audit, presented as symptom → root cause → exact fix. No narrative, just solutions.
 >
@@ -18,7 +18,7 @@
 
 **Symptom:**
 ```
-payflow-api-gateway exited with code 1
+swiftpay-api-gateway exited with code 1
 Error: DB_PASSWORD must be set (api-gateway health check requires database access)
 ```
 
@@ -28,9 +28,9 @@ Error: DB_PASSWORD must be set (api-gateway health check requires database acces
 ```yaml
 DB_HOST: postgres
 DB_PORT: 5432
-DB_NAME: payflow
-DB_USER: payflow
-DB_PASSWORD: payflow123
+DB_NAME: swiftpay
+DB_USER: swiftpay
+DB_PASSWORD: swiftpay123
 ```
 This is already present in the current `docker-compose.yml`. If you see this error, you may have an old version — pull latest.
 
@@ -89,7 +89,7 @@ docker compose logs rabbitmq
 
 **Symptom:**
 ```
-kubectl logs -n payflow deploy/api-gateway
+kubectl logs -n swiftpay deploy/api-gateway
 Error: DB_PASSWORD must be set
 ```
 
@@ -97,7 +97,7 @@ Error: DB_PASSWORD must be set
 
 **Fix (local overlay):**
 ```bash
-kubectl get secret db-secrets -n payflow
+kubectl get secret db-secrets -n swiftpay
 # If not found:
 kubectl apply -k k8s/overlays/local
 # db-secrets is defined in k8s/overlays/local/secrets-db-secrets.yaml
@@ -105,7 +105,7 @@ kubectl apply -k k8s/overlays/local
 
 **Fix (EKS — ESO not synced yet):**
 ```bash
-kubectl describe externalsecret db-secrets-external -n payflow
+kubectl describe externalsecret db-secrets-external -n swiftpay
 # Look for: "SecretSyncedError" or "Store not ready"
 # ESO needs a few minutes after install. Check:
 kubectl get pods -n external-secrets
@@ -115,11 +115,11 @@ kubectl get pods -n external-secrets
 
 ### Pods stuck in Pending
 
-**Symptom:** `kubectl get pods -n payflow` shows `Pending` for multiple pods.
+**Symptom:** `kubectl get pods -n swiftpay` shows `Pending` for multiple pods.
 
 **Root cause A — ResourceQuota exceeded:**
 ```bash
-kubectl describe quota -n payflow
+kubectl describe quota -n swiftpay
 # If used == hard, the quota is exhausted
 ```
 **Fix:** The local overlay applies `local-quota-patch.yaml` which raises limits. Ensure you applied the overlay, not just the base:
@@ -139,20 +139,20 @@ Stop other processes or increase the MicroK8s VM memory.
 
 **Symptom:** Frontend loads, but every API call returns a 502 Bad Gateway.
 
-**Root cause:** api-gateway is not Ready (see CrashLoopBackOff above), or nginx can't resolve `api-gateway.payflow.svc.cluster.local`.
+**Root cause:** api-gateway is not Ready (see CrashLoopBackOff above), or nginx can't resolve `api-gateway.swiftpay.svc.cluster.local`.
 
 **Fix:**
 ```bash
 # Check api-gateway pod status
-kubectl get pods -n payflow -l app=api-gateway
+kubectl get pods -n swiftpay -l app=api-gateway
 
 # Check nginx resolver (MicroK8s DNS addon must be enabled)
 microk8s enable dns
 
 # Check nginx config inside the frontend pod
-kubectl exec -n payflow deploy/frontend -- cat /etc/nginx/conf.d/default.conf
+kubectl exec -n swiftpay deploy/frontend -- cat /etc/nginx/conf.d/default.conf
 # Should contain: resolver 10.152.183.10 valid=10s;  (IP, not hostname — nginx only accepts IPs)
-# and: set $api_upstream "http://api-gateway.payflow.svc.cluster.local:80";
+# and: set $api_upstream "http://api-gateway.swiftpay.svc.cluster.local:80";
 #      proxy_pass $api_upstream;  (variable forces lazy DNS, prevents startup crash)
 ```
 
@@ -171,7 +171,7 @@ The RabbitMQ pod is `Running` and healthy, but the transaction service cannot re
 You can confirm the block:
 ```bash
 # From inside the transaction-service pod — this will hang/timeout if blocked
-kubectl exec -n payflow deployment/transaction-service -- node -e "
+kubectl exec -n swiftpay deployment/transaction-service -- node -e "
 const amqp = require('amqplib');
 amqp.connect(process.env.RABBITMQ_URL)
   .then(() => { console.log('CONNECTED'); process.exit(0); })
@@ -185,7 +185,7 @@ amqp.connect(process.env.RABBITMQ_URL)
 kubectl apply -k k8s/overlays/local
 
 # Verify the fix
-kubectl get networkpolicy services-allow-db -n payflow -o yaml | grep "port:"
+kubectl get networkpolicy services-allow-db -n swiftpay -o yaml | grep "port:"
 # Should show both 5672 and 5671
 ```
 
@@ -195,20 +195,20 @@ kubectl get networkpolicy services-allow-db -n payflow -o yaml | grep "port:"
 
 ### Ingress returns 404 for everything
 
-**Symptom:** `curl http://www.payflow.local` returns 404.
+**Symptom:** `curl http://www.swiftpay.local` returns 404.
 
 **Root cause:** `/etc/hosts` entry missing, or wrong ingress class.
 
 **Fix:**
 ```bash
 # Add hosts entries
-bash scripts/setup-hosts-payflow-local.sh
+bash scripts/setup-hosts-swiftpay-local.sh
 
 # Verify ingress controller is running
 kubectl get pods -n ingress
 
 # Verify ingress rule
-kubectl describe ingress -n payflow
+kubectl describe ingress -n swiftpay
 ```
 The local overlay ingress uses `ingressClassName: public` (MicroK8s). If your cluster uses `nginx`, update `k8s/overlays/local/ingress-local.yaml`.
 
@@ -218,7 +218,7 @@ The local overlay ingress uses `ingressClassName: public` (MicroK8s). If your cl
 
 **Symptom:**
 ```
-kubectl logs -n payflow job/db-migration-job
+kubectl logs -n swiftpay job/db-migration-job
 FATAL: SSL connection is required
 ```
 
@@ -240,9 +240,9 @@ IMAGE_TAG=<tag> ./k8s/overlays/eks/deploy.sh   # not: kubectl apply -k k8s/base
 **Fix:** Open an SSH tunnel through the bastion host:
 ```bash
 BASTION_IP=$(terraform -chdir=terraform/aws/bastion output -raw bastion_public_ip)
-EKS_ENDPOINT=$(aws eks describe-cluster --name payflow-eks-cluster \
+EKS_ENDPOINT=$(aws eks describe-cluster --name swiftpay-eks-cluster \
   --query 'cluster.endpoint' --output text | sed 's|https://||')
-ssh -i ~/.ssh/payflow-bastion.pem \
+ssh -i ~/.ssh/swiftpay-bastion.pem \
     -L 6443:${EKS_ENDPOINT}:443 \
     ec2-user@${BASTION_IP} -N -f
 ```
@@ -254,7 +254,7 @@ Then retry `kubectl`.
 
 **Symptom:**
 ```
-kubectl describe pod -n payflow <pod>
+kubectl describe pod -n swiftpay <pod>
 Failed to pull image "<ACCOUNT_ID>.dkr.ecr...": 
 ```
 
@@ -274,13 +274,13 @@ IMAGE_TAG=<git-sha-from-ci> ./k8s/overlays/eks/deploy.sh
 
 **Root cause:** Azure Cache for Redis requires `rediss://` (TLS, port 6380), not `redis://`. The `REDIS_URL` in the AKS `db-secrets` Secret must use the correct scheme.
 
-**Fix:** In Azure Key Vault, set the `payflow-redis` secret → `url` property to:
+**Fix:** In Azure Key Vault, set the `swiftpay-redis` secret → `url` property to:
 ```
 rediss://:YOUR_REDIS_PASSWORD@YOUR_INSTANCE.redis.cache.windows.net:6380
 ```
 After updating Key Vault, force ESO to re-sync:
 ```bash
-kubectl annotate externalsecret db-secrets-external -n payflow \
+kubectl annotate externalsecret db-secrets-external -n swiftpay \
   force-sync=$(date +%s) --overwrite
 ```
 
@@ -294,7 +294,7 @@ kubectl annotate externalsecret db-secrets-external -n payflow \
 
 **Fix:**
 ```bash
-kubectl exec -n payflow deploy/auth-service -- env | grep PGSSLMODE
+kubectl exec -n swiftpay deploy/auth-service -- env | grep PGSSLMODE
 # Should print: PGSSLMODE=require
 # If missing, ensure you're using the AKS overlay deploy script
 ```
@@ -368,11 +368,11 @@ docker compose down -v --remove-orphans
 docker compose up -d
 
 # MicroK8s
-kubectl delete namespace payflow
+kubectl delete namespace swiftpay
 kubectl apply -k k8s/overlays/local
 
 # EKS — delete and re-apply app layer only (leave infra)
-kubectl delete namespace payflow
+kubectl delete namespace swiftpay
 IMAGE_TAG=<tag> ./k8s/overlays/eks/deploy.sh
 ```
 
@@ -383,7 +383,7 @@ IMAGE_TAG=<tag> ./k8s/overlays/eks/deploy.sh
 ./scripts/validate.sh
 
 # MicroK8s
-./scripts/validate.sh --env k8s --host http://api.payflow.local
+./scripts/validate.sh --env k8s --host http://api.swiftpay.local
 
 # EKS / AKS
 ./scripts/validate.sh --env cloud --host https://your-api-domain.com

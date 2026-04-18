@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # fix-microk8s-nodes.sh
 #
-# Starts any stopped Multipass VMs that are part of the PayFlow MicroK8s
+# Starts any stopped Multipass VMs that are part of the SwiftPay MicroK8s
 # cluster and waits for their nodes to become Ready. Run this after a Mac
 # restart or after manually stopping the VMs.
 #
@@ -72,8 +72,8 @@ multipass exec "${CONTROL_PLANE}" -- sudo microk8s kubectl get nodes -o wide
 
 echo ""
 echo "=== Pod status ==="
-multipass exec "${CONTROL_PLANE}" -- sudo microk8s kubectl get pods -n payflow
+multipass exec "${CONTROL_PLANE}" -- sudo microk8s kubectl get pods -n swiftpay
 
 echo ""
 echo "If pods are still Pending, check events:"
-echo "  kubectl get events -n payflow --sort-by='.lastTimestamp' | tail -20"
+echo "  kubectl get events -n swiftpay --sort-by='.lastTimestamp' | tail -20"

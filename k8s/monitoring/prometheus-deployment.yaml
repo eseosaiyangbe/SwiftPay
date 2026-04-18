@@ -1,7 +1,7 @@
 # ============================================
-# Prometheus Deployment for PayFlow
+# Prometheus Deployment for SwiftPay
 # ============================================
-# Purpose: Deploy Prometheus to collect and store metrics from all PayFlow services
+# Purpose: Deploy Prometheus to collect and store metrics from all SwiftPay services
 # Prometheus scrapes metrics from services and stores them for querying and alerting
 
 # ============================================

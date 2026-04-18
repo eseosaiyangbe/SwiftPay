@@ -1,7 +1,7 @@
 # AWS Security Hub - Centralized Security Findings
 # Aggregates findings from GuardDuty, Config, Inspector, etc.
 
-resource "aws_securityhub_account" "payflow" {
+resource "aws_securityhub_account" "swiftpay" {
   enable_default_standards = true  # Enables default standards; explicit subscriptions below can conflict if already enabled
 }
 
@@ -17,7 +17,7 @@ resource "aws_securityhub_standards_subscription" "cis" {
 
   standards_arn = "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.4.0"
 
-  depends_on = [aws_securityhub_account.payflow]
+  depends_on = [aws_securityhub_account.swiftpay]
 }
 
 resource "aws_securityhub_standards_subscription" "aws_foundational" {
@@ -25,23 +25,23 @@ resource "aws_securityhub_standards_subscription" "aws_foundational" {
 
   standards_arn = "arn:aws:securityhub:::ruleset/aws-foundational-security-best-practices/v/1.0.0"
 
-  depends_on = [aws_securityhub_account.payflow]
+  depends_on = [aws_securityhub_account.swiftpay]
 }
 
 # Security Hub Findings SNS Topic
 resource "aws_sns_topic" "security_hub_findings" {
-  name              = "payflow-security-hub-findings"
+  name              = "swiftpay-security-hub-findings"
   kms_master_key_id = aws_kms_key.security_findings.id
 
   tags = {
-    Name        = "payflow-security-hub-findings"
+    Name        = "swiftpay-security-hub-findings"
     Environment = var.environment
   }
 }
 
 # EventBridge Rule for Security Hub Findings
 resource "aws_cloudwatch_event_rule" "security_hub_findings" {
-  name        = "payflow-security-hub-findings-rule"
+  name        = "swiftpay-security-hub-findings-rule"
   description = "Capture Security Hub findings"
 
   event_pattern = jsonencode({
@@ -50,7 +50,7 @@ resource "aws_cloudwatch_event_rule" "security_hub_findings" {
   })
 
   tags = {
-    Name = "payflow-security-hub-findings-rule"
+    Name = "swiftpay-security-hub-findings-rule"
   }
 }
 

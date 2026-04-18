@@ -1,5 +1,5 @@
 # ============================================
-# Alertmanager Deployment for PayFlow
+# Alertmanager Deployment for SwiftPay
 # ============================================
 # Purpose: Receive alerts from Prometheus and route to PagerDuty, Slack, email
 # Without this, all alerts fire silently into the void.
@@ -8,7 +8,7 @@
 # Alertmanager Config (Secret for credential support)
 # ============================================
 # For production: Apply alertmanager-external-secret.yaml to sync from
-# AWS Secrets Manager (payflow/ENV/alertmanager) with real credentials.
+# AWS Secrets Manager (swiftpay/ENV/alertmanager) with real credentials.
 # Placeholders below (YOUR_PAGERDUTY_*, YOUR/SLACK/WEBHOOK, smtp_*) will cause
 # notifications to fail until replaced or ESO syncs real config from Secrets Manager.
 apiVersion: v1
@@ -22,8 +22,8 @@ stringData:
     global:
       resolve_timeout: 5m
       smtp_smarthost: 'smtp.gmail.com:587'
-      smtp_from: 'alerts@payflow.com'
-      smtp_auth_username: 'alerts@payflow.com'
+      smtp_from: 'alerts@swiftpay.com'
+      smtp_auth_username: 'alerts@swiftpay.com'
       # smtp_auth_password: set via Secret (alertmanager-credentials) or External Secrets
       smtp_require_tls: true
 
@@ -112,8 +112,8 @@ stringData:
 
       - name: 'email-backup'
         email_configs:
-          - to: 'oncall@payflow.com'
-            from: 'alerts@payflow.com'
+          - to: 'oncall@swiftpay.com'
+            from: 'alerts@swiftpay.com'
             # v0.27+: top-level `subject` removed — use headers (amtool: field subject not found in type config.plain)
             headers:
               Subject: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'

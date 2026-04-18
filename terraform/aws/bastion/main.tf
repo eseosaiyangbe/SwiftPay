@@ -18,20 +18,20 @@ provider "aws" {
 data "aws_vpc" "hub" {
   filter {
     name   = "tag:Name"
-    values = ["payflow-hub-vpc"]
+    values = ["swiftpay-hub-vpc"]
   }
 }
 
 data "aws_subnet" "hub_public" {
   filter {
     name   = "tag:Name"
-    values = ["payflow-hub-public-subnet"]
+    values = ["swiftpay-hub-public-subnet"]
   }
 }
 
 # Security Group for Bastion
 resource "aws_security_group" "bastion" {
-  name        = "payflow-bastion-sg"
+  name        = "swiftpay-bastion-sg"
   description = "Security group for Bastion host"
   vpc_id      = data.aws_vpc.hub.id
 
@@ -72,13 +72,13 @@ resource "aws_security_group" "bastion" {
   }
 
   tags = {
-    Name = "payflow-bastion-sg"
+    Name = "swiftpay-bastion-sg"
   }
 }
 
 # IAM Role for Bastion
 resource "aws_iam_role" "bastion" {
-  name = "payflow-bastion-role"
+  name = "swiftpay-bastion-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -94,13 +94,13 @@ resource "aws_iam_role" "bastion" {
   })
 
   tags = {
-    Name = "payflow-bastion-role"
+    Name = "swiftpay-bastion-role"
   }
 }
 
 # IAM Policy for EKS access
 resource "aws_iam_role_policy" "bastion_eks" {
-  name = "payflow-bastion-eks-policy"
+  name = "swiftpay-bastion-eks-policy"
   role = aws_iam_role.bastion.id
 
   policy = jsonencode({
@@ -120,7 +120,7 @@ resource "aws_iam_role_policy" "bastion_eks" {
 
 # EC2/SSM read-only and scoped StartSession for operating from the bastion
 resource "aws_iam_role_policy" "bastion_operate" {
-  name = "payflow-bastion-operate-policy"
+  name = "swiftpay-bastion-operate-policy"
   role = aws_iam_role.bastion.id
 
   policy = jsonencode({
@@ -145,7 +145,7 @@ resource "aws_iam_role_policy" "bastion_operate" {
         ]
         Condition = {
           StringLike = {
-            "ec2:ResourceTag/Name" = "payflow-*"
+            "ec2:ResourceTag/Name" = "swiftpay-*"
           }
         }
       }
@@ -161,7 +161,7 @@ resource "aws_iam_role_policy_attachment" "bastion_ssm" {
 
 # IAM Instance Profile
 resource "aws_iam_instance_profile" "bastion" {
-  name = "payflow-bastion-profile"
+  name = "swiftpay-bastion-profile"
   role = aws_iam_role.bastion.name
 }
 
@@ -262,7 +262,7 @@ resource "aws_instance" "bastion" {
   EOF
 
   tags = {
-    Name        = "payflow-bastion"
+    Name        = "swiftpay-bastion"
     Environment = var.environment
     OS          = "ubuntu-24.04"
   }
@@ -274,6 +274,6 @@ resource "aws_eip" "bastion" {
   domain   = "vpc"
 
   tags = {
-    Name = "payflow-bastion-eip"
+    Name = "swiftpay-bastion-eip"
   }
 }

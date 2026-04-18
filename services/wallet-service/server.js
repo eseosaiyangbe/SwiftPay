@@ -7,6 +7,7 @@ const { body, param, validationResult } = require('express-validator');
 const client = require('prom-client');
 const logger = require('./shared/logger');
 const { register: sharedRegister, metricsMiddleware, metricsHandler, transactionTotal, databaseQueryDuration, cacheHitRate, dbQueryErrors, dbConnectionErrors, dbConnectionPoolSize } = require('./shared/metrics');
+const { transferFunds } = require('./wallet-transfer');
 require('dotenv').config();
 
 // #### Prometheus Metrics Setup ####
@@ -82,7 +83,7 @@ app.use(metricsMiddleware);
 // DATABASE CONNECTION
 // ============================================
 // rejectUnauthorized: false for AWS RDS (RDS TLS cert not in Node default trust store)
-const DEFAULT_INSECURE_DB_PASSWORD = 'payflow123';
+const DEFAULT_INSECURE_DB_PASSWORD = 'swiftpay123';
 if (process.env.NODE_ENV === 'production') {
   if (!process.env.DB_PASSWORD || process.env.DB_PASSWORD === DEFAULT_INSECURE_DB_PASSWORD) {
     throw new Error('DB_PASSWORD must be set to a non-default value in production (do not use the default placeholder)');
@@ -91,8 +92,8 @@ if (process.env.NODE_ENV === 'production') {
 const pool = new Pool({
   host: process.env.DB_HOST || 'postgres',
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'payflow',
-  user: process.env.DB_USER || 'payflow',
+  database: process.env.DB_NAME || 'swiftpay',
+  user: process.env.DB_USER || 'swiftpay',
   password: process.env.DB_PASSWORD || DEFAULT_INSECURE_DB_PASSWORD,
   max: parseInt(process.env.PG_POOL_MAX || '5', 10),
   idleTimeoutMillis: 30000,
@@ -401,10 +402,6 @@ app.post('/wallets/transfer',
     const client = await pool.connect();
     
     try {
-      // STEP 1: Start database transaction
-      // All operations below will either all succeed (COMMIT) or all fail (ROLLBACK)
-      await client.query('BEGIN');
-      
       // Track database connection for monitoring
       dbConnections.set({ database: 'postgresql' }, pool.totalCount);
 
@@ -415,68 +412,28 @@ app.post('/wallets/transfer',
         amount
       });
 
-      // STEP 2 & 3: Lock both wallets in lexicographic order to avoid deadlock (A→B and B→A)
-      const [firstId, secondId] = fromUserId < toUserId ? [fromUserId, toUserId] : [toUserId, fromUserId];
-      const first = await client.query(
-        'SELECT user_id, balance FROM wallets WHERE user_id = $1 FOR UPDATE',
-        [firstId]
-      );
-      const second = await client.query(
-        'SELECT user_id, balance FROM wallets WHERE user_id = $1 FOR UPDATE',
-        [secondId]
-      );
-      const fromWallet = firstId === fromUserId ? first : second;
+      const transfer = await transferFunds(client, { fromUserId, toUserId, amount });
 
-      // STEP 4: Validate wallets exist
-      if (first.rows.length === 0 || second.rows.length === 0) {
-        await client.query('ROLLBACK');  // Cancel transaction
+      if (!transfer.ok && transfer.reason === 'wallet_not_found') {
         logger.error('Wallet not found in transfer', {
           correlationId,
           fromUserId,
           toUserId
         });
-        
-        // Track failed transfer for monitoring
         failedTransfers.inc({ reason: 'wallet_not_found', service: 'wallet-service' });
-        
         return res.status(404).json({ error: 'Wallet not found' });
       }
 
-      // STEP 5: Check sufficient funds
-      // This prevents negative balances
-      if (parseFloat(fromWallet.rows[0].balance) < amount) {
-        await client.query('ROLLBACK');  // Cancel transaction
+      if (!transfer.ok && transfer.reason === 'insufficient_funds') {
         logger.warn('Insufficient funds', {
           correlationId,
           fromUserId,
-          available: fromWallet.rows[0].balance,
-          requested: amount
+          available: transfer.available,
+          requested: transfer.requested
         });
-        
-        // Track failed transfer for monitoring
         failedTransfers.inc({ reason: 'insufficient_funds', service: 'wallet-service' });
-        
         return res.status(400).json({ error: 'Insufficient funds' });
       }
-
-      // STEP 6: Debit sender (subtract money)
-      // This happens inside the transaction - not committed yet
-      await client.query(
-        'UPDATE wallets SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
-        [amount, fromUserId]
-      );
-
-      // STEP 7: Credit receiver (add money)
-      // This also happens inside the transaction
-      await client.query(
-        'UPDATE wallets SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
-        [amount, toUserId]
-      );
-
-      // STEP 8: Commit transaction
-      // This saves all changes atomically
-      // If this fails, both updates are rolled back (no partial transfer)
-      await client.query('COMMIT');
 
       // Invalidate cache (including balance keys used by GET /wallets/:userId/balance)
       await Promise.all([

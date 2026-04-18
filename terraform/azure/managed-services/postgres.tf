@@ -15,20 +15,20 @@ provider "azurerm" {
 }
 
 # Get existing Resource Group (created by AKS deployment)
-data "azurerm_resource_group" "payflow" {
+data "azurerm_resource_group" "swiftpay" {
   name = var.resource_group_name
 }
 
 # Virtual Network (created by AKS deployment)
 data "azurerm_virtual_network" "aks" {
   name                = var.vnet_name
-  resource_group_name = data.azurerm_resource_group.payflow.name
+  resource_group_name = data.azurerm_resource_group.swiftpay.name
 }
 
 # Subnet for PostgreSQL
 resource "azurerm_subnet" "postgres" {
   name                 = "postgres-subnet"
-  resource_group_name  = data.azurerm_resource_group.payflow.name
+  resource_group_name  = data.azurerm_resource_group.swiftpay.name
   virtual_network_name = data.azurerm_virtual_network.aks.name
   address_prefixes     = [var.postgres_subnet_cidr]
   service_endpoints   = ["Microsoft.Storage"]
@@ -44,10 +44,10 @@ resource "azurerm_subnet" "postgres" {
 }
 
 # PostgreSQL Flexible Server
-resource "azurerm_postgresql_flexible_server" "payflow" {
-  name                   = "payflow-postgres-${var.environment}"
-  resource_group_name    = data.azurerm_resource_group.payflow.name
-  location               = data.azurerm_resource_group.payflow.location
+resource "azurerm_postgresql_flexible_server" "swiftpay" {
+  name                   = "swiftpay-postgres-${var.environment}"
+  resource_group_name    = data.azurerm_resource_group.swiftpay.name
+  location               = data.azurerm_resource_group.swiftpay.location
   version                = var.postgres_version
   delegated_subnet_id    = azurerm_subnet.postgres.id
   private_dns_zone_id    = azurerm_private_dns_zone.postgres.id
@@ -98,29 +98,29 @@ resource "azurerm_postgresql_flexible_server" "payflow" {
   ]
 
   tags = {
-    Name        = "payflow-postgres"
+    Name        = "swiftpay-postgres"
     Environment = var.environment
   }
 }
 
 # Private DNS Zone for PostgreSQL
 resource "azurerm_private_dns_zone" "postgres" {
-  name                = "payflow.postgres.database.azure.com"
-  resource_group_name = data.azurerm_resource_group.payflow.name
+  name                = "swiftpay.postgres.database.azure.com"
+  resource_group_name = data.azurerm_resource_group.swiftpay.name
 }
 
 # Link Private DNS Zone to VNet
 resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
   name                  = "postgres-dns-link"
-  resource_group_name   = data.azurerm_resource_group.payflow.name
+  resource_group_name   = data.azurerm_resource_group.swiftpay.name
   private_dns_zone_name = azurerm_private_dns_zone.postgres.name
   virtual_network_id    = data.azurerm_virtual_network.aks.id
 }
 
 # Database
-resource "azurerm_postgresql_flexible_server_database" "payflow" {
+resource "azurerm_postgresql_flexible_server_database" "swiftpay" {
   name      = var.db_name
-  server_id = azurerm_postgresql_flexible_server.payflow.id
+  server_id = azurerm_postgresql_flexible_server.swiftpay.id
   collation = "en_US.utf8"
   charset   = "utf8"
 }

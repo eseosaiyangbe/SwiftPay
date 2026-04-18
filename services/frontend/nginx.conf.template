@@ -2,7 +2,7 @@
 #
 # Required env vars:
 #   API_GATEWAY_URL  — where to proxy /api/* requests
-#                      K8s:    http://api-gateway.payflow.svc.cluster.local:80
+#                      K8s:    http://api-gateway.swiftpay.svc.cluster.local:80
 #                      Docker: http://api-gateway:3000
 #   NGINX_RESOLVER   — IP address of the DNS resolver (nginx only accepts IPs here, not hostnames)
 #                      MicroK8s: 10.152.183.10  (kube-dns ClusterIP)

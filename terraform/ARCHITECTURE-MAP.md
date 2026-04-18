@@ -1,4 +1,4 @@
-# PayFlow Terraform Architecture Map
+# SwiftPay Terraform Architecture Map
 
 This document maps every resource, dependency order, cycles, IAM roles, security groups, and environment boundaries across the Terraform codebase.
 
@@ -39,7 +39,7 @@ This document maps every resource, dependency order, cycles, IAM roles, security
 │         │                                                                                │
 │         ├──► aws_flow_log.eks (→ flow_logs IAM, cloudwatch_log_group.flow_logs)           │
 │         │                                                                                │
-│         ├──► aws_eks_cluster.payflow                                                     │
+│         ├──► aws_eks_cluster.swiftpay                                                     │
 │         │         (vpc_config.subnet_ids = eks_private + eks_public)                      │
 │         │         (role_arn = aws_iam_role.eks_cluster)                                  │
 │         │         (encryption_config.key_arn = aws_kms_key.eks)                           │
@@ -92,7 +92,7 @@ aws_vpc.eks
   │     └─► time_sleep.wait_for_cluster_iam
   ├─► aws_kms_key.eks
   ├─► aws_cloudwatch_log_group.eks_cluster
-  ├─► aws_eks_cluster.payflow ─► time_sleep.wait_for_cluster_iam, cloudwatch_log_group.eks_cluster, kms_key.eks
+  ├─► aws_eks_cluster.swiftpay ─► time_sleep.wait_for_cluster_iam, cloudwatch_log_group.eks_cluster, kms_key.eks
   │     └─► time_sleep.wait_for_cluster
   │           └─► data.tls_certificate.eks
   │                 └─► aws_iam_openid_connect_provider.eks
@@ -105,7 +105,7 @@ aws_vpc.eks
   ├─► aws_eks_addon.vpc_cni ─► wait_for_cluster, wait_for_irsa
   │
   ├─► aws_iam_role.eks_node + 4 policy attachments ─► time_sleep.wait_for_node_iam
-  ├─► aws_eks_node_group.on_demand ─► wait_for_node_iam, aws_eks_cluster.payflow, aws_eks_addon.vpc_cni
+  ├─► aws_eks_node_group.on_demand ─► wait_for_node_iam, aws_eks_cluster.swiftpay, aws_eks_addon.vpc_cni
   ├─► aws_eks_node_group.spot   ─► same
   │
   ├─► aws_eks_addon.coredns, aws_eks_addon.kube_proxy ─► vpc_cni, on_demand, spot
@@ -134,7 +134,7 @@ Apply order that respects all arrows (no parallelization detail; just “A befor
 2. **Spoke – networking:** `aws_vpc.eks` → subnets → IGW (if NAT) → EIP → NAT GW → route tables and associations → TGW attachment → `aws_route.hub_to_eks`.
 3. **Spoke – flow logs:** `aws_iam_role.flow_logs` + `aws_iam_role_policy.flow_logs` → `time_sleep.wait_for_flow_logs_iam` → `aws_cloudwatch_log_group.flow_logs` → `aws_flow_log.eks`.
 4. **Spoke – EKS cluster IAM:** `aws_iam_role.eks_cluster` + `aws_iam_role_policy_attachment.eks_cluster_policy` → `time_sleep.wait_for_cluster_iam`.
-5. **Spoke – EKS cluster:** `aws_kms_key.eks`, `aws_cloudwatch_log_group.eks_cluster` → `aws_eks_cluster.payflow` → `time_sleep.wait_for_cluster`.
+5. **Spoke – EKS cluster:** `aws_kms_key.eks`, `aws_cloudwatch_log_group.eks_cluster` → `aws_eks_cluster.swiftpay` → `time_sleep.wait_for_cluster`.
 6. **OIDC:** `data.tls_certificate.eks` → `aws_iam_openid_connect_provider.eks`.
 7. **IRSA roles:** All five IRSA roles + their policies/attachments (depend on OIDC) → `time_sleep.wait_for_irsa`.  
    **External Secrets IRSA** (in secrets-manager.tf) + policy → `time_sleep.wait_for_external_secrets_irsa`.
@@ -210,7 +210,7 @@ Bastion instance   → aws_iam_instance_profile.bastion → aws_iam_role.bastion
 
 ### 5.1 Spoke EKS module
 
-- **No custom security groups** are defined in the EKS Terraform. The cluster uses the **AWS-managed cluster security group** from `aws_eks_cluster.payflow.vpc_config[0].cluster_security_group_id`. Node groups use the same cluster SG (or the managed node SG, depending on EKS behavior; the output used for “node” access is the cluster SG).
+- **No custom security groups** are defined in the EKS Terraform. The cluster uses the **AWS-managed cluster security group** from `aws_eks_cluster.swiftpay.vpc_config[0].cluster_security_group_id`. Node groups use the same cluster SG (or the managed node SG, depending on EKS behavior; the output used for “node” access is the cluster SG).
 - **Output:** `eks_cluster_security_group_id` = that cluster SG. Passed to managed-services as `var.eks_node_security_group_id`.
 
 ### 5.2 Managed services (RDS, ElastiCache, MQ)
@@ -249,7 +249,7 @@ No SG in these modules references another SG defined in the same module; they on
 
 | Module / Stack | Backend | State key (conceptual) |
 |----------------|---------|--------------------------|
-| **Spoke EKS** | S3 + DynamoDB (backend.tf) | `bucket = "payflow-tfstate-ACCOUNT_ID"`, `key = "aws/eks/terraform.tfstate"`. Workspace prefix applied (e.g. `env:/dev/` or `env:/prod/`). |
+| **Spoke EKS** | S3 + DynamoDB (backend.tf) | `bucket = "swiftpay-tfstate-ACCOUNT_ID"`, `key = "aws/eks/terraform.tfstate"`. Workspace prefix applied (e.g. `env:/dev/` or `env:/prod/`). |
 | **Hub VPC** | Not shown in provided files; often S3 in same or separate bucket. | Typically e.g. `aws/hub/terraform.tfstate` or per-workspace. |
 | **Managed services** | Not shown; often S3. | Often separate key, e.g. `aws/managed-services/terraform.tfstate`. |
 | **Bastion** | Not shown; often S3. | Often `aws/bastion/terraform.tfstate`. |
@@ -262,7 +262,7 @@ Spoke outputs (e.g. `eks_cluster_security_group_id`) are passed into managed-ser
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  REMOTE STATE (S3 + DynamoDB lock)                                           │
-│  Bucket: payflow-tfstate-ACCOUNT_ID                                          │
+│  Bucket: swiftpay-tfstate-ACCOUNT_ID                                          │
 │  Keys (example): env:/dev/aws/eks/terraform.tfstate, env:/prod/aws/eks/...   │
 └─────────────────────────────────────────────────────────────────────────────┘
                     │

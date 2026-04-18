@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# Build and push PayFlow images to Docker Hub
+# Build and push SwiftPay images to Docker Hub
 # ============================================
 # Usage: ./push-to-dockerhub.sh [your-dockerhub-username] [tag]
 #        or set DOCKERHUB_USERNAME and run: ./push-to-dockerhub.sh
@@ -45,7 +45,7 @@ else
   fi
 fi
 
-echo "🔨 Building and pushing PayFlow images to Docker Hub as: ${DOCKERHUB_USERNAME} (tag: ${DOCKERHUB_TAG})"
+echo "🔨 Building and pushing SwiftPay images to Docker Hub as: ${DOCKERHUB_USERNAME} (tag: ${DOCKERHUB_TAG})"
 echo ""
 
 SERVICES=(api-gateway auth-service wallet-service transaction-service notification-service frontend)
@@ -76,7 +76,7 @@ retry() {
 # Build each image (context ./services so shared/ is included)
 for SVC in "${SERVICES[@]}"; do
   echo "📦 Building $SVC..."
-  docker build -t "payflow/${SVC}:${DOCKERHUB_TAG}" -f "services/${SVC}/Dockerfile" ./services
+  docker build -t "swiftpay/${SVC}:${DOCKERHUB_TAG}" -f "services/${SVC}/Dockerfile" ./services
   echo ""
 done
 
@@ -84,7 +84,7 @@ done
 for SVC in "${SERVICES[@]}"; do
   NEW_TAG="${DOCKERHUB_USERNAME}/${SVC}:${DOCKERHUB_TAG}"
   echo "⬆️  Pushing $NEW_TAG"
-  docker tag "payflow/${SVC}:${DOCKERHUB_TAG}" "$NEW_TAG"
+  docker tag "swiftpay/${SVC}:${DOCKERHUB_TAG}" "$NEW_TAG"
   retry 5 3 docker push "$NEW_TAG"
   echo "   Done: $NEW_TAG"
   echo ""

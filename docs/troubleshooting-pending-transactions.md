@@ -20,7 +20,7 @@
 ## Problem Summary
 
 ### **Symptom**
-PayFlow dashboard showed **1 Pending transaction** that had been stuck for **4 days** (since January 9, 2026).
+SwiftPay dashboard showed **1 Pending transaction** that had been stuck for **4 days** (since January 9, 2026).
 
 ### **Expected Behavior**
 The `transaction-timeout-handler` CronJob should automatically reverse any transaction stuck in PENDING status for more than 1 minute.
@@ -42,7 +42,7 @@ We discovered **three cascading issues**:
 
 ### **Issue 1: CronJob Not Initially Deployed**
 ```bash
-kubectl get cronjobs -n payflow
+kubectl get cronjobs -n swiftpay
 # Expected: transaction-timeout-handler
 # Actual: Not found (only image-scanning and postgres-backup)
 ```
@@ -53,13 +53,13 @@ kubectl get cronjobs -n payflow
 
 ### **Issue 2: Missing Resource Requests/Limits**
 ```bash
-kubectl describe job transaction-timeout-handler-29472082 -n payflow
+kubectl describe job transaction-timeout-handler-29472082 -n swiftpay
 ```
 
 **Error Message**:
 ```
 Error creating: pods "transaction-timeout-handler-29472082-m82g9" is forbidden: 
-failed quota: payflow-resource-quota: must specify limits.cpu for: transaction-timeout-container; 
+failed quota: swiftpay-resource-quota: must specify limits.cpu for: transaction-timeout-container; 
 limits.memory for: transaction-timeout-container; 
 requests.cpu for: transaction-timeout-container; 
 requests.memory for: transaction-timeout-container
@@ -68,7 +68,7 @@ requests.memory for: transaction-timeout-container
 **Root Cause**: The CronJob YAML didn't include `resources` section, which is **required** when a ResourceQuota is active in the namespace.
 
 **Why This Matters**: 
-- We have a `payflow-resource-quota` that limits total cluster resources
+- We have a `swiftpay-resource-quota` that limits total cluster resources
 - Every pod MUST declare how much CPU/memory it needs
 - Without this, Kubernetes rejects pod creation
 - This is a **production best practice** to prevent resource exhaustion
@@ -77,7 +77,7 @@ requests.memory for: transaction-timeout-container
 
 ### **Issue 3: DNS Resolution Failure in Job Pods**
 ```bash
-kubectl logs job/fix-pending-test -n payflow
+kubectl logs job/fix-pending-test -n swiftpay
 ```
 
 **Error Message**:
@@ -86,7 +86,7 @@ Testing DNS resolution...
 ;; connection timed out; no servers could be reached
 DNS lookup failed
 Attempting connection to postgres...
-psql: error: could not translate host name "postgres.payflow.svc.cluster.local" to address: Try again
+psql: error: could not translate host name "postgres.swiftpay.svc.cluster.local" to address: Try again
 ```
 
 **Root Cause**: Job pods couldn't resolve DNS names to reach the PostgreSQL service.
@@ -112,7 +112,7 @@ Dashboard showed: Pending: 1, Failed: 5, Completed: 3
 
 ### **Step 2: Verify CronJob Existence**
 ```bash
-kubectl get cronjobs -n payflow
+kubectl get cronjobs -n swiftpay
 ```
 
 **Result**: `transaction-timeout-handler` was missing initially, then found but not running successfully.
@@ -121,7 +121,7 @@ kubectl get cronjobs -n payflow
 
 ### **Step 3: Check Job Execution History**
 ```bash
-kubectl get jobs -n payflow | grep timeout
+kubectl get jobs -n swiftpay | grep timeout
 ```
 
 **Result**: 
@@ -138,14 +138,14 @@ transaction-timeout-handler-29472080   Running    0/1    2m20s
 
 ### **Step 4: Describe Failed Job**
 ```bash
-kubectl describe job transaction-timeout-handler-29472082 -n payflow
+kubectl describe job transaction-timeout-handler-29472082 -n swiftpay
 ```
 
 **Key Finding**:
 ```
 Events:
   Warning  FailedCreate  Error creating: pods ... is forbidden: 
-  failed quota: payflow-resource-quota: must specify limits.cpu, limits.memory, 
+  failed quota: swiftpay-resource-quota: must specify limits.cpu, limits.memory, 
   requests.cpu, requests.memory for: transaction-timeout-container
 ```
 
@@ -154,7 +154,7 @@ Events:
 ### **Step 5: Add Resources, Deploy, Test**
 After adding resources, jobs started but failed with DNS errors:
 ```bash
-kubectl logs job/fix-pending-final -n payflow
+kubectl logs job/fix-pending-final -n swiftpay
 ```
 
 **Output**:
@@ -168,7 +168,7 @@ psql: error: could not translate host name "postgres" to address: Try again
 Since the CronJob couldn't reach postgres, we accessed the database **directly from within the postgres pod**:
 
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT id, from_user_id, amount, status, created_at 
    FROM transactions 
    WHERE status = 'PENDING' 
@@ -190,7 +190,7 @@ TXN-1768327668403-UEYP5STTV | PENDING | 2026-01-13 18:07:48 (recent)
 Executed the timeout logic directly inside the postgres pod:
 
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "UPDATE transactions 
    SET 
      status = 'FAILED',
@@ -225,14 +225,14 @@ resources:
 Tried:
 - `postgres` → Failed
 - `postgres-0.postgres` → Failed
-- `postgres-0.postgres.payflow.svc.cluster.local` → Failed
-- `postgres.payflow.svc.cluster.local` → Failed
+- `postgres-0.postgres.swiftpay.svc.cluster.local` → Failed
+- `postgres.swiftpay.svc.cluster.local` → Failed
 
 **Status**: All DNS lookups failed.
 
 #### **Attempt 3: Suspend CronJob** ✅
 ```bash
-kubectl patch cronjob transaction-timeout-handler -n payflow -p '{"spec":{"suspend":true}}'
+kubectl patch cronjob transaction-timeout-handler -n swiftpay -p '{"spec":{"suspend":true}}'
 ```
 
 **Status**: Prevented failed jobs from accumulating and hitting pod quota.
@@ -246,23 +246,23 @@ This is what we used to fix the issue. You're executing commands **inside** the 
 
 ```bash
 # Basic query
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "SELECT NOW();"
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "SELECT NOW();"
 
 # Check pending transactions
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT id, status, created_at, NOW() - created_at as age 
    FROM transactions 
    WHERE status = 'PENDING' 
    ORDER BY created_at DESC;"
 
 # Count transactions by status
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT status, COUNT(*) as count 
    FROM transactions 
    GROUP BY status;"
 
 # Check specific transaction
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT * FROM transactions WHERE id = 'TXN-...';"
 ```
 
@@ -279,13 +279,13 @@ For more complex queries, open an interactive session:
 
 ```bash
 # Open psql shell
-kubectl exec -it postgres-0 -n payflow -- psql -U payflow -d payflow
+kubectl exec -it postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay
 
 # Inside psql:
-payflow=# \dt                          -- List all tables
-payflow=# \d transactions              -- Describe transactions table
-payflow=# SELECT * FROM transactions LIMIT 5;
-payflow=# \q                           -- Quit
+swiftpay=# \dt                          -- List all tables
+swiftpay=# \d transactions              -- Describe transactions table
+swiftpay=# SELECT * FROM transactions LIMIT 5;
+swiftpay=# \q                           -- Quit
 ```
 
 **When to Use**: 
@@ -301,16 +301,16 @@ Access the database from your laptop as if it were local:
 
 ```bash
 # Forward postgres port to your laptop
-kubectl port-forward postgres-0 5432:5432 -n payflow
+kubectl port-forward postgres-0 5432:5432 -n swiftpay
 
 # In another terminal, connect with local psql
-psql -h localhost -U payflow -d payflow -p 5432
+psql -h localhost -U swiftpay -d swiftpay -p 5432
 
 # Or use a GUI tool like pgAdmin, DBeaver, etc.
 # Host: localhost
 # Port: 5432
-# User: payflow
-# Database: payflow
+# User: swiftpay
+# Database: swiftpay
 ```
 
 **When to Use**: 
@@ -326,10 +326,10 @@ Create a temporary pod to test service connectivity:
 
 ```bash
 # Create a test pod with psql
-kubectl run psql-test --rm -it --image=postgres:15-alpine -n payflow -- sh
+kubectl run psql-test --rm -it --image=postgres:15-alpine -n swiftpay -- sh
 
 # Inside the pod:
-psql -h postgres.payflow.svc.cluster.local -U payflow -d payflow
+psql -h postgres.swiftpay.svc.cluster.local -U swiftpay -d swiftpay
 ```
 
 **When to Use**: 
@@ -343,28 +343,28 @@ psql -h postgres.payflow.svc.cluster.local -U payflow -d payflow
 
 ### **Get Database Username**
 ```bash
-kubectl get secret db-secrets -n payflow -o jsonpath='{.data.DB_USER}' | base64 -d
-# Output: payflow
+kubectl get secret db-secrets -n swiftpay -o jsonpath='{.data.DB_USER}' | base64 -d
+# Output: swiftpay
 ```
 
 ### **Get Database Password**
 ```bash
-kubectl get secret db-secrets -n payflow -o jsonpath='{.data.DB_PASSWORD}' | base64 -d
+kubectl get secret db-secrets -n swiftpay -o jsonpath='{.data.DB_PASSWORD}' | base64 -d
 ```
 
 ### **Get Database Name**
 ```bash
-kubectl get configmap app-config -n payflow -o jsonpath='{.data.DB_NAME}'
-# Output: payflow
+kubectl get configmap app-config -n swiftpay -o jsonpath='{.data.DB_NAME}'
+# Output: swiftpay
 ```
 
 ### **Full Connection String**
 ```bash
 # From inside cluster
-postgres://payflow:<password>@postgres:5432/payflow
+postgres://swiftpay:<password>@postgres:5432/swiftpay
 
 # Full DNS name
-postgres://payflow:<password>@postgres.payflow.svc.cluster.local:5432/payflow
+postgres://swiftpay:<password>@postgres.swiftpay.svc.cluster.local:5432/swiftpay
 ```
 
 ---
@@ -375,7 +375,7 @@ postgres://payflow:<password>@postgres.payflow.svc.cluster.local:5432/payflow
 Create an alias for quick checks:
 
 ```bash
-alias check-pending='kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "SELECT COUNT(*) as pending_count FROM transactions WHERE status = '\''PENDING'\'' AND created_at < NOW() - INTERVAL '\''1 minute'\'';"'
+alias check-pending='kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "SELECT COUNT(*) as pending_count FROM transactions WHERE status = '\''PENDING'\'' AND created_at < NOW() - INTERVAL '\''1 minute'\'';"'
 
 # Usage
 check-pending
@@ -390,7 +390,7 @@ Create a monitoring script:
 #!/bin/bash
 # check-stuck-transactions.sh
 
-PENDING_COUNT=$(kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -t -c \
+PENDING_COUNT=$(kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -t -c \
   "SELECT COUNT(*) FROM transactions WHERE status = 'PENDING' AND created_at < NOW() - INTERVAL '1 minute';")
 
 if [ "$PENDING_COUNT" -gt 0 ]; then
@@ -413,7 +413,7 @@ Add a Prometheus metric to track pending transaction age:
 ```javascript
 // In transaction-service
 const pendingTransactionAge = new prometheus.Gauge({
-  name: 'payflow_pending_transaction_max_age_seconds',
+  name: 'swiftpay_pending_transaction_max_age_seconds',
   help: 'Age of oldest pending transaction in seconds',
 });
 
@@ -433,7 +433,7 @@ setInterval(async () => {
 }, 60000);
 ```
 
-Alert when `payflow_pending_transaction_max_age_seconds > 60` (1 minute).
+Alert when `swiftpay_pending_transaction_max_age_seconds > 60` (1 minute).
 
 ---
 
@@ -441,7 +441,7 @@ Alert when `payflow_pending_transaction_max_age_seconds > 60` (1 minute).
 
 ### **Step 1: Check for Stuck Transactions**
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT id, from_user_id, to_user_id, amount, status, 
           created_at, NOW() - created_at as age 
    FROM transactions 
@@ -459,20 +459,20 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
 
 ```bash
 # Check RabbitMQ
-kubectl get pods -n payflow | grep rabbitmq
+kubectl get pods -n swiftpay | grep rabbitmq
 
 # Check transaction service
-kubectl logs -n payflow deployment/transaction-service --tail=50
+kubectl logs -n swiftpay deployment/transaction-service --tail=50
 
 # Check RabbitMQ queues
-kubectl exec -it rabbitmq-xxx -n payflow -- rabbitmqctl list_queues
+kubectl exec -it rabbitmq-xxx -n swiftpay -- rabbitmqctl list_queues
 ```
 
 ---
 
 ### **Step 3: Reverse Stuck Transactions**
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "UPDATE transactions 
    SET 
      status = 'FAILED',
@@ -491,7 +491,7 @@ The `RETURNING` clause shows you which transactions were reversed.
 
 ### **Step 4: Verify**
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT status, COUNT(*) as count 
    FROM transactions 
    GROUP BY status;"
@@ -512,7 +512,7 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
 Make sure the wallet service properly handled the reversals:
 
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT user_id, balance 
    FROM wallets 
    WHERE user_id IN (
@@ -541,13 +541,13 @@ SELECT COUNT(*) FROM transactions WHERE status = 'PENDING';
 **Diagnosis**:
 ```bash
 # Check RabbitMQ connectivity
-kubectl exec transaction-service-xxx -n payflow -- wget -qO- http://rabbitmq:15672/api/aliveness-test/%2F
+kubectl exec transaction-service-xxx -n swiftpay -- wget -qO- http://rabbitmq:15672/api/aliveness-test/%2F
 
 # Check worker pods
-kubectl get pods -n payflow | grep transaction
+kubectl get pods -n swiftpay | grep transaction
 
 # Check wallet service
-kubectl get pods -n payflow | grep wallet
+kubectl get pods -n swiftpay | grep wallet
 ```
 
 ---
@@ -575,22 +575,22 @@ ORDER BY count DESC;
 **Diagnosis Checklist**:
 ```bash
 # 1. Check RabbitMQ is running
-kubectl get pods -n payflow | grep rabbitmq
+kubectl get pods -n swiftpay | grep rabbitmq
 
 # 2. Check transaction service is running
-kubectl get pods -n payflow | grep transaction
+kubectl get pods -n swiftpay | grep transaction
 
 # 3. Check wallet service is running
-kubectl get pods -n payflow | grep wallet
+kubectl get pods -n swiftpay | grep wallet
 
 # 4. Check RabbitMQ logs for connection errors
-kubectl logs rabbitmq-xxx -n payflow --tail=50
+kubectl logs rabbitmq-xxx -n swiftpay --tail=50
 
 # 5. Check if messages are stuck in queue
-kubectl exec rabbitmq-xxx -n payflow -- rabbitmqctl list_queues name messages consumers
+kubectl exec rabbitmq-xxx -n swiftpay -- rabbitmqctl list_queues name messages consumers
 
 # 6. Check transaction service logs for errors
-kubectl logs deployment/transaction-service -n payflow --tail=100 | grep -i error
+kubectl logs deployment/transaction-service -n swiftpay --tail=100 | grep -i error
 ```
 
 ---
@@ -614,8 +614,8 @@ resources:
 ### **2. Test CronJobs Separately**
 Don't assume CronJobs work like Deployments. Test manually:
 ```bash
-kubectl create job --from=cronjob/my-cronjob test-job -n payflow
-kubectl logs job/test-job -n payflow
+kubectl create job --from=cronjob/my-cronjob test-job -n swiftpay
+kubectl logs job/test-job -n swiftpay
 ```
 
 ---
@@ -673,13 +673,13 @@ Investigate and resolve the DNS issue:
 
 1. **Check Network Policies**
    ```bash
-   kubectl get networkpolicies -n payflow
+   kubectl get networkpolicies -n swiftpay
    ```
    Ensure DNS traffic (port 53 UDP/TCP) is allowed from Job pods.
 
 2. **Test DNS from Job Pod**
    ```bash
-   kubectl run dns-test --rm -it --image=busybox -n payflow -- nslookup postgres
+   kubectl run dns-test --rm -it --image=busybox -n swiftpay -- nslookup postgres
    ```
 
 3. **Alternative: Use Init Container**
@@ -723,26 +723,26 @@ setInterval(async () => {
 
 ### **Check Pending Count**
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT COUNT(*) FROM transactions WHERE status = 'PENDING';"
 ```
 
 ### **Reverse Stuck Transactions**
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "UPDATE transactions SET status = 'FAILED', error_message = 'Transaction timeout - manually reversed', completed_at = CURRENT_TIMESTAMP WHERE status = 'PENDING' AND created_at < NOW() - INTERVAL '1 minute';"
 ```
 
 ### **View Recent Transactions**
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT id, status, created_at FROM transactions ORDER BY created_at DESC LIMIT 10;"
 ```
 
 ### **Check CronJob Status**
 ```bash
-kubectl get cronjob transaction-timeout-handler -n payflow
-kubectl get jobs -n payflow | grep timeout
+kubectl get cronjob transaction-timeout-handler -n swiftpay
+kubectl get jobs -n swiftpay | grep timeout
 ```
 
 ---
@@ -763,18 +763,18 @@ This section documents the **complete troubleshooting process** from initial DNS
 #### **Symptom**
 After deploying the CronJob, jobs were being created but never completing:
 ```bash
-kubectl get jobs -n payflow | grep transaction-timeout
+kubectl get jobs -n swiftpay | grep transaction-timeout
 # Output: Multiple jobs showing Running 0/1, never completing
 ```
 
 #### **Step 1.1: Check CronJob Events**
 ```bash
-kubectl describe cronjob transaction-timeout-handler -n payflow
+kubectl describe cronjob transaction-timeout-handler -n swiftpay
 ```
 
 **What we found:**
 ```
-Warning  FailedCreate  Error creating: pods ... exceeded quota: payflow-resource-quota: 
+Warning  FailedCreate  Error creating: pods ... exceeded quota: swiftpay-resource-quota: 
 must specify limits.cpu for: transaction-timeout-container; 
 limits.memory for: transaction-timeout-container
 ```
@@ -799,7 +799,7 @@ resources:
 
 **Apply the fix:**
 ```bash
-kubectl delete cronjob transaction-timeout-handler -n payflow
+kubectl delete cronjob transaction-timeout-handler -n swiftpay
 kubectl apply -f k8s/jobs/transaction-timeout-handler.yaml
 ```
 
@@ -813,15 +813,15 @@ kubectl apply -f k8s/jobs/transaction-timeout-handler.yaml
 After fixing resources, jobs were still failing. Checking pod logs:
 ```bash
 # Get a job pod name
-kubectl get pods -n payflow | grep transaction-timeout
+kubectl get pods -n swiftpay | grep transaction-timeout
 
 # Check its logs
-kubectl logs transaction-timeout-handler-29472463-j5gcj -n payflow
+kubectl logs transaction-timeout-handler-29472463-j5gcj -n swiftpay
 ```
 
 **Output:**
 ```
-psql: error: could not translate host name "postgres.payflow.svc.cluster.local" to address: Try again
+psql: error: could not translate host name "postgres.swiftpay.svc.cluster.local" to address: Try again
 ```
 
 **Why this command?**
@@ -899,7 +899,7 @@ linux/amd64, go1.20, 055b2c3
 #### **Symptom**
 After CoreDNS restart, jobs still failing with DNS errors:
 ```bash
-kubectl logs transaction-timeout-handler-29472480-cxkj8 -n payflow
+kubectl logs transaction-timeout-handler-29472480-cxkj8 -n swiftpay
 # Output: psql: error: could not translate host name "postgres" to address: Try again
 ```
 
@@ -907,7 +907,7 @@ kubectl logs transaction-timeout-handler-29472480-cxkj8 -n payflow
 
 #### **Step 3.1: Check Network Policies**
 ```bash
-kubectl get networkpolicies -n payflow
+kubectl get networkpolicies -n swiftpay
 ```
 
 **Output:**
@@ -923,7 +923,7 @@ databases-allow-ingress-from-services             app in (postgres,redis,rabbitm
 
 #### **Step 3.2: Examine CronJob Egress Policy**
 ```bash
-kubectl describe networkpolicy cronjob-allow-dns-and-db -n payflow
+kubectl describe networkpolicy cronjob-allow-dns-and-db -n swiftpay
 ```
 
 **Output showed:**
@@ -938,7 +938,7 @@ Egress:
 
 #### **Step 3.3: Examine PostgreSQL Ingress Policy**
 ```bash
-kubectl describe networkpolicy databases-allow-ingress-from-services -n payflow
+kubectl describe networkpolicy databases-allow-ingress-from-services -n swiftpay
 ```
 
 **Critical finding:**
@@ -996,12 +996,12 @@ kubectl apply -f k8s/policies/network-policies.yaml
 
 **Verify application:**
 ```bash
-kubectl describe networkpolicy databases-allow-ingress-from-services -n payflow | grep -A 5 "Ingress"
+kubectl describe networkpolicy databases-allow-ingress-from-services -n swiftpay | grep -A 5 "Ingress"
 ```
 
 **Unsuspend CronJob:**
 ```bash
-kubectl patch cronjob transaction-timeout-handler -n payflow -p '{"spec":{"suspend":false}}'
+kubectl patch cronjob transaction-timeout-handler -n swiftpay -p '{"spec":{"suspend":false}}'
 ```
 
 ---
@@ -1011,7 +1011,7 @@ kubectl patch cronjob transaction-timeout-handler -n payflow -p '{"spec":{"suspe
 #### **Step 4.1: Wait for Job Execution**
 ```bash
 echo "Waiting for CronJob execution..." && sleep 70
-kubectl get jobs -n payflow -l cronjob=transaction-timeout-handler --sort-by=.metadata.creationTimestamp | tail -5
+kubectl get jobs -n swiftpay -l cronjob=transaction-timeout-handler --sort-by=.metadata.creationTimestamp | tail -5
 ```
 
 **Output (SUCCESS!):**
@@ -1029,7 +1029,7 @@ transaction-timeout-handler-29472531   Complete   1/1           9s         42s
 
 #### **Step 4.2: Check Job Logs**
 ```bash
-kubectl logs job/transaction-timeout-handler-29472531 -n payflow
+kubectl logs job/transaction-timeout-handler-29472531 -n swiftpay
 ```
 
 **Output:**
@@ -1048,7 +1048,7 @@ UPDATE 0
 
 #### **Step 4.3: Verify Database**
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT COUNT(*) as pending_count FROM transactions WHERE status = 'PENDING';"
 ```
 
@@ -1065,7 +1065,7 @@ Create a test pending transaction to verify auto-reversal:
 
 **Create old pending transaction:**
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "INSERT INTO transactions (id, from_user_id, to_user_id, amount, status, created_at) 
    VALUES ('TEST-PENDING-' || floor(random() * 10000)::text, 'test-user-1', 'test-user-2', 
            100.00, 'PENDING', NOW() - INTERVAL '5 minutes');"
@@ -1083,7 +1083,7 @@ echo "Waiting for CronJob to reverse it..." && sleep 70
 
 **Check if reversed:**
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT id, status, error_message FROM transactions WHERE id LIKE 'TEST-PENDING%';"
 ```
 
@@ -1096,7 +1096,7 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
 
 **Cleanup test data:**
 ```bash
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "DELETE FROM transactions WHERE id LIKE 'TEST-PENDING%';"
 ```
 
@@ -1133,7 +1133,7 @@ WHERE status = 'FAILED'  -- Only failed transactions
 
 While troubleshooting, we hit pod limit:
 ```
-Error creating: pods "..." is forbidden: exceeded quota: payflow-resource-quota, 
+Error creating: pods "..." is forbidden: exceeded quota: swiftpay-resource-quota, 
 requested: pods=1, used: pods=20, limited: pods=20
 ```
 
@@ -1192,8 +1192,8 @@ Every Minute:
   1. Kubernetes creates Job from CronJob template
   2. Job creates Pod with label: cronjob=transaction-timeout-handler
   3. Pod starts postgres:15-alpine container
-  4. Container runs: psql -h postgres -U payflow -d payflow << EOF
-  5. DNS: Resolves "postgres" → postgres-0.postgres.payflow.svc.cluster.local
+  4. Container runs: psql -h postgres -U swiftpay -d swiftpay << EOF
+  5. DNS: Resolves "postgres" → postgres-0.postgres.swiftpay.svc.cluster.local
   6. Network Policy: Allows egress (CronJob → postgres)
   7. Network Policy: Allows ingress (postgres ← CronJob)
   8. TCP Connection: Established successfully
@@ -1211,34 +1211,34 @@ Every Minute:
 #### **1. Check CronJob Health**
 ```bash
 # View CronJob status
-kubectl get cronjob transaction-timeout-handler -n payflow
+kubectl get cronjob transaction-timeout-handler -n swiftpay
 
 # Check recent jobs
-kubectl get jobs -n payflow -l cronjob=transaction-timeout-handler --sort-by=.metadata.creationTimestamp
+kubectl get jobs -n swiftpay -l cronjob=transaction-timeout-handler --sort-by=.metadata.creationTimestamp
 
 # Check CronJob events
-kubectl describe cronjob transaction-timeout-handler -n payflow | grep -A 10 "Events:"
+kubectl describe cronjob transaction-timeout-handler -n swiftpay | grep -A 10 "Events:"
 ```
 
 #### **2. Debug Job Failures**
 ```bash
 # Find job pods
-kubectl get pods -n payflow | grep transaction-timeout
+kubectl get pods -n swiftpay | grep transaction-timeout
 
 # Check pod logs (if pod exists)
-kubectl logs <pod-name> -n payflow
+kubectl logs <pod-name> -n swiftpay
 
 # Check previous logs (if pod crashed)
-kubectl logs <pod-name> -n payflow --previous
+kubectl logs <pod-name> -n swiftpay --previous
 
 # Check pod events
-kubectl describe pod <pod-name> -n payflow | grep -A 20 "Events:"
+kubectl describe pod <pod-name> -n swiftpay | grep -A 20 "Events:"
 ```
 
 #### **3. Test DNS Resolution**
 ```bash
 # From postgres pod (should always work)
-kubectl exec postgres-0 -n payflow -- nslookup postgres
+kubectl exec postgres-0 -n swiftpay -- nslookup postgres
 
 # Check CoreDNS health
 kubectl get pods -n kube-system -l k8s-app=kube-dns
@@ -1248,36 +1248,36 @@ kubectl logs -n kube-system -l k8s-app=kube-dns --tail=50
 #### **4. Check Network Policies**
 ```bash
 # List all network policies
-kubectl get networkpolicies -n payflow
+kubectl get networkpolicies -n swiftpay
 
 # Check specific policy details
-kubectl describe networkpolicy cronjob-allow-dns-and-db -n payflow
-kubectl describe networkpolicy databases-allow-ingress-from-services -n payflow
+kubectl describe networkpolicy cronjob-allow-dns-and-db -n swiftpay
+kubectl describe networkpolicy databases-allow-ingress-from-services -n swiftpay
 
 # Verify pod labels match policy selectors
-kubectl get pods -n payflow --show-labels | grep transaction-timeout
+kubectl get pods -n swiftpay --show-labels | grep transaction-timeout
 ```
 
 #### **5. Check Resource Quotas**
 ```bash
 # View quota status
-kubectl describe resourcequota payflow-resource-quota -n payflow
+kubectl describe resourcequota swiftpay-resource-quota -n swiftpay
 
 # Check current usage
-kubectl get resourcequota payflow-resource-quota -n payflow -o yaml | grep -A 10 "status"
+kubectl get resourcequota swiftpay-resource-quota -n swiftpay -o yaml | grep -A 10 "status"
 ```
 
 #### **6. Test Database Connectivity**
 ```bash
 # Direct postgres connection (baseline)
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "SELECT NOW();"
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "SELECT NOW();"
 
 # Check active connections
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT count(*) as connections FROM pg_stat_activity;"
 
 # Check for stuck queries
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c \
   "SELECT pid, state, query_start, query FROM pg_stat_activity WHERE state != 'idle';"
 ```
 
@@ -1301,7 +1301,7 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c \
 - CronJobs create many pods over time
 - History limits help but don't prevent quota issues
 - Plan quota based on: services + jobs + cronjobs + buffer
-- Monitor quota usage: `kubectl top pods -n payflow`
+- Monitor quota usage: `kubectl top pods -n swiftpay`
 
 #### **4. PostgreSQL Comment Syntax**
 - `#` = Shell/YAML comments (outside heredoc)
@@ -1619,7 +1619,7 @@ SELECT cron.schedule(
 ```bash
 # ===== STEP 1: Assess Blast Radius =====
 # How many users affected? How much money stuck?
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "
   SELECT 
     COUNT(*) as stuck_transactions,
     COUNT(DISTINCT from_user_id) as affected_users,
@@ -1635,15 +1635,15 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "
 
 # ===== STEP 2: Activate Fallback Immediately =====
 # Don't wait to fix root cause - stop the bleeding first
-kubectl set env deployment/transaction-service -n payflow \
+kubectl set env deployment/transaction-service -n swiftpay \
   ENABLE_TIMEOUT_FALLBACK=true
 
 # Verify fallback activated (check logs)
-kubectl logs -n payflow -l app=transaction-service --tail=20 | grep "FALLBACK ACTIVATED"
+kubectl logs -n swiftpay -l app=transaction-service --tail=20 | grep "FALLBACK ACTIVATED"
 
 # ===== STEP 3: Manual Emergency Reversal =====
 # While fallback is activating, manually reverse to give immediate relief
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "
   UPDATE transactions 
   SET status = 'FAILED',
       error_message = 'Transaction timeout - manually reversed during incident',
@@ -1663,30 +1663,30 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "
 
 ```bash
 # ===== STEP 1: Check CronJob Status =====
-kubectl get cronjob transaction-timeout-handler -n payflow
-kubectl get jobs -n payflow | grep transaction-timeout
-kubectl describe cronjob transaction-timeout-handler -n payflow | grep -A 10 "Events:"
+kubectl get cronjob transaction-timeout-handler -n swiftpay
+kubectl get jobs -n swiftpay | grep transaction-timeout
+kubectl describe cronjob transaction-timeout-handler -n swiftpay | grep -A 10 "Events:"
 
 # ===== STEP 2: Check Recent Job Pod Logs =====
-POD=$(kubectl get pods -n payflow | grep transaction-timeout | tail -1 | awk '{print $1}')
-kubectl logs $POD -n payflow
-kubectl describe pod $POD -n payflow | grep -A 20 "Events:"
+POD=$(kubectl get pods -n swiftpay | grep transaction-timeout | tail -1 | awk '{print $1}')
+kubectl logs $POD -n swiftpay
+kubectl describe pod $POD -n swiftpay | grep -A 20 "Events:"
 
 # ===== STEP 3: Check CoreDNS Health =====
 kubectl get pods -n kube-system -l k8s-app=kube-dns
 kubectl logs -n kube-system -l k8s-app=kube-dns --tail=100 | grep -i error
 
 # ===== STEP 4: Check Network Policies =====
-kubectl get networkpolicies -n payflow
-kubectl describe networkpolicy cronjob-allow-dns-and-db -n payflow
-kubectl describe networkpolicy databases-allow-ingress-from-services -n payflow
+kubectl get networkpolicies -n swiftpay
+kubectl describe networkpolicy cronjob-allow-dns-and-db -n swiftpay
+kubectl describe networkpolicy databases-allow-ingress-from-services -n swiftpay
 
 # ===== STEP 5: Check Resource Quotas =====
-kubectl describe resourcequota payflow-resource-quota -n payflow | grep -A 5 "Used"
+kubectl describe resourcequota swiftpay-resource-quota -n swiftpay | grep -A 5 "Used"
 
 # ===== STEP 6: Review Recent Changes =====
 # Check deployment history
-kubectl rollout history deployment -n payflow
+kubectl rollout history deployment -n swiftpay
 # Check recent git commits
 git log --oneline --since="1 day ago"
 # Check recent kubectl apply commands (audit logs)
@@ -1712,14 +1712,14 @@ git diff main...fix/cronjob-network-policy
 kubectl apply -f k8s/policies/network-policies.yaml
 
 # Watch CronJob for next 3 executions
-watch kubectl get jobs -n payflow | grep transaction-timeout
+watch kubectl get jobs -n swiftpay | grep transaction-timeout
 
 # Check logs for success
-kubectl logs -n payflow -l cronjob=transaction-timeout-handler --tail=50
+kubectl logs -n swiftpay -l cronjob=transaction-timeout-handler --tail=50
 
 # ===== Verify Fix =====
 # Create test transaction
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "
   INSERT INTO transactions (id, from_user_id, to_user_id, amount, status, created_at) 
   VALUES ('PROD-TEST-' || floor(random() * 10000)::text, 'test', 'test', 1.00, 
           'PENDING', NOW() - INTERVAL '5 minutes');
@@ -1727,17 +1727,17 @@ kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "
 
 # Wait 90 seconds, verify reversed
 sleep 90
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "
   SELECT id, status, error_message FROM transactions WHERE id LIKE 'PROD-TEST%';
 "
 
 # Cleanup test
-kubectl exec postgres-0 -n payflow -- psql -U payflow -d payflow -c "
+kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "
   DELETE FROM transactions WHERE id LIKE 'PROD-TEST%';
 "
 
 # ===== Disable Fallback (After 24h of stability) =====
-kubectl set env deployment/transaction-service -n payflow \
+kubectl set env deployment/transaction-service -n swiftpay \
   ENABLE_TIMEOUT_FALLBACK-
 ```
 
@@ -1803,7 +1803,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: transaction-timeout-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   replicas: 1  # Single replica with leader election
   selector:
@@ -1816,7 +1816,7 @@ spec:
     spec:
       containers:
       - name: timeout-handler
-        image: payflow/transaction-timeout-service:1.0.0
+        image: swiftpay/transaction-timeout-service:1.0.0
         resources:
           requests:
             cpu: "50m"
@@ -1826,7 +1826,7 @@ spec:
             memory: "128Mi"
         env:
         - name: DB_HOST
-          value: postgres.payflow.svc.cluster.local
+          value: postgres.swiftpay.svc.cluster.local
         - name: CHECK_INTERVAL_MS
           value: "60000"  # Every minute
         livenessProbe:
@@ -2014,7 +2014,7 @@ Savings: $5.74/month BUT:
 
 ### **7. Final Production Recommendations**
 
-#### **For PayFlow (Phased Approach)**
+#### **For SwiftPay (Phased Approach)**
 
 **Phase 1: Ship Current Solution (Week 1)**
 - ✅ Keep CronJob with all fixes

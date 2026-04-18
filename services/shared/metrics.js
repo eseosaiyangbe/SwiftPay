@@ -67,22 +67,22 @@ const cacheHitRate = new client.Counter({
 // These metrics would have caught the CronJob/transaction issues
 
 const pendingTransactionsGauge = new client.Gauge({
-  name: 'payflow_pending_transactions_total',
+  name: 'swiftpay_pending_transactions_total',
   help: 'Number of transactions currently in PENDING status'
 });
 
 const oldestPendingTransactionGauge = new client.Gauge({
-  name: 'payflow_transactions_oldest_pending_timestamp',
+  name: 'swiftpay_transactions_oldest_pending_timestamp',
   help: 'Unix timestamp of oldest pending transaction'
 });
 
 const pendingTransactionAmountGauge = new client.Gauge({
-  name: 'payflow_pending_transaction_amount_total',
+  name: 'swiftpay_pending_transaction_amount_total',
   help: 'Total amount (dollars) stuck in pending transactions'
 });
 
 const transactionsByStatus = new client.Gauge({
-  name: 'payflow_transactions_by_status',
+  name: 'swiftpay_transactions_by_status',
   help: 'Current transaction count by status',
   labelNames: ['status']  // PENDING, COMPLETED, FAILED
 });
@@ -92,19 +92,19 @@ const transactionsByStatus = new client.Gauge({
 // ============================================
 
 const dbConnectionPoolSize = new client.Gauge({
-  name: 'payflow_db_connection_pool_size',
+  name: 'swiftpay_db_connection_pool_size',
   help: 'Current database connection pool size',
   labelNames: ['state']  // idle, active, waiting, total
 });
 
 const dbQueryErrors = new client.Counter({
-  name: 'payflow_db_query_errors_total',
+  name: 'swiftpay_db_query_errors_total',
   help: 'Total database query errors',
   labelNames: ['error_type', 'service']  // timeout, connection, syntax, deadlock
 });
 
 const dbConnectionErrors = new client.Counter({
-  name: 'payflow_db_connection_errors_total',
+  name: 'swiftpay_db_connection_errors_total',
   help: 'Failed database connection attempts',
   labelNames: ['reason', 'service']
 });
@@ -114,20 +114,20 @@ const dbConnectionErrors = new client.Counter({
 // ============================================
 
 const rabbitmqMessageAge = new client.Histogram({
-  name: 'payflow_rabbitmq_message_age_seconds',
+  name: 'swiftpay_rabbitmq_message_age_seconds',
   help: 'Age of messages in queue',
   labelNames: ['queue'],
   buckets: [1, 5, 10, 30, 60, 120, 300]
 });
 
 const rabbitmqPublishErrors = new client.Counter({
-  name: 'payflow_rabbitmq_publish_errors_total',
+  name: 'swiftpay_rabbitmq_publish_errors_total',
   help: 'Failed message publishes',
   labelNames: ['queue', 'reason', 'service']
 });
 
 const rabbitmqConsumeErrors = new client.Counter({
-  name: 'payflow_rabbitmq_consume_errors_total',
+  name: 'swiftpay_rabbitmq_consume_errors_total',
   help: 'Failed message consumption',
   labelNames: ['queue', 'reason', 'service']
 });
@@ -137,13 +137,13 @@ const rabbitmqConsumeErrors = new client.Counter({
 // ============================================
 
 const circuitBreakerState = new client.Gauge({
-  name: 'payflow_circuit_breaker_state',
+  name: 'swiftpay_circuit_breaker_state',
   help: 'Circuit breaker state (0=closed, 1=open, 0.5=half-open)',
   labelNames: ['service', 'state']
 });
 
 const circuitBreakerTransitions = new client.Counter({
-  name: 'payflow_circuit_breaker_transitions_total',
+  name: 'swiftpay_circuit_breaker_transitions_total',
   help: 'Circuit breaker state transitions',
   labelNames: ['service', 'from_state', 'to_state']
 });
@@ -153,20 +153,20 @@ const circuitBreakerTransitions = new client.Counter({
 // ============================================
 
 const cronJobExecutions = new client.Counter({
-  name: 'payflow_cronjob_executions_total',
+  name: 'swiftpay_cronjob_executions_total',
   help: 'Total CronJob executions',
   labelNames: ['job_name', 'status']  // success, failure
 });
 
 const cronJobDuration = new client.Histogram({
-  name: 'payflow_cronjob_duration_seconds',
+  name: 'swiftpay_cronjob_duration_seconds',
   help: 'CronJob execution duration',
   labelNames: ['job_name'],
   buckets: [1, 5, 10, 30, 60, 120]
 });
 
 const transactionsReversedByCron = new client.Counter({
-  name: 'payflow_transactions_reversed_by_cronjob_total',
+  name: 'swiftpay_transactions_reversed_by_cronjob_total',
   help: 'Transactions automatically reversed by timeout handler',
   labelNames: ['reason']  // timeout, error, manual
 });
@@ -176,13 +176,13 @@ const transactionsReversedByCron = new client.Counter({
 // ============================================
 
 const sloErrorBudget = new client.Gauge({
-  name: 'payflow_slo_error_budget_remaining',
+  name: 'swiftpay_slo_error_budget_remaining',
   help: 'Remaining error budget for SLO (99.9% uptime)',
   labelNames: ['period']  // day, week, month
 });
 
 const sloLatency = new client.Histogram({
-  name: 'payflow_slo_latency_seconds',
+  name: 'swiftpay_slo_latency_seconds',
   help: 'Request latency for SLO tracking',
   labelNames: ['endpoint', 'method'],
   buckets: [0.05, 0.1, 0.2, 0.5, 1, 2, 5]
@@ -193,18 +193,18 @@ const sloLatency = new client.Histogram({
 // ============================================
 
 const dailyActiveUsers = new client.Gauge({
-  name: 'payflow_daily_active_users',
+  name: 'swiftpay_daily_active_users',
   help: 'Number of unique users with activity today'
 });
 
 const transactionVolume = new client.Counter({
-  name: 'payflow_transaction_volume_dollars_total',
+  name: 'swiftpay_transaction_volume_dollars_total',
   help: 'Total transaction volume in dollars',
   labelNames: ['status']  // COMPLETED, FAILED
 });
 
 const averageTransactionSize = new client.Gauge({
-  name: 'payflow_average_transaction_size_dollars',
+  name: 'swiftpay_average_transaction_size_dollars',
   help: 'Average transaction amount in dollars',
   labelNames: ['time_window']  // hour, day
 });

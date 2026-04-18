@@ -2,7 +2,7 @@
 
 > **Phase 3 - Debugging & Operations** - Read this only when stuck. Reference doc, not onboarding.
 
-> **Where you are in the path:** Structured weeks → [`LEARNING-PATH.md`](../LEARNING-PATH.md). Quick fixes → [`TROUBLESHOOTING.md`](../TROUBLESHOOTING.md). Validate: **MicroK8s** `./scripts/validate.sh --env k8s --host http://api.payflow.local`; **Compose** `./scripts/validate.sh`; **EKS** `./scripts/validate.sh --env cloud --host https://…`.
+> **Where you are in the path:** Structured weeks → [`LEARNING-PATH.md`](../LEARNING-PATH.md). Quick fixes → [`TROUBLESHOOTING.md`](../TROUBLESHOOTING.md). Validate: **MicroK8s** `./scripts/validate.sh --env k8s --host http://api.swiftpay.local`; **Compose** `./scripts/validate.sh`; **EKS** `./scripts/validate.sh --env cloud --host https://…`.
 
 This document teaches you how to think about failures, not just how to run commands. Being wrong is part of the process.
 
@@ -44,7 +44,7 @@ Not all failures are the same. Classifying the failure tells you where to look.
 - Configuration is wrong
 
 **Where to look:**
-- Service logs: `kubectl logs -n payflow -l app=<service-name>`
+- Service logs: `kubectl logs -n swiftpay -l app=<service-name>`
 - Recent code changes
 - Environment variables
 
@@ -97,9 +97,9 @@ Wallet Service can't reach PostgreSQL
 - Port is wrong
 
 **Where to look:**
-- Service status: `kubectl get pods -n payflow`
-- Network policies: `kubectl get networkpolicies -n payflow`
-- Service endpoints: `kubectl get endpoints -n payflow`
+- Service status: `kubectl get pods -n swiftpay`
+- Network policies: `kubectl get networkpolicies -n swiftpay`
+- Service endpoints: `kubectl get endpoints -n swiftpay`
 
 **Example:**
 ```
@@ -249,7 +249,7 @@ Hypothesis: Wallet Service is down
 **3. Test the hypothesis**
 
 ```
-Test: kubectl get pods -n payflow -l app=wallet-service
+Test: kubectl get pods -n swiftpay -l app=wallet-service
 Result: Pods are running
 Conclusion: Hypothesis is wrong
 ```
@@ -258,7 +258,7 @@ Conclusion: Hypothesis is wrong
 
 ```
 Hypothesis: Wallet Service can't reach database
-Test: kubectl logs -n payflow -l app=wallet-service | grep -i "database\|postgres"
+Test: kubectl logs -n swiftpay -l app=wallet-service | grep -i "database\|postgres"
 Result: "Connection refused to postgres:5432"
 Conclusion: Hypothesis is correct
 ```
@@ -273,7 +273,7 @@ Fix: Check network policy, check service name, check database is running
 
 **Hypothesis: Service is down**
 
-Test: `kubectl get pods -n payflow -l app=<service-name>`
+Test: `kubectl get pods -n swiftpay -l app=<service-name>`
 
 **Hypothesis: Service can't reach dependency**
 
@@ -281,15 +281,15 @@ Test: Check service logs for connection errors
 
 **Hypothesis: Database is down**
 
-Test: `kubectl get pods -n payflow -l app=postgres`
+Test: `kubectl get pods -n swiftpay -l app=postgres`
 
 **Hypothesis: Network policy is blocking**
 
-Test: `kubectl get networkpolicies -n payflow` and check rules
+Test: `kubectl get networkpolicies -n swiftpay` and check rules
 
 **Hypothesis: Configuration is wrong**
 
-Test: `kubectl get deployment <service> -n payflow -o yaml` and check env vars
+Test: `kubectl get deployment <service> -n swiftpay -o yaml` and check env vars
 
 **Hypothesis: Queue is backing up**
 
@@ -348,7 +348,7 @@ Let's debug a real issue: "User can't send money, gets 500 error"
 ### Step 2: Check API Gateway Logs
 
 ```bash
-kubectl logs -n payflow -l app=api-gateway --tail=50
+kubectl logs -n swiftpay -l app=api-gateway --tail=50
 ```
 
 **What we see:**
@@ -366,7 +366,7 @@ Error: Circuit breaker open for transaction-service-create
 ### Step 3: Check Transaction Service Logs
 
 ```bash
-kubectl logs -n payflow -l app=transaction-service --tail=50
+kubectl logs -n swiftpay -l app=transaction-service --tail=50
 ```
 
 **What we see:**
@@ -385,7 +385,7 @@ Connection timeout to rabbitmq:5672
 ### Step 4: Check RabbitMQ Status
 
 ```bash
-kubectl get pods -n payflow -l app=rabbitmq
+kubectl get pods -n swiftpay -l app=rabbitmq
 ```
 
 **What we see:**
@@ -400,8 +400,8 @@ RabbitMQ is running. So why can't Transaction Service reach it?
 ### Step 5: Check Network Policies
 
 ```bash
-kubectl get networkpolicies -n payflow
-kubectl describe networkpolicy <policy-name> -n payflow
+kubectl get networkpolicies -n swiftpay
+kubectl describe networkpolicy <policy-name> -n swiftpay
 ```
 
 **What we see:**
@@ -412,7 +412,7 @@ kubectl describe networkpolicy <policy-name> -n payflow
 **Test:** Check if Transaction Service pod has the right labels
 
 ```bash
-kubectl get pods -n payflow -l app=transaction-service --show-labels
+kubectl get pods -n swiftpay -l app=transaction-service --show-labels
 ```
 
 **What we see:**
@@ -427,7 +427,7 @@ Labels match. Network policy should work.
 ### Step 6: Test DNS from Transaction Service Pod
 
 ```bash
-kubectl exec -n payflow <transaction-service-pod> -- nslookup rabbitmq
+kubectl exec -n swiftpay <transaction-service-pod> -- nslookup rabbitmq
 ```
 
 **What we see:**
@@ -435,7 +435,7 @@ kubectl exec -n payflow <transaction-service-pod> -- nslookup rabbitmq
 Server:    10.152.183.10
 Address:   10.152.183.10#53
 
-Name:      rabbitmq.payflow.svc.cluster.local
+Name:      rabbitmq.swiftpay.svc.cluster.local
 Address:   10.152.183.80
 ```
 
@@ -446,7 +446,7 @@ DNS works. RabbitMQ resolves correctly.
 ### Step 7: Check RabbitMQ Service Configuration
 
 ```bash
-kubectl get svc rabbitmq -n payflow -o yaml
+kubectl get svc rabbitmq -n swiftpay -o yaml
 ```
 
 **What we see:**
@@ -463,7 +463,7 @@ Port is correct.
 ### Step 8: Check RabbitMQ Logs
 
 ```bash
-kubectl logs -n payflow -l app=rabbitmq --tail=50
+kubectl logs -n swiftpay -l app=rabbitmq --tail=50
 ```
 
 **What we see:**

@@ -1,5 +1,5 @@
 # ============================================
-# Prometheus Alert Rules for PayFlow
+# Prometheus Alert Rules for SwiftPay
 # ============================================
 # Purpose: Define alert conditions and thresholds
 # These rules trigger alerts when metrics exceed thresholds
@@ -9,9 +9,9 @@ metadata:
   name: prometheus-rules
   namespace: monitoring
 data:
-  payflow-alerts.yml: |
+  swiftpay-alerts.yml: |
     groups:
-      - name: payflow-alerts
+      - name: swiftpay-alerts
         rules:
           # Service Health Alerts
           - alert: ServiceDown
@@ -95,7 +95,7 @@ data:
           
           # Transaction Failure Rate
           - alert: HighTransactionFailureRate
-            expr: rate(payflow_transactions_total{status="failed"}[5m]) / rate(payflow_transactions_total[5m]) > 0.05
+            expr: rate(swiftpay_transactions_total{status="failed"}[5m]) / rate(swiftpay_transactions_total[5m]) > 0.05
             for: 2m
             labels:
               severity: critical
@@ -105,7 +105,7 @@ data:
           
           # Circuit Breaker Open
           - alert: CircuitBreakerOpen
-            expr: payflow_circuit_breaker_state{state="open"} == 1
+            expr: swiftpay_circuit_breaker_state{state="open"} == 1
             for: 1m
             labels:
               severity: warning

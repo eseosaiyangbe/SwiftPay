@@ -1,10 +1,10 @@
-# #### PayFlow Notification Service ####
+# #### SwiftPay Notification Service ####
 # #### This Service exposes the notification service internally ####
 apiVersion: v1
 kind: Service
 metadata:
   name: notification-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   selector:
     app: notification-service
@@ -14,13 +14,13 @@ spec:
     targetPort: 3003
   type: ClusterIP
 ---
-# #### PayFlow Notification Service Deployment ####
+# #### SwiftPay Notification Service Deployment ####
 # #### This Deployment manages the notification service pods ####
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: notification-service
-  namespace: payflow
+  namespace: swiftpay
 spec:
   replicas: 2
   selector:

@@ -6,7 +6,7 @@ apiVersion: apps/v1  # #### API version for Deployments ####
 kind: Deployment      # #### Resource type: Deployment manages Pods ####
 metadata:
   name: frontend      # #### Name of this deployment ####
-  namespace: payflow   # #### Deploy to payflow namespace ####
+  namespace: swiftpay   # #### Deploy to swiftpay namespace ####
 spec:
   replicas: 1         # #### Run 1 copy of the frontend (we'll scale later) ####
   selector:
@@ -39,7 +39,7 @@ spec:
         # The Dockerfile already sets: ARG REACT_APP_API_URL=/api
         # So the built React app uses relative URLs: fetch('/api/auth/login')
         # 
-        # Ingress routes www.payflow.local/api/* → api-gateway:80
+        # Ingress routes www.swiftpay.local/api/* → api-gateway:80
         # This works in ALL environments (local, staging, production)
         # ============================================
         resources:
@@ -59,7 +59,7 @@ apiVersion: v1  # #### API version for Services ####
 kind: Service   # #### Resource type: Service exposes pods ####
 metadata:
   name: frontend      # #### Service name - other services can use this name ####
-  namespace: payflow   # #### Deploy to payflow namespace ####
+  namespace: swiftpay   # #### Deploy to swiftpay namespace ####
 spec:
   selector:
     app: frontend     # #### Select pods with label "app: frontend" ####

@@ -12,7 +12,7 @@ data "aws_vpc" "hub" {
 
   filter {
     name   = "tag:Name"
-    values = ["payflow-hub-vpc"]
+    values = ["swiftpay-hub-vpc"]
   }
 }
 
@@ -22,7 +22,7 @@ data "aws_ec2_transit_gateway" "hub" {
 
   filter {
     name   = "tag:Name"
-    values = ["payflow-hub-tgw"]
+    values = ["swiftpay-hub-tgw"]
   }
   filter {
     name   = "tag:environment"
@@ -41,7 +41,7 @@ resource "aws_vpc" "eks" {
   enable_dns_support   = true
 
   tags = merge(local.common_tags, {
-    Name   = "payflow-eks-vpc"
+    Name   = "swiftpay-eks-vpc"
     module = "spoke-vpc-eks"
   })
 }
@@ -60,7 +60,7 @@ resource "aws_subnet" "eks_public" {
   }
 
   tags = merge(local.common_tags, {
-    Name                               = "payflow-eks-public-subnet-${count.index + 1}"
+    Name                               = "swiftpay-eks-public-subnet-${count.index + 1}"
     "kubernetes.io/role/elb"          = "1"  # Required for ALB
     "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared"
   })
@@ -79,7 +79,7 @@ resource "aws_subnet" "eks_private" {
   }
 
   tags = merge(local.common_tags, {
-    Name                               = "payflow-eks-private-subnet-${count.index + 1}"
+    Name                               = "swiftpay-eks-private-subnet-${count.index + 1}"
     "kubernetes.io/role/internal-elb"  = "1"
     "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared"
   })
@@ -92,7 +92,7 @@ resource "aws_eip" "nat" {
   domain = "vpc"
 
   tags = merge(local.common_tags, {
-    Name     = "payflow-eks-nat-eip-${count.index + 1}"
+    Name     = "swiftpay-eks-nat-eip-${count.index + 1}"
     module   = "spoke-vpc-eks"
     Component = "nat-eip"
   })
@@ -105,7 +105,7 @@ resource "aws_nat_gateway" "eks" {
   subnet_id     = aws_subnet.eks_public[count.index].id  # NAT Gateway must be in public subnet
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-nat-${count.index + 1}"
+    Name      = "swiftpay-eks-nat-${count.index + 1}"
     module    = "spoke-vpc-eks"
     Component = "nat-gateway"
   })
@@ -124,7 +124,7 @@ resource "aws_internet_gateway" "eks" {
   }
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-igw"
+    Name      = "swiftpay-eks-igw"
     module    = "spoke-vpc-eks"
     Component = "internet-gateway"
   })
@@ -155,7 +155,7 @@ resource "aws_route_table" "eks_public" {
   }
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-public-rt-${count.index + 1}"
+    Name      = "swiftpay-eks-public-rt-${count.index + 1}"
     module    = "spoke-vpc-eks"
     Component = "route-table-public"
   })
@@ -193,7 +193,7 @@ resource "aws_route_table" "eks_private" {
   }
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-private-rt-${count.index + 1}"
+    Name      = "swiftpay-eks-private-rt-${count.index + 1}"
     module    = "spoke-vpc-eks"
     Component = "route-table-private"
   })
@@ -217,7 +217,7 @@ resource "aws_ec2_transit_gateway_vpc_attachment" "eks" {
   vpc_id             = aws_vpc.eks.id
 
   tags = merge(local.common_tags, {
-    Name      = "payflow-eks-tgw-attachment"
+    Name      = "swiftpay-eks-tgw-attachment"
     module    = "spoke-vpc-eks"
     Component = "tgw-attachment"
   })
@@ -238,7 +238,7 @@ data "aws_route_table" "hub_private" {
 
   filter {
     name   = "tag:Name"
-    values = ["payflow-hub-private-rt"]
+    values = ["swiftpay-hub-private-rt"]
   }
 }
 

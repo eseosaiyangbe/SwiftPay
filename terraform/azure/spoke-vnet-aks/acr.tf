@@ -10,7 +10,7 @@ resource "azurerm_resource_group" "acr" {
   }
 }
 
-resource "azurerm_container_registry" "payflow" {
+resource "azurerm_container_registry" "swiftpay" {
   name                = "${var.project_name}acr${var.environment}"  # must be globally unique, alphanumeric
   resource_group_name = azurerm_resource_group.acr.name
   location            = azurerm_resource_group.acr.location
@@ -27,7 +27,7 @@ resource "azurerm_container_registry" "payflow" {
 # Without this role assignment, AKS nodes get 401 Unauthorized on every image pull.
 # This is the Azure equivalent of the AWS ECR KMS node-role gap.
 resource "azurerm_role_assignment" "aks_acr_pull" {
-  scope                = azurerm_container_registry.payflow.id
+  scope                = azurerm_container_registry.swiftpay.id
   role_definition_name = "AcrPull"
   principal_id         = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
 

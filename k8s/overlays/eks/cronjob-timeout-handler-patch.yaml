@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: transaction-timeout-handler
-  namespace: payflow
+  namespace: swiftpay
 spec:
   jobTemplate:
     spec:

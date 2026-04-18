@@ -10,7 +10,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: image-scanning-registry
-  namespace: payflow
+  namespace: swiftpay
 spec:
   schedule: "0 3 * * *"  # Daily at 3 AM UTC
   successfulJobsHistoryLimit: 3
@@ -39,10 +39,10 @@ spec:
               # Images to scan from registry
               # Format: <registry>/<namespace>/<image>:<tag>
               # Examples:
-              # - Docker Hub: docker.io/yourusername/payflow-api-gateway:latest
-              # - ECR: 123456789012.dkr.ecr.us-east-1.amazonaws.com/payflow-api-gateway:latest
-              # - ACR: yourregistry.azurecr.io/payflow-api-gateway:latest
-              # - GCR: gcr.io/your-project/payflow-api-gateway:latest
+              # - Docker Hub: docker.io/yourusername/swiftpay-api-gateway:latest
+              # - ECR: 123456789012.dkr.ecr.us-east-1.amazonaws.com/swiftpay-api-gateway:latest
+              # - ACR: yourregistry.azurecr.io/swiftpay-api-gateway:latest
+              # - GCR: gcr.io/your-project/swiftpay-api-gateway:latest
               
               IMAGES="
               docker.io/veeno/api-gateway:latest

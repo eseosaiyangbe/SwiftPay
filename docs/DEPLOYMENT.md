@@ -34,7 +34,7 @@ flyway -configFiles=flyway.conf migrate
 flyway -configFiles=flyway.conf info
 
 # Or run SQL directly
-docker-compose exec postgres psql -U payflow -d payflow -f /docker-entrypoint-initdb.d/V1__initial_schema.sql
+docker-compose exec postgres psql -U swiftpay -d swiftpay -f /docker-entrypoint-initdb.d/V1__initial_schema.sql
 ```
 
 **Migration files location:** `migrations/`
@@ -59,8 +59,8 @@ cd terraform
 ```
 
 **What it creates:**
-- S3 bucket: `payflow-tfstate-{ACCOUNT_ID}` (versioned, encrypted)
-- DynamoDB table: `payflow-tfstate-lock` (state locking)
+- S3 bucket: `swiftpay-tfstate-{ACCOUNT_ID}` (versioned, encrypted)
+- DynamoDB table: `swiftpay-tfstate-lock` (state locking)
 - `backend.tf` files for: `hub-vpc`, `spoke-vpc-eks`, `managed-services`, `bastion`
 
 ## Deploy to AWS EKS
@@ -151,7 +151,7 @@ terraform output eks_cluster_endpoint
 
 # Configure kubectl (replace with your cluster name and region)
 aws eks update-kubeconfig \
-  --name payflow-eks-cluster \
+  --name swiftpay-eks-cluster \
   --region us-east-1
 
 # Verify connection
@@ -172,7 +172,7 @@ terraform output elasticache_endpoint
 terraform output mq_endpoint
 
 # Verify Secrets Manager has secrets
-aws secretsmanager list-secrets --query "SecretList[?contains(Name, 'payflow')]"
+aws secretsmanager list-secrets --query "SecretList[?contains(Name, 'swiftpay')]"
 ```
 
 ### Step 3: Deploy Applications
@@ -203,7 +203,7 @@ export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 sed -i '' "s/<ACCOUNT_ID>/$ACCOUNT_ID/g" kustomization.yaml
 
 # Step 2: Set environment in secrets (replace ENV with dev or prod)
-sed -i '' "s|payflow/ENV/|payflow/dev/|g" eks-external-secrets.yaml
+sed -i '' "s|swiftpay/ENV/|swiftpay/dev/|g" eks-external-secrets.yaml
 
 # Step 3: Preview what will be deployed
 kubectl kustomize . | less
@@ -216,20 +216,20 @@ kubectl apply -k .
 
 ```bash
 # Check all pods are running
-kubectl get pods -n payflow
+kubectl get pods -n swiftpay
 
 # Check services
-kubectl get svc -n payflow
+kubectl get svc -n swiftpay
 
 # Check database migration job
-kubectl get jobs -n payflow
-kubectl logs -n payflow job/db-migration-job
+kubectl get jobs -n swiftpay
+kubectl logs -n swiftpay job/db-migration-job
 
 # Check API Gateway logs
-kubectl logs -n payflow deployment/api-gateway -f
+kubectl logs -n swiftpay deployment/api-gateway -f
 
 # Test health endpoint
-kubectl port-forward -n payflow svc/api-gateway 3000:3000
+kubectl port-forward -n swiftpay svc/api-gateway 3000:3000
 curl http://localhost:3000/health
 ```
 
@@ -238,10 +238,10 @@ curl http://localhost:3000/health
 **Via Port Forward (for testing):**
 ```bash
 # Forward API Gateway
-kubectl port-forward -n payflow svc/api-gateway 3000:3000
+kubectl port-forward -n swiftpay svc/api-gateway 3000:3000
 
 # Forward Frontend
-kubectl port-forward -n payflow svc/frontend 80:80
+kubectl port-forward -n swiftpay svc/frontend 80:80
 
 # Access in browser
 open http://localhost
@@ -250,7 +250,7 @@ open http://localhost
 **Via Ingress (production):**
 ```bash
 # Get ingress URL
-kubectl get ingress -n payflow
+kubectl get ingress -n swiftpay
 
 # Access via ALB URL (from AWS Load Balancer Controller)
 ```
@@ -260,10 +260,10 @@ kubectl get ingress -n payflow
 **Pods not starting:**
 ```bash
 # Check pod events
-kubectl describe pod <pod-name> -n payflow
+kubectl describe pod <pod-name> -n swiftpay
 
 # Check logs
-kubectl logs <pod-name> -n payflow
+kubectl logs <pod-name> -n swiftpay
 
 # Common issues:
 # - ImagePullBackOff: Check ECR permissions and image URL
@@ -274,23 +274,23 @@ kubectl logs <pod-name> -n payflow
 **Cannot connect to database:**
 ```bash
 # Verify secrets exist
-kubectl get secret db-secrets -n payflow -o yaml
+kubectl get secret db-secrets -n swiftpay -o yaml
 
 # Check External Secrets Operator (if using)
-kubectl get externalsecret -n payflow
-kubectl describe externalsecret db-secrets-external -n payflow
+kubectl get externalsecret -n swiftpay
+kubectl describe externalsecret db-secrets-external -n swiftpay
 
 # Verify RDS endpoint matches ConfigMap
-kubectl get configmap app-config -n payflow -o yaml | grep DB_HOST
+kubectl get configmap app-config -n swiftpay -o yaml | grep DB_HOST
 ```
 
 **Network policies blocking traffic:**
 ```bash
 # Check network policies
-kubectl get networkpolicies -n payflow
+kubectl get networkpolicies -n swiftpay
 
 # Temporarily disable for testing (NOT for production)
-kubectl delete networkpolicy default-deny-all -n payflow
+kubectl delete networkpolicy default-deny-all -n swiftpay
 ```
 
 ## Deploy to Azure AKS
@@ -335,14 +335,14 @@ sed -i.bak "s/<ACCOUNT_ID>/$ACCOUNT_ID/g" k8s/overlays/eks/kustomization.yaml
 
 ### Update Secret Paths for Environment
 
-The `eks-external-secrets.yaml` uses `payflow/ENV/` placeholders. Replace `ENV` with your environment:
+The `eks-external-secrets.yaml` uses `swiftpay/ENV/` placeholders. Replace `ENV` with your environment:
 
 ```bash
 # For dev
-sed -i.bak "s|payflow/ENV/|payflow/dev/|g" k8s/overlays/eks/eks-external-secrets.yaml
+sed -i.bak "s|swiftpay/ENV/|swiftpay/dev/|g" k8s/overlays/eks/eks-external-secrets.yaml
 
 # For prod
-sed -i.bak "s|payflow/ENV/|payflow/prod/|g" k8s/overlays/eks/eks-external-secrets.yaml
+sed -i.bak "s|swiftpay/ENV/|swiftpay/prod/|g" k8s/overlays/eks/eks-external-secrets.yaml
 ```
 
 ### Verify Backend Files Exist
@@ -367,15 +367,15 @@ cd terraform && ./bootstrap.sh --aws-only
 
 ```bash
 # Immediate rollback to previous version
-kubectl rollout undo deployment/api-gateway -n payflow
+kubectl rollout undo deployment/api-gateway -n swiftpay
 
 # Rollback to specific version
-kubectl rollout history deployment/api-gateway -n payflow
-kubectl rollout undo deployment/api-gateway --to-revision=2 -n payflow
+kubectl rollout history deployment/api-gateway -n swiftpay
+kubectl rollout undo deployment/api-gateway --to-revision=2 -n swiftpay
 
 # Verify rollback worked
-kubectl rollout status deployment/api-gateway -n payflow
-kubectl get pods -n payflow -l app=api-gateway
+kubectl rollout status deployment/api-gateway -n swiftpay
+kubectl get pods -n swiftpay -l app=api-gateway
 ```
 
 ### Database (15-30 minutes)
@@ -383,12 +383,12 @@ kubectl get pods -n payflow -l app=api-gateway
 ```bash
 # Snapshot before every migration (run this BEFORE migrating)
 aws rds create-db-snapshot \
-  --db-instance-identifier payflow-postgres \
+  --db-instance-identifier swiftpay-postgres \
   --db-snapshot-identifier pre-migration-$(date +%Y%m%d)
 
 # Restore from snapshot (last resort)
 aws rds restore-db-instance-from-db-snapshot \
-  --db-instance-identifier payflow-postgres-restored \
+  --db-instance-identifier swiftpay-postgres-restored \
   --db-snapshot-identifier pre-migration-20260113
 ```
 
@@ -398,7 +398,7 @@ aws rds restore-db-instance-from-db-snapshot \
 
 ```bash
 # Restore previous state from S3 versioning
-aws s3 cp s3://payflow-tfstate-{ACCOUNT_ID}/env:/dev/aws/spoke-vpc-eks/terraform.tfstate \
+aws s3 cp s3://swiftpay-tfstate-{ACCOUNT_ID}/env:/dev/aws/spoke-vpc-eks/terraform.tfstate \
   terraform.tfstate --version-id {version-id}
 
 # Fix specific broken resource without touching others
@@ -418,17 +418,17 @@ RDS_ENDPOINT=$(terraform output -raw rds_address)
 
 # Update RDS secret with endpoint
 aws secretsmanager put-secret-value \
-  --secret-id payflow/dev/rds \
-  --secret-string "{\"username\":\"payflow\",\"password\":\"YOUR_PASSWORD\",\"host\":\"${RDS_ENDPOINT}\",\"port\":5432,\"dbname\":\"payflow\",\"engine\":\"postgres\"}"
+  --secret-id swiftpay/dev/rds \
+  --secret-string "{\"username\":\"swiftpay\",\"password\":\"YOUR_PASSWORD\",\"host\":\"${RDS_ENDPOINT}\",\"port\":5432,\"dbname\":\"swiftpay\",\"engine\":\"postgres\"}"
 
 # Get MQ endpoint from Terraform output
 MQ_ENDPOINT=$(terraform output -raw mq_amqp_endpoint | sed 's|amqps://||' | cut -d: -f1)
-MQ_URL="amqps://payflow:YOUR_PASSWORD@${MQ_ENDPOINT}:5671"
+MQ_URL="amqps://swiftpay:YOUR_PASSWORD@${MQ_ENDPOINT}:5671"
 
 # Update RabbitMQ secret with endpoint and URL
 aws secretsmanager put-secret-value \
-  --secret-id payflow/dev/rabbitmq \
-  --secret-string "{\"username\":\"payflow\",\"password\":\"YOUR_PASSWORD\",\"endpoint\":\"${MQ_ENDPOINT}\",\"port\":5671,\"protocol\":\"amqps\",\"url\":\"${MQ_URL}\"}"
+  --secret-id swiftpay/dev/rabbitmq \
+  --secret-string "{\"username\":\"swiftpay\",\"password\":\"YOUR_PASSWORD\",\"endpoint\":\"${MQ_ENDPOINT}\",\"port\":5671,\"protocol\":\"amqps\",\"url\":\"${MQ_URL}\"}"
 ```
 
 **Note:** Replace `YOUR_PASSWORD` with actual password from Terraform variables or Secrets Manager.
@@ -438,11 +438,11 @@ aws secretsmanager put-secret-value \
 | Variable | Local | Dev | Prod |
 |----------|-------|-----|------|
 | NODE_ENV | development | development | production |
-| DB_HOST | postgres | payflow-postgres.{region}.rds.amazonaws.com | payflow-postgres.{region}.rds.amazonaws.com |
-| REDIS_URL | redis://redis:6379 | redis://payflow-redis.{region}.cache.amazonaws.com:6379 | redis://payflow-redis.{region}.cache.amazonaws.com:6379 |
-| RABBITMQ_URL | amqp://payflow:payflow123@rabbitmq:5672 | amqp://payflow:${SECRET}@payflow-mq.{region}.amazonaws.com:5671 | amqp://payflow:${SECRET}@payflow-mq.{region}.amazonaws.com:5671 |
+| DB_HOST | postgres | swiftpay-postgres.{region}.rds.amazonaws.com | swiftpay-postgres.{region}.rds.amazonaws.com |
+| REDIS_URL | redis://redis:6379 | redis://swiftpay-redis.{region}.cache.amazonaws.com:6379 | redis://swiftpay-redis.{region}.cache.amazonaws.com:6379 |
+| RABBITMQ_URL | amqp://swiftpay:swiftpay123@rabbitmq:5672 | amqp://swiftpay:${SECRET}@swiftpay-mq.{region}.amazonaws.com:5671 | amqp://swiftpay:${SECRET}@swiftpay-mq.{region}.amazonaws.com:5671 |
 | JWT_SECRET | your-super-secret-jwt-key-change-in-production | ${AWS_SECRETS_MANAGER} | ${AWS_SECRETS_MANAGER} |
-| CORS_ORIGIN | * | https://dev.payflow.com | https://payflow.com |
+| CORS_ORIGIN | * | https://dev.swiftpay.com | https://swiftpay.com |
 
 **Kubernetes:** Environment variables set via ConfigMaps and Secrets (see `k8s/configmaps/app-config.yaml` and `k8s/secrets/`)
 

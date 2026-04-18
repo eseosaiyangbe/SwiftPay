@@ -12,8 +12,8 @@ class SMSService {
 
   async sendTransactionAlert(to, amount, type) {
     const message = type === 'SENT' 
-      ? `PayFlow: You sent $${amount}. Transaction ID: ${Date.now()}`
-      : `PayFlow: You received $${amount}. Transaction ID: ${Date.now()}`;
+      ? `SwiftPay: You sent $${amount}. Transaction ID: ${Date.now()}`
+      : `SwiftPay: You received $${amount}. Transaction ID: ${Date.now()}`;
 
     try {
       const result = await this.client.messages.create({
@@ -39,7 +39,7 @@ class SMSService {
   }
 
   async send2FACode(to, code) {
-    const message = `Your PayFlow verification code is: ${code}. Valid for 5 minutes.`;
+    const message = `Your SwiftPay verification code is: ${code}. Valid for 5 minutes.`;
 
     try {
       const result = await this.client.messages.create({

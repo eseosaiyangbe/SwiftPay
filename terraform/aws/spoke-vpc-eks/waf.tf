@@ -3,9 +3,9 @@
 # Protects ALB from common attacks
 
 # WAF Web ACL
-resource "aws_wafv2_web_acl" "payflow" {
-  name        = "payflow-${var.environment}-waf"
-  description = "WAF for PayFlow API Gateway"
+resource "aws_wafv2_web_acl" "swiftpay" {
+  name        = "swiftpay-${var.environment}-waf"
+  description = "WAF for SwiftPay API Gateway"
   scope       = "REGIONAL"  # For ALB (not CloudFront)
 
   default_action {
@@ -157,7 +157,7 @@ resource "aws_wafv2_web_acl" "payflow" {
   }
 
   tags = {
-    Name        = "payflow-waf"
+    Name        = "swiftpay-waf"
     Environment = var.environment
   }
 }
@@ -168,13 +168,13 @@ resource "aws_cloudwatch_log_group" "waf" {
   retention_in_days = 365  # 1 year retention
 
   tags = {
-    Name = "payflow-waf-logs"
+    Name = "swiftpay-waf-logs"
   }
 }
 
 # WAF Logging Configuration (log group ARN must end with :* for WAFv2)
-resource "aws_wafv2_web_acl_logging_configuration" "payflow" {
-  resource_arn            = aws_wafv2_web_acl.payflow.arn
+resource "aws_wafv2_web_acl_logging_configuration" "swiftpay" {
+  resource_arn            = aws_wafv2_web_acl.swiftpay.arn
   log_destination_configs = ["${aws_cloudwatch_log_group.waf.arn}:*"]
 
   redacted_fields {
@@ -186,10 +186,10 @@ resource "aws_wafv2_web_acl_logging_configuration" "payflow" {
 
 # Disassociate WAF from ALB before destroying Web ACL (ALB is created by K8s Ingress, not Terraform)
 resource "null_resource" "waf_disassociate" {
-  depends_on = [aws_wafv2_web_acl_logging_configuration.payflow]
+  depends_on = [aws_wafv2_web_acl_logging_configuration.swiftpay]
 
   triggers = {
-    web_acl_arn = aws_wafv2_web_acl.payflow.arn
+    web_acl_arn = aws_wafv2_web_acl.swiftpay.arn
     region      = data.aws_region.current.name
   }
 

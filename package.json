@@ -21,6 +21,7 @@
     "smoke:notifications": "bash scripts/smoke-notifications.sh",
     "smoke:auth-security": "bash scripts/smoke-auth-security.sh",
     "smoke:auth-deep": "bash scripts/smoke-auth-deep.sh",
+    "smoke:password-reset": "bash scripts/smoke-password-reset.sh",
     "smoke:production-guards": "bash scripts/smoke-production-config-guards.sh",
     
     "lint:all": "npm run lint:services",

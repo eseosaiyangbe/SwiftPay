@@ -405,6 +405,32 @@ app.post('/api/auth/refresh', async (req, res) => {
   }
 });
 
+app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
+  try {
+    const response = await axios.post(`${AUTH_SERVICE}/auth/forgot-password`, req.body);
+    transactionTotal.inc({ status: 'success', type: 'forgot_password', service: 'auth-service' });
+    res.json(response.data);
+  } catch (error) {
+    transactionTotal.inc({ status: 'failed', type: 'forgot_password', service: 'auth-service' });
+    res.status(error.response?.status || 500).json(
+      error.response?.data || { error: 'Password reset request failed' }
+    );
+  }
+});
+
+app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
+  try {
+    const response = await axios.post(`${AUTH_SERVICE}/auth/reset-password`, req.body);
+    transactionTotal.inc({ status: 'success', type: 'reset_password', service: 'auth-service' });
+    res.json(response.data);
+  } catch (error) {
+    transactionTotal.inc({ status: 'failed', type: 'reset_password', service: 'auth-service' });
+    res.status(error.response?.status || 500).json(
+      error.response?.data || { error: 'Password reset failed' }
+    );
+  }
+});
+
 app.post('/api/auth/logout', authenticate, async (req, res) => {
   try {
     const response = await axios.post(

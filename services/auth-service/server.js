@@ -1,6 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const redis = require('redis');
 const helmet = require('helmet');
@@ -70,6 +71,7 @@ const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_DEV_JWT_SECRET;
 assertProductionJwtSecret(JWT_SECRET);
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = '7d';
+const PASSWORD_RESET_EXPIRES_MINUTES = 30;
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -129,6 +131,20 @@ async function initDB() {
       )
     `);
 
+    // Password reset tokens table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+        token_hash VARCHAR(64) UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ip_address VARCHAR(45),
+        user_agent TEXT
+      )
+    `);
+
     // Audit log table
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
@@ -147,6 +163,8 @@ async function initDB() {
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+      CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
+      CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user ON password_reset_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_sessions_user ON user_sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id, created_at DESC);
     `);
@@ -194,6 +212,10 @@ function generateTokens(userId, email, role) {
   );
 
   return { accessToken, refreshToken };
+}
+
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 // Health check (return 200 if app can serve; avoid 503 on Redis timeout so k8s liveness doesn't kill pod)
@@ -572,6 +594,126 @@ app.get('/auth/me', async (req, res) => {
     res.status(401).json({ error: 'Invalid token' });
   }
 });
+
+// Request password reset
+app.post('/auth/forgot-password',
+  authLimiter,
+  [
+    body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address')
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email } = req.body;
+    const genericResponse = {
+      message: 'If that email exists, password reset instructions have been prepared.'
+    };
+
+    try {
+      const result = await pool.query(
+        'SELECT id, email FROM users WHERE email = $1 AND is_active = true',
+        [email]
+      );
+
+      if (result.rows.length === 0) {
+        return res.json(genericResponse);
+      }
+
+      const user = result.rows[0];
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = hashResetToken(resetToken);
+      const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MINUTES * 60 * 1000);
+
+      await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id]);
+      await pool.query(
+        `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, ip_address, user_agent)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [user.id, tokenHash, expiresAt, req.ip, req.get('user-agent')]
+      );
+
+      await auditLog(user.id, 'PASSWORD_RESET_REQUESTED', 'users', req, { email });
+
+      if (process.env.NODE_ENV !== 'production') {
+        return res.json({
+          ...genericResponse,
+          resetToken,
+          expiresInMinutes: PASSWORD_RESET_EXPIRES_MINUTES
+        });
+      }
+
+      console.log(`Password reset requested for ${user.email}; connect email delivery before production use.`);
+      res.json(genericResponse);
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(500).json({ error: 'Password reset request failed' });
+    }
+  }
+);
+
+// Reset password with one-time token
+app.post('/auth/reset-password',
+  [
+    body('token').notEmpty().withMessage('Reset token required'),
+    body('newPassword').isLength({ min: 8 }).matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { token, newPassword } = req.body;
+    const tokenHash = hashResetToken(token);
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const tokenResult = await client.query(
+        `SELECT user_id FROM password_reset_tokens
+         WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()
+         FOR UPDATE`,
+        [tokenHash]
+      );
+
+      if (tokenResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Invalid or expired reset token' });
+      }
+
+      const userId = tokenResult.rows[0].user_id;
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+
+      await client.query(
+        `UPDATE users
+         SET password_hash = $1,
+             failed_login_attempts = 0,
+             locked_until = NULL,
+             updated_at = NOW()
+         WHERE id = $2`,
+        [passwordHash, userId]
+      );
+
+      await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+      await client.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = $1', [tokenHash]);
+      await client.query('DELETE FROM password_reset_tokens WHERE user_id = $1 AND token_hash <> $2', [userId, tokenHash]);
+      await client.query('COMMIT');
+
+      await auditLog(userId, 'PASSWORD_RESET_COMPLETED', 'users', req, { sessionsInvalidated: true });
+
+      res.json({ message: 'Password reset successfully. Please sign in.' });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Reset password error:', error);
+      res.status(500).json({ error: 'Password reset failed' });
+    } finally {
+      client.release();
+    }
+  }
+);
 
 // Change password
 app.post('/auth/change-password',

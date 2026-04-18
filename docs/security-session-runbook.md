@@ -147,6 +147,44 @@ Why:
 - The UI should match that security behavior instead of leaving the user on a dead session.
 - This gives us a complete browser path for a core account-security feature.
 
+### Forgot Password And Reset Password
+
+Files:
+
+- `services/auth-service/server.js`
+- `services/api-gateway/server.js`
+- `services/frontend/src/components/auth/LoginPage.js`
+- `services/frontend/src/lib/api-client.js`
+- `migrations/V5__password_reset_tokens.sql`
+
+The login page now includes a Forgot Password flow.
+
+Current local-development behavior:
+
+```text
+1. User clicks Forgot password?
+2. User enters email.
+3. Frontend calls POST /api/auth/forgot-password.
+4. Auth Service creates a one-time reset token valid for 30 minutes.
+5. In development, the reset token is returned in the response so we can test without email delivery.
+6. User enters the reset token and a new password.
+7. Frontend calls POST /api/auth/reset-password.
+8. Auth Service updates the password, clears lockout state, revokes refresh tokens, and marks the reset token as used.
+9. User signs in with the new password.
+```
+
+Production note:
+
+- The API response is generic so it does not reveal whether an email exists.
+- Production mode does not return the reset token to the browser.
+- Before public production use, connect an email provider so the reset token is delivered through a secure reset link.
+
+### Form Usability
+
+The login, register, forgot-password, reset-password, and change-password forms now submit with the Enter key.
+
+Password fields on the login page and Settings password-change form have show/hide controls.
+
 ## Smoke Tests
 
 ### Refresh And Logout Security
@@ -215,6 +253,34 @@ Expected result:
 Deep auth security smoke test passed.
 ```
 
+### Forgot Password And Reset Password
+
+Command:
+
+```bash
+npm run smoke:password-reset
+```
+
+Under the hood this runs:
+
+```bash
+bash scripts/smoke-password-reset.sh
+```
+
+The test verifies:
+
+- A user can request a reset token.
+- A user can reset the password with that token.
+- The old password no longer works.
+- The new password works.
+- The reset token cannot be reused.
+
+Expected result:
+
+```text
+Password reset smoke test passed.
+```
+
 ### Production Config Guards
 
 Command:
@@ -262,6 +328,7 @@ Run the Phase 4 smoke test:
 ```bash
 npm run smoke:auth-security
 npm run smoke:auth-deep
+npm run smoke:password-reset
 npm run smoke:production-guards
 ```
 

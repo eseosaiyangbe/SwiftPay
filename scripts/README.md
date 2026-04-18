@@ -1,5 +1,21 @@
 # SwiftPay scripts
 
+## Smoke tests
+
+Run these from the repo root while Docker Compose is up:
+
+```bash
+npm run smoke:send-money
+npm run smoke:failed-transaction
+npm run smoke:notifications
+npm run smoke:auth-security
+npm run smoke:auth-deep
+npm run smoke:password-reset
+npm run smoke:production-guards
+```
+
+`smoke:password-reset` exercises the local forgot-password/reset-password flow. In development, Auth Service returns the reset token so the test can run without email infrastructure. Production must use email delivery instead of returning reset tokens to the browser.
+
 ## deploy-microk8s.sh (recommended for local / beginners)
 
 One script to run SwiftPay on MicroK8s: **clone repo → run script**. It will:

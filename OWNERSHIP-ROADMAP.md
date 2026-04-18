@@ -810,9 +810,15 @@ Progress notes:
 - Added `scripts/smoke-production-config-guards.sh` and `npm run smoke:production-guards` for production JWT/CORS guard verification.
 - Added a frontend Settings tab with Change Password support.
 - Password changes now clear frontend session state and return the user to login with a success notice.
+- Added forgot-password and reset-password API routes with one-time reset tokens.
+- Added `migrations/V5__password_reset_tokens.sql` for reset-token storage.
+- Added login-page Forgot Password and Reset Password flows.
+- Added show/hide password controls and Enter-key submit behavior to auth forms.
+- Added `scripts/smoke-password-reset.sh` and `npm run smoke:password-reset`.
 
 Remaining work:
 
+- Connect production email delivery for password reset links before public production use.
 - Move token handling to HTTP-only cookies or a backend-for-frontend pattern in a later production hardening phase.
 - Convert smoke scripts into CI jobs when the CI/CD phase begins.
 

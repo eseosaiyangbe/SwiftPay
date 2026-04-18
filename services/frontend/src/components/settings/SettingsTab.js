@@ -1,5 +1,43 @@
 import React, { useState } from 'react';
-import { Activity, AlertCircle, Lock, ShieldCheck } from 'lucide-react';
+import { Activity, AlertCircle, Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react';
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+}) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
+      <div className="relative">
+        <input
+          id={id}
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          autoComplete={id === 'current-password' ? 'current-password' : 'new-password'}
+          className="w-full px-4 py-3 pr-12 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder={placeholder}
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((current) => !current)}
+          disabled={disabled}
+          className="absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-700 disabled:text-slate-300"
+          aria-label={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+        >
+          {visible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function SettingsTab({ user, onChangePassword }) {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -14,7 +52,8 @@ export function SettingsTab({ user, onChangePassword }) {
     setConfirmPassword('');
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError(null);
 
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -77,27 +116,23 @@ export function SettingsTab({ user, onChangePassword }) {
           </div>
         )}
 
-        <div className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Current Password</label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              disabled={saving}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter current password"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <PasswordField
+            id="current-password"
+            label="Current Password"
+            value={currentPassword}
+            onChange={setCurrentPassword}
+            disabled={saving}
+            placeholder="Enter current password"
+          />
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">New Password</label>
-            <input
-              type="password"
+            <PasswordField
+              id="new-password"
+              label="New Password"
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={setNewPassword}
               disabled={saving}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter new password"
             />
             <p className="text-xs text-slate-500 mt-1">
@@ -105,20 +140,17 @@ export function SettingsTab({ user, onChangePassword }) {
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Confirm New Password</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={saving}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Confirm new password"
-            />
-          </div>
+          <PasswordField
+            id="confirm-password"
+            label="Confirm New Password"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            disabled={saving}
+            placeholder="Confirm new password"
+          />
 
           <button
-            onClick={handleSubmit}
+            type="submit"
             disabled={saving || !currentPassword || !newPassword || !confirmPassword}
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
           >
@@ -131,7 +163,7 @@ export function SettingsTab({ user, onChangePassword }) {
               <span>Change Password</span>
             )}
           </button>
-        </div>
+        </form>
 
         <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-sm text-amber-800">

@@ -6,7 +6,7 @@
 # Run this after starting any environment to confirm everything works.
 #
 # Usage:
-#   ./scripts/validate.sh                        # Docker Compose (default)
+#   ./scripts/validate.sh                        # Docker Compose (default, gateway on localhost:3007)
 #   ./scripts/validate.sh --env k8s              # MicroK8s (www.swiftpay.local)
 #   ./scripts/validate.sh --env k8s --host api.swiftpay.local
 #   ./scripts/validate.sh --env cloud --host https://api.yourdomain.com
@@ -19,7 +19,7 @@ set -euo pipefail
 
 # ---- Parse arguments ----
 ENV="docker"
-BASE_URL="http://localhost:3000"
+BASE_URL=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$ENV" in
-  docker) BASE_URL="${BASE_URL:-http://localhost:3000}" ;;
+  docker) BASE_URL="${BASE_URL:-http://localhost:3007}" ;;
   k8s)    BASE_URL="${BASE_URL:-http://api.swiftpay.local}" ;;
   cloud)  : ;; # user must provide --host
 esac

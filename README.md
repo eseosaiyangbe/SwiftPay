@@ -95,15 +95,15 @@ kubectl delete namespace swiftpay
 
 ### 🐳 Environment 2: Docker Compose (~5 minutes) — optional, no Kubernetes
 
-Fastest way to see the UI and API on **`http://localhost`** when you cannot or do not want MicroK8s yet (still covered in Week 1 optional block in the learning path).
+Fastest way to see the stack locally when you cannot or do not want MicroK8s yet. In Docker Compose, the browser entrypoint is **`http://localhost:8081`** and the API gateway health endpoint is **`http://localhost:3007/health`**.
 
 ```bash
 git clone https://github.com/<your-username>/swiftpay-wallet-2.git && cd swiftpay-wallet-2
 docker compose up -d
 # Wait ~30 seconds for Postgres, then:
 ./scripts/validate.sh
-open http://localhost
-# API: http://localhost:3000/health — RabbitMQ UI: http://localhost:15672 (swiftpay / swiftpay123)
+open http://localhost:8081
+# API: http://localhost:3007/health — RabbitMQ UI: http://localhost:15672 (swiftpay / swiftpay123)
 ```
 
 **Monitoring profile** (Prometheus + Grafana + Alertmanager)—great for the learning path “minimal triad”:
@@ -118,6 +118,8 @@ open http://localhost:9090      # Prometheus
 ```bash
 docker compose down -v
 ```
+
+`./scripts/validate.sh` targets the API gateway in Docker Compose, not the frontend. Use it to verify service health and core API flows after startup.
 
 ---
 

@@ -50,6 +50,7 @@ Business recording rules:
 swiftpay:pending_transactions
 swiftpay:pending_amount
 swiftpay:transaction_queue_depth
+swiftpay:completed_transfers_total
 swiftpay:transaction_failure_rate_5m
 swiftpay:wallet_failed_transfer_rate_5m
 swiftpay:wallet_circuit_breaker_state
@@ -67,6 +68,7 @@ Cards:
 Pending Transactions
 Pending Amount
 Queue Depth
+Completed Transfers
 Wallet Circuit
 Transaction Failures
 Wallet Failures
@@ -79,6 +81,7 @@ Wallet Failures
 | Pending Transactions | Usually `0` | Transfers were accepted but not completed |
 | Pending Amount | Usually `$0.00` | Money is stuck before wallet movement completes |
 | Queue Depth | Usually `0` | RabbitMQ has a transaction backlog |
+| Completed Transfers | Grows during healthy usage | Staying flat during expected traffic can point to a broken happy path |
 | Wallet Circuit | `Closed` | `Open` means Transaction Service is protecting Wallet Service |
 | Transaction Failures | Usually `0/min` | Transaction worker is marking transfers failed |
 | Wallet Failures | Usually `0/min` | Wallet Service rejected or failed transfers |
@@ -148,6 +151,7 @@ Expected shape:
     "pendingTransactions": 0,
     "pendingAmount": 0,
     "queueDepth": 0,
+    "completedTransfersTotal": 3,
     "transactionFailureRate": 0,
     "walletFailureRate": 0,
     "walletCircuitBreakerState": 0
@@ -203,6 +207,7 @@ When we move to Kubernetes, the target discovery mechanism will change from stat
 pending transactions
 pending amount
 queue depth
+completed transfers
 failure rates
 circuit breaker state
 ```

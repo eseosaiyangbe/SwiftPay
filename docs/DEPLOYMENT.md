@@ -6,19 +6,19 @@
 
 ```bash
 # Start everything
-docker-compose up -d
+docker compose up -d
 
 # Check all services are healthy
-docker-compose ps
+docker compose ps
 
 # Logs for specific service
-docker-compose logs -f api-gateway
+docker compose logs -f api-gateway
 
 # Stop everything
-docker-compose down
+docker compose down
 
 # Reset everything including volumes (wipe DB)
-docker-compose down -v
+docker compose down -v
 ```
 
 ## Database Migrations
@@ -34,7 +34,7 @@ flyway -configFiles=flyway.conf migrate
 flyway -configFiles=flyway.conf info
 
 # Or run SQL directly
-docker-compose exec postgres psql -U swiftpay -d swiftpay -f /docker-entrypoint-initdb.d/V1__initial_schema.sql
+docker compose exec postgres psql -U swiftpay -d swiftpay -f /docker-entrypoint-initdb.d/V1__initial_schema.sql
 ```
 
 **Migration files location:** `migrations/`
@@ -237,14 +237,14 @@ curl http://localhost:3000/health
 
 **Via Port Forward (for testing):**
 ```bash
-# Forward API Gateway
-kubectl port-forward -n swiftpay svc/api-gateway 3000:3000
+# Forward API Gateway health to localhost:3007
+kubectl port-forward -n swiftpay svc/api-gateway 3007:3000
 
-# Forward Frontend
-kubectl port-forward -n swiftpay svc/frontend 80:80
+# Forward Frontend to localhost:8081
+kubectl port-forward -n swiftpay svc/frontend 8081:80
 
 # Access in browser
-open http://localhost
+open http://localhost:8081
 ```
 
 **Via Ingress (production):**
@@ -445,4 +445,3 @@ aws secretsmanager put-secret-value \
 | CORS_ORIGIN | * | https://dev.swiftpay.com | https://swiftpay.com |
 
 **Kubernetes:** Environment variables set via ConfigMaps and Secrets (see `k8s/configmaps/app-config.yaml` and `k8s/secrets/`)
-

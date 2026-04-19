@@ -2,7 +2,7 @@
 
 > **The Complete Picture**: Step-by-step explanation of how a transaction flows through the system, from user click to money transfer completion.
 
-> **After you run the app:** Follow this doc in **Week 1** of [`LEARNING-PATH.md`](../LEARNING-PATH.md). UI URL is **`http://www.swiftpay.local`** on MicroK8s (ingress) or **`http://localhost`** if you used optional Docker Compose.
+> **After you run the app:** Follow this doc in **Week 1** of [`LEARNING-PATH.md`](../LEARNING-PATH.md). UI URL is **`http://www.swiftpay.local`** on MicroK8s (ingress) or **`http://localhost:8081`** if you used optional Docker Compose.
 
 ---
 
@@ -541,4 +541,3 @@ Transaction Service → RabbitMQ → Notification Service
 - [`docs/SERVICES.md`](SERVICES.md) — deep dive into each service: what it owns, its key logic, and why it exists separately
 - [`docs/microk8s-deployment.md`](microk8s-deployment.md) — deploy this system to Kubernetes and see the flow running live
 - [`TROUBLESHOOTING.md`](../TROUBLESHOOTING.md) — when something in the flow breaks, start here
-

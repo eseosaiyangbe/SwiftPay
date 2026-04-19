@@ -5,13 +5,13 @@
 ```bash
 # Is everything running?
 kubectl get pods -A
-docker-compose ps  # local
+docker compose ps  # local
 
 # Are services responding?
-curl http://localhost:3000/health  # API Gateway
+curl http://localhost:3007/health  # API Gateway
 curl http://localhost:3004/health  # Auth
 curl http://localhost:3001/health  # Wallet
-curl http://localhost:3002/health  # Transaction
+curl http://localhost:3008/health  # Transaction
 curl http://localhost:3003/health  # Notification
 ```
 
@@ -35,15 +35,15 @@ curl http://localhost:3003/health  # Notification
 **Fix:**
 ```bash
 # Docker Compose
-docker-compose exec frontend cat /etc/nginx/conf.d/default.conf | grep proxy_pass
-# Should show: proxy_pass http://api-gateway:80;
+docker compose exec frontend cat /etc/nginx/conf.d/default.conf | grep proxy_pass
+# Should show: proxy_pass $api_upstream;
 
 # Kubernetes
 kubectl get configmap frontend-nginx -n swiftpay -o yaml | grep proxy_pass
 # Should show: proxy_pass $api_gateway; (with variable for DNS resolution)
 
 # Test connection
-docker-compose exec frontend wget -qO- http://api-gateway:80/health
+docker compose exec frontend wget -qO- http://api-gateway:3000/health
 kubectl exec -it <frontend-pod> -n swiftpay -- wget -qO- http://api-gateway.swiftpay.svc.cluster.local:80/health
 ```
 
@@ -57,11 +57,11 @@ kubectl exec -it <frontend-pod> -n swiftpay -- wget -qO- http://api-gateway.swif
 ```bash
 # Check RabbitMQ is running
 kubectl get pods -n swiftpay | grep rabbitmq
-docker-compose ps rabbitmq
+docker compose ps rabbitmq
 
 # Check transaction service logs
 kubectl logs deployment/transaction-service -n swiftpay | grep -i rabbitmq
-docker-compose logs transaction-service | grep -i rabbitmq
+docker compose logs transaction-service | grep -i rabbitmq
 
 # Check queue depth
 curl http://localhost:15672/api/queues/%2F/transactions  # RabbitMQ Management API
@@ -69,7 +69,7 @@ curl http://localhost:15672/api/queues/%2F/transactions  # RabbitMQ Management A
 
 # Restart transaction service (will reconnect to RabbitMQ)
 kubectl rollout restart deployment/transaction-service -n swiftpay
-docker-compose restart transaction-service
+docker compose restart transaction-service
 ```
 
 ### All Transactions Failing
@@ -82,18 +82,18 @@ docker-compose restart transaction-service
 ```bash
 # Check wallet service health
 kubectl get pods -n swiftpay -l app=wallet-service
-docker-compose ps wallet-service
+docker compose ps wallet-service
 
 # Check wallet service logs
 kubectl logs deployment/wallet-service -n swiftpay --tail=50
-docker-compose logs wallet-service --tail=50
+docker compose logs wallet-service --tail=50
 
 # Check database connection
 kubectl exec postgres-0 -n swiftpay -- psql -U swiftpay -d swiftpay -c "SELECT 1"
-docker-compose exec postgres psql -U swiftpay -d swiftpay -c "SELECT 1"
+docker compose exec postgres psql -U swiftpay -d swiftpay -c "SELECT 1"
 
 # Check circuit breaker state
-curl http://localhost:3002/metrics | grep circuit_breaker_state
+curl http://localhost:3008/metrics | grep circuit_breaker_state
 # If open (1), wallet service is down - restart it
 ```
 
@@ -129,11 +129,11 @@ kubectl get configmap app-config -n swiftpay -o yaml | grep RABBITMQ_URL
 ```bash
 # Check PostgreSQL is running
 kubectl get pods -n swiftpay | grep postgres
-docker-compose ps postgres
+docker compose ps postgres
 
 # Check PostgreSQL logs
 kubectl logs postgres-0 -n swiftpay --tail=50
-docker-compose logs postgres --tail=50
+docker compose logs postgres --tail=50
 
 # Test connection from service pod
 kubectl exec -it deployment/auth-service -n swiftpay -- \
@@ -215,8 +215,8 @@ open http://localhost:15672
 
 ```bash
 # Query metrics endpoint
-curl http://localhost:3000/metrics | grep http_requests_total
-curl http://localhost:3002/metrics | grep transactions_total
+curl http://localhost:3007/metrics | grep http_requests_total
+curl http://localhost:3008/metrics | grep transactions_total
 curl http://localhost:3001/metrics | grep transfers_total
 ```
 
@@ -291,4 +291,3 @@ kubectl describe pod <pod-name> -n swiftpay
 kubectl get secrets -n swiftpay
 kubectl get secret app-secrets -n swiftpay -o yaml
 ```
-

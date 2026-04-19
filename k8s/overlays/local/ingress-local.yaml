@@ -1,0 +1,85 @@
+# Local overlay only: Ingress for swiftpay.local (MicroK8s). Not used by EKS or AKS.
+# After deploy: add to /etc/hosts (see scripts/setup-hosts-swiftpay-local.sh)
+#   Frontend: http://www.swiftpay.local
+#   API (direct): http://api.swiftpay.local
+#
+# How routing works:
+#   The React app is built with REACT_APP_API_URL=/api (relative URL).
+#   So all API calls go to www.swiftpay.local/api/* (same host as the frontend).
+#   This ingress splits traffic on www.swiftpay.local by path:
+#     /api  → api-gateway:80   (must come FIRST — more specific path wins)
+#     /     → frontend:80
+#   Order matters: Kubernetes evaluates rules top-to-bottom within a host.
+#
+# Why api.swiftpay.local is also kept:
+#   Useful for direct API testing (curl, Postman) without going through the frontend host.
+#   EKS uses the ALB and its own ingress-patch.yaml — this file is never applied there.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: swiftpay-http-ingress
+  namespace: swiftpay
+  labels:
+    environment: local
+  annotations:
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+spec:
+  ingressClassName: public
+  rules:
+  # ---------------------------------------------------------------
+  # www.swiftpay.local — split by path
+  # /api/* → api-gateway  (checked first; more specific wins)
+  # /      → frontend
+  # ---------------------------------------------------------------
+  - host: www.swiftpay.local
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 80
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80
+  # ---------------------------------------------------------------
+  # swiftpay.local (bare domain) — same path split as www
+  # ---------------------------------------------------------------
+  - host: swiftpay.local
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 80
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80
+  # ---------------------------------------------------------------
+  # api.swiftpay.local — direct API access (curl / Postman testing)
+  # ---------------------------------------------------------------
+  - host: api.swiftpay.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 80

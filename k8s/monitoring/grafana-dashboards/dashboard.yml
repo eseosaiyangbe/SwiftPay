@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: 'SwiftPay Dashboards'
+    orgId: 1
+    folder: 'SwiftPay'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    # JSON dashboards are mounted separately (see grafana-deployment + deploy-monitoring.sh).
+    options:
+      path: /etc/grafana/dashboards

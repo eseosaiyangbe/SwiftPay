@@ -1,0 +1,17 @@
+**/node_modules
+**/coverage
+**/.nyc_output
+**/npm-debug.log*
+**/*.log
+**/.env
+**/.env.local
+**/.env.*.local
+.git
+.gitignore
+.DS_Store
+**/.DS_Store
+**/*.swp
+**/*.swo
+**/*~
+**/.vscode
+**/.idea

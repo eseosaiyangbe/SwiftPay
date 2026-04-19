@@ -1,0 +1,854 @@
+const express = require('express');
+const { Pool } = require('pg');
+const amqp = require('amqplib');
+const axios = require('axios');
+const redis = require('redis');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const { body, param, query, validationResult } = require('express-validator');
+const client = require('prom-client');
+const CircuitBreaker = require('opossum');
+const retry = require('async-retry');
+const { v4: uuidv4 } = require('uuid');
+const logger = require('./shared/logger');
+const { register: sharedRegister, metricsMiddleware, metricsHandler, transactionTotal, transactionDuration, queueDepth, rabbitmqPublishErrors, rabbitmqConsumeErrors, circuitBreakerState, circuitBreakerTransitions, pendingTransactionsGauge, oldestPendingTransactionGauge, pendingTransactionAmountGauge, dbConnectionPoolSize } = require('./shared/metrics');
+const { claimPendingTransaction } = require('./transaction-guard');
+const { completeClaimedTransaction } = require('./transaction-finalizer');
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 3002;
+
+// ============================================
+// LOGGING SETUP
+// ============================================
+// Set service name for shared logger
+process.env.SERVICE_NAME = 'transaction-service';
+
+// ============================================
+// METRICS SETUP
+// ============================================
+// Use shared register for SLI/SLO metrics (shared/metrics already calls collectDefaultMetrics)
+const register = sharedRegister;
+
+// ============================================
+// MIDDLEWARE
+// ============================================
+app.use(helmet());
+app.use(morgan('combined'));
+app.use(express.json({ limit: '10kb' }));
+
+// Correlation ID middleware
+app.use((req, res, next) => {
+  req.correlationId = req.headers['x-correlation-id'] || `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  res.setHeader('X-Correlation-Id', req.correlationId);
+  next();
+});
+
+// #### Metrics Collection Middleware ####
+// #### Use shared metricsMiddleware for SLI/SLO tracking ####
+app.use(metricsMiddleware);
+
+// ============================================
+// DATABASE CONNECTION
+// ============================================
+// rejectUnauthorized: false for AWS RDS (RDS TLS cert not in Node default trust store)
+const DEFAULT_INSECURE_DB_PASSWORD = 'swiftpay123';
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.DB_PASSWORD || process.env.DB_PASSWORD === DEFAULT_INSECURE_DB_PASSWORD) {
+    throw new Error('DB_PASSWORD must be set to a non-default value in production (do not use the default placeholder)');
+  }
+}
+const pool = new Pool({
+  host: process.env.DB_HOST || 'postgres',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'swiftpay',
+  user: process.env.DB_USER || 'swiftpay',
+  password: process.env.DB_PASSWORD || DEFAULT_INSECURE_DB_PASSWORD,
+  max: parseInt(process.env.PG_POOL_MAX || '5', 10),
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,  // 10s for RDS cold start / TLS handshake
+  ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: false } : false,
+});
+
+function updateDbPoolMetrics() {
+  try {
+    dbConnectionPoolSize.set({ state: 'active' }, Math.max(0, pool.totalCount - pool.idleCount));
+    dbConnectionPoolSize.set({ state: 'idle' }, pool.idleCount);
+    dbConnectionPoolSize.set({ state: 'waiting' }, pool.waitingCount || 0);
+  } catch (_) {
+    /* ignore */
+  }
+}
+setInterval(updateDbPoolMetrics, 15000);
+updateDbPoolMetrics();
+
+// ============================================
+// REDIS CONNECTION (for idempotency)
+// ============================================
+const redisClient = redis.createClient({
+  url: process.env.REDIS_URL || 'redis://redis:6379'
+});
+
+redisClient.on('error', (err) => logger.error('Redis error:', err));
+redisClient.connect().catch((err) => logger.error('Redis connect error:', err.message));
+
+// ============================================
+// WALLET SERVICE CIRCUIT BREAKER
+// ============================================
+const WALLET_SERVICE_URL = process.env.WALLET_SERVICE_URL || 'http://wallet-service:3001';
+
+const walletServiceBreaker = new CircuitBreaker(
+  async ({ fromUserId, toUserId, amount, correlationId }) => {
+    try {
+      return await axios.post(
+        `${WALLET_SERVICE_URL}/wallets/transfer`,
+        { fromUserId, toUserId, amount },
+        {
+          headers: { 'X-Correlation-Id': correlationId },
+          timeout: 4000
+        }
+      );
+    } catch (error) {
+      const status = error.response?.status;
+      const message = error.response?.data?.error || error.message;
+
+      if (status && status >= 400 && status < 500 && status !== 429) {
+        const businessError = new Error(message);
+        businessError.status = status;
+        businessError.isBusinessFailure = true;
+        throw businessError;
+      }
+
+      throw error;
+    }
+  },
+  {
+    timeout: 5000,
+    errorThresholdPercentage: 50,
+    resetTimeout: 30000,
+    name: 'wallet-service',
+    errorFilter: (error) => error.isBusinessFailure === true
+  }
+);
+
+walletServiceBreaker.on('open', () => {
+  logger.error('Circuit breaker opened: wallet-service');
+  circuitBreakerState.labels('wallet-service', 'open').set(1);
+  circuitBreakerState.labels('wallet-service', 'closed').set(0);
+  circuitBreakerState.labels('wallet-service', 'half-open').set(0);
+  circuitBreakerTransitions.labels('wallet-service', 'closed', 'open').inc();
+});
+
+walletServiceBreaker.on('halfOpen', () => {
+  logger.warn('Circuit breaker half-open: wallet-service');
+  circuitBreakerState.labels('wallet-service', 'half-open').set(1);
+  circuitBreakerState.labels('wallet-service', 'open').set(0);
+  circuitBreakerState.labels('wallet-service', 'closed').set(0);
+  circuitBreakerTransitions.labels('wallet-service', 'open', 'half-open').inc();
+});
+
+walletServiceBreaker.on('close', () => {
+  logger.info('Circuit breaker closed: wallet-service');
+  circuitBreakerState.labels('wallet-service', 'closed').set(1);
+  circuitBreakerState.labels('wallet-service', 'open').set(0);
+  circuitBreakerState.labels('wallet-service', 'half-open').set(0);
+  circuitBreakerTransitions.labels('wallet-service', 'half-open', 'closed').inc();
+});
+
+// ============================================
+// RABBITMQ CONNECTION
+// ============================================
+const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672';
+const channelRef = { current: null };
+let connection = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 50;
+const BASE_RECONNECT_MS = 5000;
+const MAX_RECONNECT_MS = 5 * 60 * 1000;
+
+function getChannel() {
+  return channelRef.current;
+}
+
+async function initRabbitMQ() {
+  try {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (e) {
+        logger.warn('Error closing previous RabbitMQ connection:', e.message);
+      }
+      connection = null;
+      channelRef.current = null;
+    }
+    const conn = await amqp.connect(RABBITMQ_URL);
+    connection = conn;
+    const ch = await connection.createChannel();
+    channelRef.current = ch;
+
+    // Dead Letter Exchange
+    await ch.assertExchange('dlx', 'direct', { durable: true });
+
+    // Main transaction queue with DLX
+    await ch.assertQueue('transactions', {
+      durable: true,
+      deadLetterExchange: 'dlx',
+      deadLetterRoutingKey: 'transactions.failed',
+      messageTtl: 600000 // 10 minutes
+    });
+
+    // Dead Letter Queue
+    await ch.assertQueue('transactions.dlq', { durable: true });
+    await ch.bindQueue('transactions.dlq', 'dlx', 'transactions.failed');
+
+    // Retry queue
+    await ch.assertQueue('transactions.retry', {
+      durable: true,
+      messageTtl: 30000, // 30 seconds
+      deadLetterExchange: '',
+      deadLetterRoutingKey: 'transactions'
+    });
+
+    // Notification queue
+    await ch.assertQueue('notifications', { durable: true });
+
+    // Fair dispatch: one message per consumer at a time so slow workers don't starve others
+    await ch.prefetch(1);
+
+    reconnectAttempts = 0;
+
+    // Monitor queue depth (use getChannel() so we always use current channel)
+    setInterval(async () => {
+      try {
+        const c = getChannel();
+        if (c) {
+          const queue = await c.checkQueue('transactions');
+          queueDepth.labels('transactions').set(queue.messageCount);
+        }
+      } catch (error) {
+        logger.error('Queue monitoring error:', error);
+      }
+    }, 5000);
+
+    // Start consuming
+    ch.consume('transactions', async (msg) => {
+      if (msg !== null) {
+        const transaction = JSON.parse(msg.content.toString());
+        const retryCount = msg.properties.headers['x-retry-count'] || 0;
+
+        try {
+          await processTransaction(transaction, retryCount);
+          getChannel()?.ack(msg);
+        } catch (error) {
+          logger.error('Transaction processing failed:', {
+            transactionId: transaction.id,
+            retryCount,
+            error: error.message
+          });
+
+          // Track consume errors
+          rabbitmqConsumeErrors.labels('transactions', error.message, 'transaction-service').inc();
+
+          // Retry transient errors
+          if (retryCount < 3 && isTransientError(error)) {
+            logger.info('Requeuing transaction for retry:', {
+              transactionId: transaction.id,
+              retryCount: retryCount + 1
+            });
+
+            try {
+              getChannel()?.sendToQueue('transactions.retry', msg.content, {
+                persistent: true,
+                headers: { 'x-retry-count': retryCount + 1 }
+              });
+              getChannel()?.ack(msg);
+            } catch (retryError) {
+              rabbitmqPublishErrors.labels('transactions.retry', retryError.message, 'transaction-service').inc();
+              getChannel()?.nack(msg, false, false);
+            }
+          } else {
+            logger.error('Sending transaction to DLQ:', {
+              transactionId: transaction.id,
+              retryCount
+            });
+            getChannel()?.nack(msg, false, false);
+          }
+        }
+      }
+    }, { noAck: false });
+
+    logger.info('RabbitMQ initialized successfully');
+  } catch (error) {
+    logger.error('RabbitMQ connection error:', error);
+    channelRef.current = null;
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      logger.error('RabbitMQ max reconnect attempts reached; stopping. Restart the process to retry.');
+      return;
+    }
+    const delay = Math.min(BASE_RECONNECT_MS * Math.pow(2, reconnectAttempts), MAX_RECONNECT_MS);
+    reconnectAttempts += 1;
+    logger.info('RabbitMQ reconnect scheduled', { attempt: reconnectAttempts, delayMs: delay });
+    setTimeout(initRabbitMQ, delay);
+  }
+}
+
+// Determine if error is transient
+function isTransientError(error) {
+  if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+    return true;
+  }
+  if (error.response) {
+    const status = error.response.status;
+    return status === 503 || status === 429 || status >= 500;
+  }
+  return false;
+}
+
+// ============================================
+// IDEMPOTENCY MANAGER
+// ============================================
+class IdempotencyManager {
+  constructor(redisClient) {
+    this.redis = redisClient;
+    this.ttl = 24 * 60 * 60; // 24 hours
+  }
+
+  async check(key, handler) {
+    const idempotencyKey = `idempotency:${key}`;
+    const lockKey = `idempotency:lock:${key}`;
+    const lockTtlSec = 30;
+
+    try {
+      const cached = await this.redis.get(idempotencyKey);
+      if (cached) {
+        logger.info('Idempotent request detected:', { key });
+        return { fromCache: true, data: JSON.parse(cached) };
+      }
+
+      // Acquire lock so duplicate concurrent requests don't both run handler (race before insert)
+      const acquired = await this.redis.set(lockKey, '1', { NX: true, EX: lockTtlSec });
+      if (!acquired) {
+        for (let i = 0; i < 6; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          const c = await this.redis.get(idempotencyKey);
+          if (c) return { fromCache: true, data: JSON.parse(c) };
+        }
+        throw new Error('Idempotency conflict; try again');
+      }
+
+      const result = await handler();
+      await this.redis.setEx(idempotencyKey, this.ttl, JSON.stringify(result));
+      return { fromCache: false, data: result };
+    } catch (error) {
+      logger.error('Idempotency check failed:', { key, error: error.message });
+      throw error;
+    }
+  }
+
+  generateKey(userId, operation, params) {
+    return `${userId}:${operation}:${JSON.stringify(params)}`;
+  }
+}
+
+const idempotencyManager = new IdempotencyManager(redisClient);
+
+// ============================================
+// DATABASE INITIALIZATION
+// ============================================
+async function initDB() {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id VARCHAR(50) PRIMARY KEY,
+        from_user_id VARCHAR(50) NOT NULL REFERENCES users(id),
+        to_user_id VARCHAR(50) NOT NULL REFERENCES users(id),
+        amount DECIMAL(15,2) NOT NULL,
+        status VARCHAR(20) NOT NULL,
+        error_message TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        processing_started_at TIMESTAMP,
+        completed_at TIMESTAMP
+      )
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+      CREATE INDEX IF NOT EXISTS idx_transactions_from_user ON transactions(from_user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_transactions_to_user ON transactions(to_user_id, created_at DESC);
+    `);
+
+    logger.info('Transaction database initialized');
+  } finally {
+    client.release();
+  }
+}
+
+initDB().catch(console.error);
+initRabbitMQ().catch(console.error);
+
+// Update pending-transaction gauges for PendingTransactionsStuck / MoneyStuck alerts
+async function updatePendingTransactionMetrics() {
+  try {
+    const r = await pool.query(
+      `SELECT COUNT(*)::int AS cnt, MIN(EXTRACT(EPOCH FROM created_at)) AS oldest_ts, COALESCE(SUM(amount), 0)::float AS total_amount FROM transactions WHERE status = 'PENDING'`
+    );
+    const row = r.rows[0];
+    pendingTransactionsGauge.set(row?.cnt ?? 0);
+    oldestPendingTransactionGauge.set(row?.oldest_ts ?? 0);
+    pendingTransactionAmountGauge.set(row?.total_amount ?? 0);
+  } catch (err) {
+    logger.error('Failed to update pending transaction metrics', { error: err.message });
+  }
+}
+setInterval(updatePendingTransactionMetrics, 30000);
+updatePendingTransactionMetrics();
+
+// ============================================
+// TRANSACTION PROCESSING
+// ============================================
+// ============================================
+// PROCESS TRANSACTION (Worker Function)
+// ============================================
+// This function is called by the worker when it consumes a message from RabbitMQ
+// It processes the actual money transfer
+//
+// Critical safety check: Idempotency
+// Before processing, we check if transaction was already processed
+// This prevents duplicate charges if:
+// - Worker crashes mid-processing, RabbitMQ retries
+// - Network issues cause duplicate messages
+// - Multiple workers process same message
+//
+// Flow:
+// Worker consumes message → Check database (idempotency) → Process transfer → Update status
+async function processTransaction(transaction, retryCount = 0) {
+  const startTime = Date.now();
+  const client = await pool.connect();
+  
+  try {
+    logger.info('Processing transaction:', {
+      transactionId: transaction.id,
+      amount: transaction.amount,
+      retryCount
+    });
+
+    // STEP 1: Lock the transaction row and only process PENDING work.
+    // RabbitMQ can redeliver messages after worker crashes or connection loss.
+    // The database row is the source of truth that keeps a duplicate message
+    // from calling Wallet Service and moving money twice.
+    const claim = await claimPendingTransaction(client, transaction.id, logger, { retryCount });
+    if (!claim.claimed) {
+      return {
+        skipped: true,
+        transactionId: transaction.id,
+        status: claim.status
+      };
+    }
+
+    return completeClaimedTransaction({
+      client,
+      transaction,
+      notificationChannel: getChannel(),
+      logger,
+      metrics: { transactionDuration, transactionTotal },
+      startTime,
+      transferWallet: () => retry(async () => {
+        return walletServiceBreaker.fire({
+          fromUserId: transaction.from_user_id,
+          toUserId: transaction.to_user_id,
+          amount: transaction.amount,
+          correlationId: transaction.id
+        });
+      }, {
+        retries: 2,
+        minTimeout: 1000,
+        onRetry: (error, attempt) => {
+          logger.warn('Retrying wallet service call:', {
+            transactionId: transaction.id,
+            attempt,
+            error: error.message
+          });
+        }
+      })
+    });
+  } finally {
+    client.release();
+  }
+}
+
+// ============================================
+// ADMIN AUTH (optional: set ADMIN_API_KEY env to require X-Admin-Key header)
+// ============================================
+const requireAdminKey = (req, res, next) => {
+  const key = process.env.ADMIN_API_KEY;
+  if (!key) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(501).json({ error: 'Admin API not configured' });
+    }
+    return next();
+  }
+  const provided = req.headers['x-admin-key'] || req.headers['authorization']?.replace(/^Bearer\s+/i, '');
+  if (provided !== key) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+};
+
+// ============================================
+// VALIDATION MIDDLEWARE
+// ============================================
+const validate = (validations) => {
+  return async (req, res, next) => {
+    await Promise.all(validations.map(validation => validation.run(req)));
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array() 
+      });
+    }
+    next();
+  };
+};
+
+// ============================================
+// ROUTES
+// ============================================
+
+// Health check
+app.get('/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    const ch = getChannel();
+    const queue = ch ? await ch.checkQueue('transactions').catch(() => null) : null;
+    
+    res.json({ 
+      status: 'healthy', 
+      service: 'transaction-service',
+      database: 'connected',
+      rabbitmq: ch ? 'connected' : 'disconnected',
+      queueDepth: queue?.messageCount || 0,
+      circuitBreaker: walletServiceBreaker.opened ? 'open' : 'closed',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Health check failed:', error);
+    res.status(503).json({ 
+      status: 'unhealthy', 
+      error: error.message 
+    });
+  }
+});
+
+// Metrics endpoint (uses shared metricsHandler)
+app.get('/metrics', metricsHandler);
+
+// Create transaction
+app.post('/transactions',
+  validate([
+    body('fromUserId').isString().trim().notEmpty(),
+    body('toUserId').isString().trim().notEmpty(),
+    body('amount').isFloat({ min: 0.01, max: 1000000 })
+  ]),
+  async (req, res) => {
+    const { fromUserId, toUserId, amount } = req.body;
+    const correlationId = req.correlationId;
+    const idempotencyKey = req.headers['idempotency-key'];
+
+    try {
+      // Check idempotency if key provided (use client-supplied key so same-amount retries are allowed)
+      if (idempotencyKey) {
+        const key = `${fromUserId}:${idempotencyKey}`;
+
+        const result = await idempotencyManager.check(key, async () => {
+          return await createTransaction(fromUserId, toUserId, amount, correlationId);
+        });
+
+        if (result.fromCache) {
+          res.setHeader('X-Idempotent-Replay', 'true');
+        }
+
+        return res.status(201).json(result.data);
+      }
+
+      // No idempotency key - process normally
+      const result = await createTransaction(fromUserId, toUserId, amount, correlationId);
+      res.status(201).json(result);
+
+    } catch (error) {
+      logger.error('Transaction creation failed:', {
+        correlationId,
+        error: error.message
+      });
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// ============================================
+// CREATE TRANSACTION
+// ============================================
+// This function is called when a user wants to send money
+// It does two critical things:
+// 1. Writes transaction to PostgreSQL (status: PENDING)
+// 2. Publishes message to RabbitMQ for async processing
+//
+// Why this pattern?
+// - User gets immediate response (doesn't wait for processing)
+// - Work is queued safely (survives service restarts)
+// - Can handle traffic spikes (messages queue up)
+//
+// Flow:
+// User → API Gateway → Transaction Service → PostgreSQL (PENDING)
+//                                              → RabbitMQ (message queued)
+//                                              → Return "queued" to user
+async function createTransaction(fromUserId, toUserId, amount, correlationId) {
+  const transactionId = uuidv4();
+
+  logger.info('Creating transaction:', {
+    correlationId,
+    transactionId,
+    fromUserId,
+    toUserId,
+    amount
+  });
+
+  // STEP 1: Write transaction to PostgreSQL
+  // Status: PENDING (not processed yet)
+  // This is the source of truth - if service crashes, transaction is still recorded
+  await pool.query(
+    `INSERT INTO transactions (id, from_user_id, to_user_id, amount, status) 
+     VALUES ($1, $2, $3, $4, 'PENDING')`,
+    [transactionId, fromUserId, toUserId, amount]
+  );
+
+  // Track metric for monitoring
+  transactionTotal.labels('pending', 'transfer', 'transaction-service').inc();
+
+  // STEP 2: Publish message to RabbitMQ
+  // This queues the work for async processing
+  // Worker will pick up this message and process the transaction
+  // Why RabbitMQ?
+  // - Messages persist (survive service restarts)
+  // - Handles retries automatically
+  // - Decouples transaction creation from processing
+  const ch = getChannel();
+  if (ch) {
+    try {
+      ch.sendToQueue('transactions', Buffer.from(JSON.stringify({
+        id: transactionId,
+        from_user_id: fromUserId,
+        to_user_id: toUserId,
+        amount: parseFloat(amount)
+      })), { persistent: true });  // persistent: true = message survives RabbitMQ restart
+    } catch (error) {
+      rabbitmqPublishErrors.labels('transactions', error.message, 'transaction-service').inc();
+      throw error;
+    }
+  } else {
+    rabbitmqPublishErrors.labels('transactions', 'channel_not_available', 'transaction-service').inc();
+    throw new Error('Message queue unavailable — please retry');
+  }
+
+  // Return immediately to user
+  // User doesn't wait for processing - gets instant feedback
+  return {
+    id: transactionId,
+    status: 'PENDING',
+    message: 'Transaction queued for processing',
+    timestamp: new Date().toISOString()
+  };
+}
+
+// Get all transactions
+app.get('/transactions',
+  validate([
+    query('userId').optional().isString(),
+    query('status').optional().isIn(['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED']),
+    query('limit').optional().isInt({ min: 1, max: 100 }).toInt()
+  ]),
+  async (req, res) => {
+    const { userId, status, limit = 100 } = req.query;
+    const correlationId = req.correlationId;
+
+    try {
+      let query = 'SELECT * FROM transactions WHERE 1=1';
+      const params = [];
+
+      if (userId) {
+        params.push(userId);
+        query += ` AND (from_user_id = $${params.length} OR to_user_id = $${params.length})`;
+      }
+
+      if (status) {
+        params.push(status);
+        query += ` AND status = $${params.length}`;
+      }
+
+      params.push(limit);
+      query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
+
+      const result = await pool.query(query, params);
+
+      logger.info('Retrieved transactions:', {
+        correlationId,
+        count: result.rows.length,
+        userId,
+        status
+      });
+
+      res.json(result.rows);
+    } catch (error) {
+      logger.error('Failed to get transactions:', {
+        correlationId,
+        error: error.message
+      });
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Get transaction by ID
+app.get('/transactions/:txnId',
+  validate([
+    param('txnId').isString().trim().notEmpty()
+  ]),
+  async (req, res) => {
+    const { txnId } = req.params;
+    const correlationId = req.correlationId;
+
+    try {
+      const result = await pool.query(
+        'SELECT * FROM transactions WHERE id = $1',
+        [txnId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Transaction not found' });
+      }
+
+      logger.info('Retrieved transaction:', {
+        correlationId,
+        transactionId: txnId
+      });
+
+      res.json(result.rows[0]);
+    } catch (error) {
+      logger.error('Failed to get transaction:', {
+        correlationId,
+        transactionId: txnId,
+        error: error.message
+      });
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Get queue metrics
+app.get('/metrics/queue', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT status, COUNT(*) as count 
+      FROM transactions 
+      GROUP BY status
+    `);
+
+    const metrics = {
+      pending: 0,
+      processing: 0,
+      completed: 0,
+      failed: 0
+    };
+
+    result.rows.forEach(row => {
+      metrics[row.status.toLowerCase()] = parseInt(row.count);
+    });
+
+    const ch = getChannel();
+    if (ch) {
+      const queue = await ch.checkQueue('transactions');
+      metrics.queueDepth = queue.messageCount;
+    }
+
+    res.json(metrics);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DLQ monitoring
+app.get('/admin/dlq', requireAdminKey, async (req, res) => {
+  try {
+    const ch = getChannel();
+    if (!ch) {
+      return res.status(503).json({ error: 'RabbitMQ not connected' });
+    }
+
+    const queue = await ch.checkQueue('transactions.dlq');
+
+    res.json({
+      queueName: 'transactions.dlq',
+      messageCount: queue.messageCount,
+      consumerCount: queue.consumerCount
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  logger.error('Unhandled error:', {
+    correlationId: req.correlationId,
+    error: err.message,
+    stack: err.stack
+  });
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+    correlationId: req.correlationId
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ 
+    error: 'Route not found',
+    correlationId: req.correlationId
+  });
+});
+
+// ============================================
+// SERVER STARTUP
+// ============================================
+const server = app.listen(PORT, () => {
+  logger.info(`Transaction service running on port ${PORT}`);
+});
+
+// Graceful shutdown (12-factor: disposability) with timeout under terminationGracePeriodSeconds
+const shutdown = (signal) => {
+  logger.info(`${signal} received: closing HTTP server`);
+  const deadline = Date.now() + 25000; // 25s
+  server.close(async () => {
+    logger.info('HTTP server closed');
+    try {
+      if (connection) await connection.close();
+      await pool.end();
+      await redisClient.quit();
+      process.exit(0);
+    } catch (err) {
+      logger.error('Shutdown error', err);
+      process.exit(1);
+    }
+  });
+  setTimeout(() => {
+    logger.error('Shutdown timeout, exiting');
+    process.exit(1);
+  }, Math.max(0, deadline - Date.now()));
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+module.exports = app; // For testing
+module.exports.processTransaction = processTransaction;

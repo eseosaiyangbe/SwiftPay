@@ -1,0 +1,56 @@
+# ============================================
+# SwiftPay HTTP Ingress (No TLS)
+# ============================================
+# Purpose: Routes external traffic to internal services
+# Use Case: Local development - simplest setup, no SSL complications
+# Why: For local development, HTTP is sufficient and easier to debug
+# 
+# Access:
+#   - Frontend: http://www.swiftpay.local
+#   - API: http://api.swiftpay.local
+#
+# Setup:
+#   1. Add to /etc/hosts (macOS/Linux) or C:\Windows\System32\drivers\etc\hosts (Windows):
+#      127.0.0.1 www.swiftpay.local api.swiftpay.local
+#   2. Get ingress IP: kubectl get ingress -n swiftpay
+#   3. Use ingress IP instead of 127.0.0.1 if different
+#
+# Note: This is for local development only. Use TLS ingress for production.
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: swiftpay-http-ingress
+  namespace: swiftpay
+  annotations:
+    # Rate limiting: 100 requests per minute per IP
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    # Enable CORS if needed
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+spec:
+  ingressClassName: nginx  # Use nginx ingress controller (enabled in MicroK8s)
+  rules:
+  # API Gateway routing — always use the Service port (80), not the container port (3000)
+  - host: api.swiftpay.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 80
+  # Frontend routing
+  - host: www.swiftpay.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix  # Match all paths starting with /
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80  # Frontend service port
+

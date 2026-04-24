@@ -20,6 +20,22 @@
 
 ## Why Monitoring Exists
 
+## Local Workspace Coexistence Note
+
+When `SwiftPay` runs inside the shared `DevOps-Easy-Learning` workspace, do not start the local Docker Compose monitoring or logging profiles alongside the central [PORT-ALLOCATION-MATRIX.md](/Users/raymond/Documents/DevOps-Easy-Learning/PORT-ALLOCATION-MATRIX.md) stack owner in `Obervability-Stack`.
+
+Reason:
+
+- `SwiftPay` local monitoring publishes host ports that overlap with the shared observability stack:
+- `9090` Prometheus
+- `9093` Alertmanager
+- `3100` Loki
+
+Safe rule:
+
+- use `Obervability-Stack` as the shared monitoring/logging owner for the workspace
+- use `SwiftPay` local monitoring only when running SwiftPay in isolation
+
 ### The Problem We're Solving
 
 **Without monitoring, you're flying blind:**
@@ -1087,4 +1103,3 @@ We'll add Promtail deployment next to complete the logging stack.
 ---
 
 *Monitoring isn't about graphs—it's about understanding your system and preventing problems before they happen.*
-

@@ -101,6 +101,7 @@ Fastest way to see the stack locally when you cannot or do not want MicroK8s yet
 git clone https://github.com/<your-username>/swiftpay-wallet-2.git && cd swiftpay-wallet-2
 docker compose up -d
 # Wait ~30 seconds for Postgres, then:
+./scripts/docker-storage-check.sh
 ./scripts/validate.sh
 open http://localhost:8081
 # API: http://localhost:3007/health — RabbitMQ UI: http://localhost:15672 (swiftpay / swiftpay123)
@@ -120,6 +121,8 @@ docker compose down -v
 ```
 
 `./scripts/validate.sh` targets the API gateway in Docker Compose, not the frontend. Use it to verify service health and core API flows after startup.
+
+For Docker-host health, `./scripts/docker-storage-check.sh` gives a fast operator view of Docker storage usage, SwiftPay logging policy, and the largest visible container log files. This is especially useful when several local projects share the same Docker runtime.
 
 ---
 

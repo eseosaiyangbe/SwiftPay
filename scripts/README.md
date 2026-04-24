@@ -5,6 +5,7 @@
 Run these from the repo root while Docker Compose is up:
 
 ```bash
+./scripts/docker-storage-check.sh
 npm run smoke:send-money
 npm run smoke:failed-transaction
 npm run smoke:notifications
@@ -15,6 +16,8 @@ npm run smoke:production-guards
 ```
 
 `smoke:password-reset` exercises the local forgot-password/reset-password flow. In development, Auth Service returns the reset token so the test can run without email infrastructure. Production must use email delivery instead of returning reset tokens to the browser.
+
+`./scripts/docker-storage-check.sh` reports Docker storage usage, SwiftPay container logging policy, and the largest visible Docker `json-file` logs. Run it before demos or during disk-pressure incidents so oversized logs are caught early.
 
 ## deploy-microk8s.sh (recommended for local / beginners)
 

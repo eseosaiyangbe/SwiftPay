@@ -1,5 +1,11 @@
 version: '3.8'
 
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 # #### Docker Compose Configuration ####
 # #### This file defines all services needed to run SwiftPay locally ####
 
@@ -12,6 +18,7 @@ services:
   # #### This stores all persistent data (users, wallets, transactions) ####
   postgres:
     image: postgres:15-alpine  # Use PostgreSQL version 15 with Alpine Linux (smaller image)
+    logging: *default-logging
     environment:
       POSTGRES_DB: swiftpay      # Database name
       POSTGRES_USER: swiftpay    # Database user
@@ -34,6 +41,7 @@ services:
   # #### This stores temporary data (sessions, cache, rate limiting) ####
   redis:
     image: redis:7-alpine  # Use Redis version 7 with Alpine Linux
+    logging: *default-logging
     ports:
       - "6379:6379"  # Expose Redis port to host
     volumes:
@@ -52,6 +60,7 @@ services:
   # #### Used for transaction processing and notifications ####
   rabbitmq:
     image: rabbitmq:3-management-alpine # #### RabbitMQ with management UI ####
+    logging: *default-logging
     ports:
       - "5672:5672"   # #### AMQP port for message publishing ####
       - "15672:15672" # #### Management UI port ####
@@ -78,6 +87,7 @@ services:
   prometheus:
     profiles: ["monitoring"]
     image: prom/prometheus:latest
+    logging: *default-logging
     ports:
       - "9090:9090"
     volumes:
@@ -99,6 +109,7 @@ services:
   grafana:
     profiles: ["monitoring"]
     image: grafana/grafana:latest
+    logging: *default-logging
     ports:
       - "3006:3000"
     environment:
@@ -117,6 +128,7 @@ services:
   alertmanager:
     profiles: ["monitoring"]
     image: prom/alertmanager:latest
+    logging: *default-logging
     ports:
       - "9093:9093"
     volumes:
@@ -138,6 +150,7 @@ services:
   loki:
     profiles: ["logging"]
     image: grafana/loki:latest
+    logging: *default-logging
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
@@ -150,6 +163,7 @@ services:
   promtail:
     profiles: ["logging"]
     image: grafana/promtail:latest
+    logging: *default-logging
     volumes:
       - /var/log:/var/log:ro
       - ./services:/services:ro
@@ -166,6 +180,7 @@ services:
     build:
       context: ./services
       dockerfile: auth-service/Dockerfile
+    logging: *default-logging
     ports:
       - "3004:3004"
     environment:
@@ -201,6 +216,7 @@ services:
     build:
       context: ./services
       dockerfile: wallet-service/Dockerfile
+    logging: *default-logging
     ports:
       - "3001:3001"
     environment:
@@ -235,6 +251,7 @@ services:
     build:
       context: ./services
       dockerfile: transaction-service/Dockerfile
+    logging: *default-logging
     ports:
       - "3008:3002"
     environment:
@@ -275,6 +292,7 @@ services:
     build:
       context: ./services
       dockerfile: notification-service/Dockerfile
+    logging: *default-logging
     ports:
       - "3003:3003"
     environment:
@@ -309,6 +327,7 @@ services:
     build:
       context: ./services
       dockerfile: api-gateway/Dockerfile
+    logging: *default-logging
     ports:
       - "3007:3000"
     environment:
@@ -360,6 +379,7 @@ services:
     build:
       context: ./services
       dockerfile: frontend/Dockerfile
+    logging: *default-logging
     ports:
       - "8081:80"
     environment:

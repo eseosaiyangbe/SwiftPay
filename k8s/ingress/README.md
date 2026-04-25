@@ -2,6 +2,8 @@
 
 > **Purpose**: Route external traffic to SwiftPay services with HTTPS support
 
+> **Phase 7 Note**: The workspace-wide Kubernetes direction now standardizes on Traefik as the preferred ingress controller. This SwiftPay document remains useful as workload-specific ingress learning material, but any NGINX-specific guidance here should be treated as transitional rather than the root platform standard.
+
 ---
 
 ## Overview
@@ -345,4 +347,3 @@ kubectl get pods -n ingress
 
 *Document created for SwiftPay ingress configuration*  
 *Last updated: December 25, 2025*
-

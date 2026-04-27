@@ -65,9 +65,50 @@ graph TB
 
 ## Golden Path — Pick Your Environment
 
-**Recommended for [`LEARNING-PATH.md`](LEARNING-PATH.md):** start with **MicroK8s** (Environment 1) so Week 1 matches real Kubernetes. Use **Docker Compose** (Environment 2) if you want the fastest smoke test without a cluster.
+**Phase 7 workspace standard:** use the `k3s` dev path first when you want SwiftPay to participate in the shared Kubernetes story with Traefik and the control plane. Keep the older MicroK8s path for legacy learner flow and repo history.
 
-### ☸️ Environment 1: MicroK8s (15–20 minutes) — recommended for learners
+### ☸️ Environment 1: k3s Dev (10–20 minutes) — recommended for the current workspace
+
+This is the owned Phase 7 local Kubernetes path for macOS and Linux. It aligns SwiftPay with the workspace `k3s` runtime, Traefik ingress, and the same migration pattern already proven with MemFlip.
+
+From the repo root, run:
+
+```bash
+./scripts/ensure-k3s-runtime.sh
+cd SwiftPay
+./scripts/k8s-dev-deploy.sh
+```
+
+Primary docs: [`docs/k3s-dev-deployment.md`](docs/k3s-dev-deployment.md)
+
+**What you get:**
+
+- namespace: `swiftpay-dev`
+- ingress hosts:
+  - `www.swiftpay.devops.local`
+  - `swiftpay.devops.local`
+  - `api.swiftpay.devops.local`
+- Traefik ingress
+- local self-hosted Postgres, Redis, and RabbitMQ inside the cluster
+- repeatable deploy, verify, and destroy scripts
+
+**Verify:**
+
+```bash
+cd SwiftPay
+./scripts/k8s-dev-verify.sh
+```
+
+**Teardown:**
+
+```bash
+cd SwiftPay
+./scripts/k8s-dev-destroy.sh
+```
+
+---
+
+### ☸️ Environment 2: MicroK8s (15–20 minutes) — legacy learner path
 
 Production-like Kubernetes on your machine—the same shape as cloud, without AWS cost.
 
@@ -93,7 +134,7 @@ kubectl delete namespace swiftpay
 
 ---
 
-### 🐳 Environment 2: Docker Compose (~5 minutes) — optional, no Kubernetes
+### 🐳 Environment 3: Docker Compose (~5 minutes) — optional, no Kubernetes
 
 Fastest way to see the stack locally when you cannot or do not want MicroK8s yet. In Docker Compose, the browser entrypoint is **`http://localhost:8081`** and the API gateway health endpoint is **`http://localhost:3007/health`**.
 
@@ -126,7 +167,7 @@ For Docker-host health, `./scripts/docker-storage-check.sh` gives a fast operato
 
 ---
 
-### ☁️ Environment 3: AWS EKS (first time ~45–90 minutes)
+### ☁️ Environment 4: AWS EKS (first time ~45–90 minutes)
 
 Full production deployment with RDS, ElastiCache, Amazon MQ.
 
@@ -184,12 +225,15 @@ IMAGE_TAG=<git-sha-from-ci> ./k8s/overlays/eks/deploy.sh
 - **Why database transactions matter** — Atomic debit/credit in PostgreSQL so balances never corrupt on failures.
 - **Idempotency keys** — How duplicate requests (retries, double-clicks) are detected and prevented from double-spending.
 - **Sync vs async** — HTTP for instant response; RabbitMQ workers for processing and notifications in the background.
-- **Kubernetes locally then in production** — MicroK8s first in [`LEARNING-PATH.md`](LEARNING-PATH.md), then EKS/AKS with Terraform and the same manifests.
+- **Kubernetes locally then in production** — `k3s` dev for the current workspace, MicroK8s as legacy learner content, then EKS/AKS with Terraform and the same core service model.
 
 ## Deploy to Kubernetes (short form)
 
 ```bash
-# MicroK8s (local) — recommended: ./scripts/deploy-microk8s.sh
+# k3s dev (current workspace standard)
+cd SwiftPay && ./scripts/k8s-dev-deploy.sh
+
+# MicroK8s (legacy learner path)
 kubectl apply -k k8s/overlays/local
 
 # AWS EKS (after ./spinup.sh or manual Terraform + bastion + ESO)
@@ -211,6 +255,7 @@ ACR_NAME=<your-acr> IMAGE_TAG=<git-sha> ./k8s/overlays/aks/deploy.sh
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Quick symptom → root cause → fix |
 | [Services](docs/SERVICES.md) | Endpoints, ports, env vars, queues |
 | [Architecture](docs/architecture.md) | Request flow, data model, diagrams |
+| [k3s dev](docs/k3s-dev-deployment.md) | Current owned local Kubernetes path for macOS and Linux |
 | [MicroK8s](docs/microk8s-deployment.md) | Local Kubernetes deploy and troubleshooting |
 | [Local CI/CD](docs/cicd-local.md) | Self-hosted runner + MicroK8s registry + Argo CD |
 | [Home lab drills](docs/HOME-LAB-DRILLS.md) | Hands-on break/fix exercises |

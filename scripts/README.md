@@ -19,6 +19,20 @@ npm run smoke:production-guards
 
 `./scripts/docker-storage-check.sh` reports Docker storage usage, SwiftPay container logging policy, and the largest visible Docker `json-file` logs. Run it before demos or during disk-pressure incidents so oversized logs are caught early.
 
+## k3s dev operator path
+
+This is the current owned local Kubernetes path for the workspace.
+
+```bash
+./scripts/k8s-dev-deploy.sh
+./scripts/k8s-dev-verify.sh
+./scripts/k8s-dev-destroy.sh
+```
+
+Use this when you want SwiftPay running on the shared local `k3s` runtime with Traefik, not the older MicroK8s learner track.
+
+See [k3s dev deployment](../docs/k3s-dev-deployment.md).
+
 ## deploy-microk8s.sh (recommended for local / beginners)
 
 One script to run SwiftPay on MicroK8s: **clone repo → run script**. It will:

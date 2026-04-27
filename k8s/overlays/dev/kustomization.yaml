@@ -1,0 +1,52 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: swiftpay-dev
+
+resources:
+  - ../../base
+  - secrets-db-secrets.yaml
+  - infra/postgres.yaml
+  - infra/redis.yaml
+  - infra/rabbitmq.yaml
+  - ingress-traefik.yaml
+  - supplemental-networkpolicy.yaml
+
+patches:
+  - path: dev-config-patch.yaml
+  - path: dev-env-patch.yaml
+  - path: dev-probe-delays-patch.yaml
+  - path: dev-pull-policy-patch.yaml
+  - path: dev-scale-patch.yaml
+  - path: dev-hpa-patch.yaml
+  - path: dev-pdb-patch.yaml
+  - path: dev-quota-patch.yaml
+  - path: dev-cronjob-patch.yaml
+  - path: dev-db-migration-patch.yaml
+
+labels:
+  - pairs:
+      cloud-provider: local
+      cluster: k3s
+      environment: dev
+    includeSelectors: false
+
+images:
+  - name: veeno/api-gateway
+    newName: swiftpay-api-gateway
+    newTag: dev
+  - name: veeno/auth-service
+    newName: swiftpay-auth-service
+    newTag: dev
+  - name: veeno/frontend
+    newName: swiftpay-frontend
+    newTag: dev
+  - name: veeno/notification-service
+    newName: swiftpay-notification-service
+    newTag: dev
+  - name: veeno/transaction-service
+    newName: swiftpay-transaction-service
+    newTag: dev
+  - name: veeno/wallet-service
+    newName: swiftpay-wallet-service
+    newTag: dev

@@ -1,11 +1,21 @@
 # Kustomize Overlays
 
-Kustomize overlays for deploying SwiftPay to AWS EKS and Azure AKS.
+Kustomize overlays for deploying SwiftPay across the current workspace and cloud targets.
 
 ## Structure
 
 ```
 overlays/
+├── dev/                 # Owned Phase 7 local k3s dev overlay
+│   ├── kustomization.yaml
+│   ├── ingress-traefik.yaml
+│   ├── supplemental-networkpolicy.yaml
+│   ├── infra/           # Local Postgres / Redis / RabbitMQ for repeatable dev runs
+│   └── ...patches
+├── local/               # Legacy MicroK8s learner overlay
+│   ├── kustomization.yaml
+│   ├── ingress-local.yaml
+│   └── ...patches
 ├── eks/                 # AWS EKS deployment
 │   ├── kustomization.yaml
 │   ├── db-config-patch.yaml
@@ -23,6 +33,12 @@ overlays/
 ```
 
 ## Quick Deploy
+
+**k3s dev (current workspace standard):**
+```bash
+cd ..
+./scripts/k8s-dev-deploy.sh
+```
 
 **EKS (automated):**
 ```bash
@@ -46,8 +62,9 @@ For complete deployment instructions, database migrations, and troubleshooting, 
 ## How It Works
 
 - **Base resources** (`../../base/`) define shared microservice deployments
-- **Overlays** patch base resources with cloud-specific configs (RDS endpoints, ECR/ACR images, ingress)
+- **`dev/`** is the owned Phase 7 local `k3s` path with Traefik and self-hosted infra
+- **`local/`** is the older MicroK8s learner path kept for continuity
+- **Cloud overlays** patch base resources with managed-service configs, cloud images, and cloud ingress
 - **Database migrations** run automatically before services start
 - **External Secrets** sync from AWS Secrets Manager (EKS) or Azure Key Vault (AKS)
 - **EKS:** `REDIS_URL` and `RABBITMQ_URL` come from Secrets Manager via External Secrets; Terraform (managed-services) writes the Redis URL after ElastiCache is created
-

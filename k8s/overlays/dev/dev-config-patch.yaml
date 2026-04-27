@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: swiftpay
+data:
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "swiftpay"
+  PGSSLMODE: "disable"
+  REDIS_URL: "redis://redis:6379"
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_PORT: "5672"
+  AUTH_SERVICE_URL: "http://auth-service:3004"
+  WALLET_SERVICE_URL: "http://wallet-service:3001"
+  TRANSACTION_SERVICE_URL: "http://transaction-service:3002"
+  NOTIFICATION_SERVICE_URL: "http://notification-service:3003"
+  CORS_ORIGIN: ""

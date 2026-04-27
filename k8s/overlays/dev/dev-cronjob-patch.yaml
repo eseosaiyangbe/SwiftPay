@@ -1,0 +1,7 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: transaction-timeout-handler
+  namespace: swiftpay
+spec:
+  suspend: true

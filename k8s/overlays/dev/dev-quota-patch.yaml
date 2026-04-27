@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: swiftpay-resource-quota
+  namespace: swiftpay
+spec:
+  hard:
+    requests.cpu: "3"
+    requests.memory: "6Gi"
+    limits.cpu: "8"
+    limits.memory: "12Gi"
+    pods: "40"
+    services: "20"
+    persistentvolumeclaims: "5"
+    secrets: "20"
+    configmaps: "15"

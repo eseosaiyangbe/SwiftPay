@@ -90,6 +90,7 @@ Primary docs: [`docs/k3s-dev-deployment.md`](docs/k3s-dev-deployment.md)
   - `api.swiftpay.devops.local`
 - Traefik ingress
 - local self-hosted Postgres, Redis, and RabbitMQ inside the cluster
+- Vault-backed secret delivery for `swiftpay-dev`
 - repeatable deploy, verify, and destroy scripts
 
 For the production contract, use `k8s/overlays/prod`. That overlay drops local infra, assumes managed dependencies, and expects Vault-backed secret materialization through External Secrets Operator. The target namespace is `swiftpay-prod`.

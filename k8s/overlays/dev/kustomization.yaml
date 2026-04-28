@@ -5,7 +5,9 @@ namespace: swiftpay-dev
 
 resources:
   - ../../base
-  - secrets-db-secrets.yaml
+  - vault-serviceaccount.yaml
+  - vault-secret-store.yaml
+  - vault-external-secrets.yaml
   - infra/postgres.yaml
   - infra/redis.yaml
   - infra/rabbitmq.yaml

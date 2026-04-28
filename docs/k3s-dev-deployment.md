@@ -21,6 +21,8 @@ Use the older MicroK8s docs only if you are intentionally following the legacy l
 
 For production intent, the owned overlay is now `k8s/overlays/prod`. It removes git-stored runtime secrets and assumes Vault is the source of truth, with External Secrets Operator materializing `db-secrets` inside `swiftpay-prod`.
 
+The same Vault-backed model now applies to `swiftpay-dev` as well. The local k3s path no longer relies on a checked-in `db-secrets` manifest.
+
 ## Prerequisites
 
 - Docker running
@@ -52,6 +54,8 @@ What the script does:
 3. applies the dev overlay into namespace `swiftpay-dev`
 4. waits for infra, migration, and service rollouts
 5. runs the verification path
+
+Before validation, the script also bootstraps the shared Vault and External Secrets platform unless you pass `--skip-secrets-platform`.
 
 ## Verify
 

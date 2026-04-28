@@ -10,6 +10,7 @@ Build and deploy the SwiftPay k3s dev overlay to the current Kubernetes context.
 Options:
   --skip-runtime  Skip local k3s runtime bootstrap
   --skip-build    Reuse existing local images
+  --skip-secrets-platform  Skip shared Vault and External Secrets bootstrap
   --skip-apply    Only build and validate; do not apply manifests
   --hostname HOST Override frontend ingress hostname validation target
   -h, --help      Show this help message
@@ -21,6 +22,7 @@ WORKSPACE_ROOT="$(cd "${ROOT_DIR}/.." && pwd)"
 HOSTNAME_OVERRIDE="www.swiftpay.devops.local"
 SKIP_RUNTIME=0
 SKIP_BUILD=0
+SKIP_SECRETS_PLATFORM=0
 SKIP_APPLY=0
 
 while [[ $# -gt 0 ]]; do
@@ -31,6 +33,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-build)
       SKIP_BUILD=1
+      shift
+      ;;
+    --skip-secrets-platform)
+      SKIP_SECRETS_PLATFORM=1
       shift
       ;;
     --skip-apply)
@@ -57,6 +63,10 @@ cd "$ROOT_DIR"
 
 if [[ "$SKIP_RUNTIME" -eq 0 ]]; then
   "${WORKSPACE_ROOT}/scripts/ensure-k3s-runtime.sh" >/dev/null
+fi
+
+if [[ "$SKIP_SECRETS_PLATFORM" -eq 0 ]]; then
+  "${WORKSPACE_ROOT}/scripts/bootstrap-k3s-vault-secrets.sh" >/dev/null
 fi
 
 echo "[swiftpay-k8s] Validating kustomize overlay"

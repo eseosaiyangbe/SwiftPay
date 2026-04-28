@@ -68,7 +68,7 @@ For complete deployment instructions, database migrations, and troubleshooting, 
 ## How It Works
 
 - **Base resources** (`../../base/`) define shared microservice deployments
-- **`dev/`** is the owned Phase 7 local `k3s` path with Traefik and self-hosted infra
+- **`dev/`** is the owned Phase 7 local `k3s` path with Traefik, self-hosted infra, and Vault-backed secret materialization
 - **`prod/`** is the owned production contract path with Traefik ingress, managed dependency expectations, and Vault-backed secrets via External Secrets Operator
 - **`local/`** is the older MicroK8s learner path kept for continuity
 - **Cloud overlays** patch base resources with managed-service configs, cloud images, and cloud ingress

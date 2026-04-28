@@ -12,6 +12,12 @@ overlays/
 │   ├── supplemental-networkpolicy.yaml
 │   ├── infra/           # Local Postgres / Redis / RabbitMQ for repeatable dev runs
 │   └── ...patches
+├── prod/                # Owned production contract overlay with Vault-backed secrets
+│   ├── kustomization.yaml
+│   ├── ingress-traefik.yaml
+│   ├── vault-secret-store.yaml
+│   ├── vault-external-secrets.yaml
+│   └── ...patches
 ├── local/               # Legacy MicroK8s learner overlay
 │   ├── kustomization.yaml
 │   ├── ingress-local.yaml
@@ -63,8 +69,9 @@ For complete deployment instructions, database migrations, and troubleshooting, 
 
 - **Base resources** (`../../base/`) define shared microservice deployments
 - **`dev/`** is the owned Phase 7 local `k3s` path with Traefik and self-hosted infra
+- **`prod/`** is the owned production contract path with Traefik ingress, managed dependency expectations, and Vault-backed secrets via External Secrets Operator
 - **`local/`** is the older MicroK8s learner path kept for continuity
 - **Cloud overlays** patch base resources with managed-service configs, cloud images, and cloud ingress
 - **Database migrations** run automatically before services start
-- **External Secrets** sync from AWS Secrets Manager (EKS) or Azure Key Vault (AKS)
+- **External Secrets** sync from Vault for the workspace-standard `prod` path, and from cloud secret stores in cloud-specific overlays
 - **EKS:** `REDIS_URL` and `RABBITMQ_URL` come from Secrets Manager via External Secrets; Terraform (managed-services) writes the Redis URL after ElastiCache is created

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: swiftpay
+data:
+  DB_NAME: "swiftpay"
+  PGSSLMODE: "require"
+  AUTH_SERVICE_URL: "http://auth-service:3004"
+  WALLET_SERVICE_URL: "http://wallet-service:3001"
+  TRANSACTION_SERVICE_URL: "http://transaction-service:3002"
+  NOTIFICATION_SERVICE_URL: "http://notification-service:3003"
+  CORS_ORIGIN: "https://swiftpay.prod.example.com"

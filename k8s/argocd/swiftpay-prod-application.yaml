@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: swiftpay-prod
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: devops-easy-learning
+    environment: prod
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/eseosaiyangbe/DevOps-Easy-Learning.git
+    targetRevision: main
+    path: SwiftPay/k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: swiftpay-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

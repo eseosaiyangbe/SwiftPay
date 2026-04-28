@@ -19,6 +19,8 @@ Use this path when you want to validate SwiftPay as a real local Kubernetes work
 
 Use the older MicroK8s docs only if you are intentionally following the legacy learner workflow or maintaining that earlier environment.
 
+For production intent, the owned overlay is now `k8s/overlays/prod`. It removes git-stored runtime secrets and assumes Vault is the source of truth, with External Secrets Operator materializing `db-secrets` inside `swiftpay-prod`.
+
 ## Prerequisites
 
 - Docker running

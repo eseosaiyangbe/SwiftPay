@@ -1,0 +1,13 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migration-job
+  namespace: swiftpay
+spec:
+  template:
+    spec:
+      containers:
+        - name: db-migration
+          env:
+            - name: PGSSLMODE
+              value: "require"

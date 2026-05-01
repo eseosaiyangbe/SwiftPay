@@ -25,6 +25,8 @@ patches:
   - path: dev-quota-patch.yaml
   - path: dev-cronjob-patch.yaml
   - path: dev-db-migration-patch.yaml
+  - path: dev-resource-requests-patch.yaml
+  - path: dev-rollout-strategy-patch.yaml
 
 labels:
   - pairs:

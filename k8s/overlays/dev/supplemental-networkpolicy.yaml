@@ -152,8 +152,12 @@ spec:
                   - platform-observability-dev
                   - platform-observability-prod
           podSelector:
-            matchLabels:
-              app.kubernetes.io/name: prometheus
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - prometheus
+                  - blackbox-exporter
       ports:
         - protocol: TCP
           port: 3000

@@ -79,7 +79,7 @@ for _ in {1..20}; do
   fi
   sleep 1
 done
-"${ROOT_DIR}/scripts/validate.sh" --env cloud --host http://127.0.0.1:38080
+"${ROOT_DIR}/scripts/validate.sh" --env dev --host http://127.0.0.1:38080
 
 echo "[swiftpay-k8s] Verifying database, Redis, and RabbitMQ"
 kubectl exec -n swiftpay-dev statefulset/postgres -- sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null

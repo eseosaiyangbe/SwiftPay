@@ -5,6 +5,7 @@ metadata:
   namespace: swiftpay-prod
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: traefik
   tls:

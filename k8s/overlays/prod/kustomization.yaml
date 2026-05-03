@@ -16,6 +16,7 @@ patches:
   - path: prod-scale-patch.yaml
   - path: prod-hpa-patch.yaml
   - path: prod-pdb-patch.yaml
+  - path: prod-placement-patch.yaml
   - path: prod-probe-delays-patch.yaml
   - path: prod-db-migration-patch.yaml
 

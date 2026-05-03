@@ -69,7 +69,7 @@ spec:
                 name: api-gateway
                 port:
                   number: 80
-    - host: api.swiftpay.eseosadevbox.com
+    - host: swiftpay-api.eseosadevbox.com
       http:
         paths:
           - path: /

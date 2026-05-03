@@ -13,7 +13,7 @@ spec:
         - swiftpay.eseosadevbox.com
       secretName: swiftpay-frontend-prod-tls
     - hosts:
-        - api.swiftpay.eseosadevbox.com
+        - swiftpay-api.eseosadevbox.com
       secretName: swiftpay-api-prod-tls
   rules:
     - host: swiftpay.eseosadevbox.com
@@ -33,7 +33,7 @@ spec:
                 name: frontend
                 port:
                   number: 80
-    - host: api.swiftpay.eseosadevbox.com
+    - host: swiftpay-api.eseosadevbox.com
       http:
         paths:
           - path: /

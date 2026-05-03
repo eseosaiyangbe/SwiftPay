@@ -7,6 +7,14 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - www.swiftpay.prod.example.com
+        - swiftpay.prod.example.com
+      secretName: swiftpay-frontend-prod-tls
+    - hosts:
+        - api.swiftpay.prod.example.com
+      secretName: swiftpay-api-prod-tls
   rules:
     - host: www.swiftpay.prod.example.com
       http:

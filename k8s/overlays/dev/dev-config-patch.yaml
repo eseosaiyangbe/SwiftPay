@@ -15,4 +15,4 @@ data:
   WALLET_SERVICE_URL: "http://wallet-service:3001"
   TRANSACTION_SERVICE_URL: "http://transaction-service:3002"
   NOTIFICATION_SERVICE_URL: "http://notification-service:3003"
-  CORS_ORIGIN: ""
+  CORS_ORIGIN: "https://swiftpay.eseosadevbox.com,http://swiftpay.devops.local,http://www.swiftpay.devops.local"

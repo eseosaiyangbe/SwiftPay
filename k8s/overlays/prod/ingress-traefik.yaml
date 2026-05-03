@@ -10,14 +10,13 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - www.swiftpay.prod.example.com
-        - swiftpay.prod.example.com
+        - swiftpay.eseosadevbox.com
       secretName: swiftpay-frontend-prod-tls
     - hosts:
-        - api.swiftpay.prod.example.com
+        - api.swiftpay.eseosadevbox.com
       secretName: swiftpay-api-prod-tls
   rules:
-    - host: www.swiftpay.prod.example.com
+    - host: swiftpay.eseosadevbox.com
       http:
         paths:
           - path: /api
@@ -34,24 +33,7 @@ spec:
                 name: frontend
                 port:
                   number: 80
-    - host: swiftpay.prod.example.com
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: api-gateway
-                port:
-                  number: 80
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: frontend
-                port:
-                  number: 80
-    - host: api.swiftpay.prod.example.com
+    - host: api.swiftpay.eseosadevbox.com
       http:
         paths:
           - path: /

@@ -4,14 +4,14 @@ metadata:
   name: swiftpay-prod
   namespace: argocd
   labels:
-    app.kubernetes.io/part-of: devops-easy-learning
+    app.kubernetes.io/part-of: internal-developer-platform
     environment: prod
 spec:
   project: default
   source:
-    repoURL: https://github.com/eseosaiyangbe/DevOps-Easy-Learning.git
+    repoURL: https://github.com/eseosaiyangbe/SwiftPay.git
     targetRevision: main
-    path: SwiftPay/k8s/overlays/prod
+    path: k8s/overlays/prod
   destination:
     server: https://kubernetes.default.svc
     namespace: swiftpay-prod

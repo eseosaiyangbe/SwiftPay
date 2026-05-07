@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: swiftpay-dev
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: internal-developer-platform
+    environment: dev
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/eseosaiyangbe/SwiftPay.git
+    targetRevision: main
+    path: k8s/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: swiftpay-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

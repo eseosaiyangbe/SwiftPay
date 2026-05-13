@@ -61,12 +61,41 @@ done
 
 cd "$ROOT_DIR"
 
+resolve_workspace_script() {
+  local script_name="$1"
+  local candidates=(
+    "${WORKSPACE_ROOT}/scripts/${script_name}"
+    "${WORKSPACE_ROOT}/internal-developer-platform/scripts/${script_name}"
+  )
+
+  for candidate in "${candidates[@]}"; do
+    if [[ -f "${candidate}" ]]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 if [[ "$SKIP_RUNTIME" -eq 0 ]]; then
-  "${WORKSPACE_ROOT}/scripts/ensure-k3s-runtime.sh" >/dev/null
+  runtime_script=$(resolve_workspace_script "ensure-k3s-runtime.sh") || {
+    echo "ERROR: Missing ensure-k3s-runtime.sh in workspace. Expected one of:" >&2
+    echo "  ${WORKSPACE_ROOT}/scripts/ensure-k3s-runtime.sh" >&2
+    echo "  ${WORKSPACE_ROOT}/internal-developer-platform/scripts/ensure-k3s-runtime.sh" >&2
+    exit 1
+  }
+  "${runtime_script}" >/dev/null
 fi
 
 if [[ "$SKIP_SECRETS_PLATFORM" -eq 0 ]]; then
-  "${WORKSPACE_ROOT}/scripts/bootstrap-k3s-vault-secrets.sh" >/dev/null
+  secrets_script=$(resolve_workspace_script "bootstrap-k3s-vault-secrets.sh") || {
+    echo "ERROR: Missing bootstrap-k3s-vault-secrets.sh in workspace. Expected one of:" >&2
+    echo "  ${WORKSPACE_ROOT}/scripts/bootstrap-k3s-vault-secrets.sh" >&2
+    echo "  ${WORKSPACE_ROOT}/internal-developer-platform/scripts/bootstrap-k3s-vault-secrets.sh" >&2
+    exit 1
+  }
+  "${secrets_script}" >/dev/null
 fi
 
 echo "[swiftpay-k8s] Validating kustomize overlay"

@@ -102,12 +102,27 @@ cd SwiftPay
 ./scripts/k8s-dev-verify.sh
 ```
 
-**Teardown:**
+**Lifecycle controls:**
 
 ```bash
 cd SwiftPay
-./scripts/k8s-dev-destroy.sh
+./scripts/k8s-start.sh
+./scripts/k8s-stop.sh
+./scripts/k8s-reset.sh --help
 ```
+
+Use these intentionally:
+
+- `./scripts/k8s-start.sh`
+  - safe start or resume for `swiftpay-dev`
+  - scales preserved workloads back up if the namespace already exists
+  - falls back to the full deploy path only when the namespace does not exist
+- `./scripts/k8s-stop.sh`
+  - safe stop for `swiftpay-dev`
+  - scales the workloads down to `0` and preserves the namespace plus PVC-backed state
+- `./scripts/k8s-reset.sh`
+  - destructive reset for `swiftpay-dev`
+  - deletes the namespace and PVC-backed runtime state so the next `k8s-start.sh` run starts fresh
 
 ---
 

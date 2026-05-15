@@ -57,6 +57,66 @@ What the script does:
 
 Before validation, the script also bootstraps the shared Vault and External Secrets platform unless you pass `--skip-secrets-platform`.
 
+## Lifecycle Controls
+
+For the repo-local SwiftPay dev slice, use these commands deliberately:
+
+### Start or resume the dev slice
+
+```bash
+cd SwiftPay
+./scripts/k8s-start.sh
+```
+
+This script:
+
+1. resumes the preserved `swiftpay-dev` workloads if the namespace already exists
+2. falls back to the full deploy path only when the namespace does not exist
+3. preserves PostgreSQL and Redis PVC-backed state across normal stop/start cycles
+4. can still force a fresh image rollout with `--build`
+
+### Stop the dev slice safely
+
+```bash
+cd SwiftPay
+./scripts/k8s-stop.sh
+```
+
+This script:
+
+1. scales the SwiftPay deployments down to `0`
+2. scales the PostgreSQL statefulset down to `0`
+3. preserves the namespace and PVC-backed state
+4. does not intentionally remove SwiftPay runtime data
+
+If you want it to wait for workloads to terminate:
+
+```bash
+cd SwiftPay
+./scripts/k8s-stop.sh --wait
+```
+
+### Destructive reset for a clean reinstall
+
+```bash
+cd SwiftPay
+./scripts/k8s-reset.sh --wait
+```
+
+This script:
+
+1. deletes the entire `swiftpay-dev` namespace
+2. removes the PostgreSQL and Redis PVC-backed state
+3. destroys the current SwiftPay dev runtime data
+4. leaves the next `./scripts/k8s-start.sh` run to recreate the namespace and full deploy path
+
+For unattended reset runs:
+
+```bash
+cd SwiftPay
+./scripts/k8s-reset.sh --yes --wait
+```
+
 ## Verify
 
 ```bash
@@ -90,15 +150,6 @@ To discover the current Traefik address:
 ```bash
 kubectl get svc traefik -n traefik
 ```
-
-## Destroy
-
-```bash
-cd SwiftPay
-./scripts/k8s-dev-destroy.sh
-```
-
-This removes the entire `swiftpay-dev` namespace and its local PVC-backed workload state.
 
 ## Notes
 

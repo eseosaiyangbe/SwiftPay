@@ -27,11 +27,94 @@ This is the current owned local Kubernetes path for the workspace.
 ./scripts/k8s-dev-deploy.sh
 ./scripts/k8s-dev-verify.sh
 ./scripts/k8s-dev-destroy.sh
+./scripts/k8s-backup-run.sh
+./scripts/k8s-backup-inspect.sh
+./scripts/k8s-backup-delete.sh --help
+./scripts/k8s-restore-run.sh
+./scripts/k8s-restore-verify.sh
 ```
 
 Use this when you want SwiftPay running on the shared local `k3s` runtime with Traefik, not the older MicroK8s learner track.
 
 See [k3s dev deployment](../docs/k3s-dev-deployment.md).
+
+See [Kubernetes backup and restore](../docs/K8S_BACKUP_RESTORE.md).
+
+### `k8s-backup-run.sh`
+**SwiftPay state backup runner** for the owned `k3s` path.
+
+```bash
+# Usage
+./scripts/k8s-backup-run.sh
+```
+
+**Features:**
+- creates a one-off backup job from the scheduled SwiftPay state backup CronJob
+- streams PostgreSQL and Redis backup container logs
+
+### `k8s-backup-inspect.sh`
+**Backup artifact inspector** for the SwiftPay backup PVC.
+
+```bash
+# Usage
+./scripts/k8s-backup-inspect.sh
+```
+
+**Features:**
+- mounts `swiftpay-backup-storage`
+- lists retained PostgreSQL dump and Redis snapshot artifacts
+
+### `k8s-backup-delete.sh`
+**Backup artifact cleanup helper** for the SwiftPay backup PVC.
+
+```bash
+# Delete all backup artifacts
+./scripts/k8s-backup-delete.sh --all
+
+# Keep only the newest PostgreSQL dump and newest Redis snapshot
+./scripts/k8s-backup-delete.sh --keep-latest
+```
+
+**Features:**
+- deletes all backup artifacts when requested
+- prunes older backup artifacts while keeping the newest backup set
+- mounts `swiftpay-backup-storage` directly so cleanup is reliable on local `k3s`
+
+### `k8s-restore-run.sh`
+**SwiftPay state restore runner** for the owned `k3s` path.
+
+```bash
+# Usage
+./scripts/k8s-restore-run.sh
+
+# Restore a specific backup set
+./scripts/k8s-restore-run.sh swiftpay-postgres-YYYYMMDDTHHMMSSZ.dump swiftpay-redis-YYYYMMDDTHHMMSSZ.rdb
+```
+
+**Features:**
+- scales the SwiftPay service deployments, RabbitMQ, and Redis down before restore
+- restores PostgreSQL-backed business data
+- restores Redis continuity state
+- scales workloads back up after restore
+
+Before using this against a live ArgoCD-managed `swiftpay-dev` namespace, suspend automated sync on both:
+
+- `internal-developer-platform-dev-root`
+- `swiftpay-dev`
+
+### `k8s-restore-verify.sh`
+**Restore verification runner** for the owned `k3s` path.
+
+```bash
+# Usage
+./scripts/k8s-restore-verify.sh
+```
+
+**Features:**
+- confirms the main SwiftPay workloads are ready again
+- waits for PostgreSQL to accept connections before running SQL validation
+- verifies PostgreSQL business tables exist and are queryable
+- verifies Redis PVC state files exist on the restored volume
 
 ## deploy-microk8s.sh (recommended for local / beginners)
 

@@ -132,6 +132,33 @@ The verification path checks:
 - end-to-end auth and wallet flow via `./scripts/validate.sh`
 - PostgreSQL, Redis, and RabbitMQ health
 
+## Backup And Restore
+
+The owned `swiftpay-dev` Kubernetes path now has an explicit backup and restore contract.
+
+Coverage:
+
+- PostgreSQL business data
+- Redis continuity state
+
+Primary reference:
+
+- [K8S_BACKUP_RESTORE.md](/Users/raymond/Documents/DevOps-Easy-Learning/SwiftPay/docs/K8S_BACKUP_RESTORE.md)
+
+Fast operator checks:
+
+```bash
+kubectl get application swiftpay-dev -n argocd -o wide
+kubectl get cronjob,pvc -n swiftpay-dev | rg 'swiftpay-state-backup|swiftpay-backup-storage|NAME'
+./scripts/k8s-backup-run.sh
+./scripts/k8s-backup-inspect.sh
+./scripts/k8s-backup-delete.sh --keep-latest
+./scripts/k8s-restore-run.sh swiftpay-postgres-YYYYMMDDTHHMMSSZ.dump swiftpay-redis-YYYYMMDDTHHMMSSZ.rdb
+./scripts/k8s-restore-verify.sh
+```
+
+For a live restore drill under ArgoCD, suspend automated sync on `internal-developer-platform-dev-root` and `swiftpay-dev` before running `k8s-restore-run.sh`, then re-enable automation and hard-refresh `swiftpay-dev` after verification. The full end-to-end sequence is documented in [K8S_BACKUP_RESTORE.md](/Users/raymond/Documents/DevOps-Easy-Learning/SwiftPay/docs/K8S_BACKUP_RESTORE.md).
+
 ## Access
 
 The overlay publishes these hosts through Traefik:

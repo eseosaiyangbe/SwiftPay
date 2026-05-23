@@ -109,6 +109,11 @@ cd SwiftPay
 ./scripts/k8s-start.sh
 ./scripts/k8s-stop.sh
 ./scripts/k8s-reset.sh --help
+./scripts/k8s-backup-run.sh
+./scripts/k8s-backup-inspect.sh
+./scripts/k8s-backup-delete.sh --help
+./scripts/k8s-restore-run.sh
+./scripts/k8s-restore-verify.sh
 ```
 
 Use these intentionally:
@@ -123,6 +128,18 @@ Use these intentionally:
 - `./scripts/k8s-reset.sh`
   - destructive reset for `swiftpay-dev`
   - deletes the namespace and PVC-backed runtime state so the next `k8s-start.sh` run starts fresh
+- `./scripts/k8s-backup-run.sh`
+  - creates a one-off SwiftPay state backup from the scheduled backup contract
+- `./scripts/k8s-backup-inspect.sh`
+  - lists retained PostgreSQL and Redis backup artifacts from the backup PVC
+- `./scripts/k8s-backup-delete.sh`
+  - deletes all backups or prunes older backup artifacts while keeping the newest set
+- `./scripts/k8s-restore-run.sh`
+  - restores PostgreSQL business data and Redis continuity state
+- `./scripts/k8s-restore-verify.sh`
+  - verifies restore readiness and restored state
+
+For a live restore drill with ArgoCD enabled, temporarily suspend automated sync on `internal-developer-platform-dev-root` and `swiftpay-dev` first, then re-enable automation after the drill. See [`docs/K8S_BACKUP_RESTORE.md`](docs/K8S_BACKUP_RESTORE.md) for the exact sequence.
 
 ---
 

@@ -11,6 +11,7 @@ resources:
   - infra/postgres.yaml
   - infra/redis.yaml
   - infra/rabbitmq.yaml
+  - state-backup.yaml
   - ingress-traefik.yaml
   - supplemental-networkpolicy.yaml
 

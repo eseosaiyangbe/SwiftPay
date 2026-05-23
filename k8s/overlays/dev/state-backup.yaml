@@ -1,0 +1,158 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: swiftpay-state-backup
+  namespace: swiftpay-dev
+spec:
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            backup-role: state-backup
+            app.kubernetes.io/name: swiftpay-state-backup
+        spec:
+          restartPolicy: OnFailure
+          initContainers:
+            - name: prepare-timestamp
+              image: busybox:1.36
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  cpu: 50m
+                  memory: 64Mi
+              command:
+                - sh
+                - -ec
+                - |
+                  date -u +%Y%m%dT%H%M%SZ > /meta/timestamp
+              volumeMounts:
+                - name: backup-meta
+                  mountPath: /meta
+          containers:
+            - name: postgres-backup
+              image: postgres:16-alpine
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 250m
+                  memory: 256Mi
+              env:
+                - name: PGHOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-secrets
+                      key: DB_HOST
+                - name: PGPORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-secrets
+                      key: DB_PORT
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-secrets
+                      key: DB_USER
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-secrets
+                      key: DB_PASSWORD
+                - name: PGDATABASE
+                  valueFrom:
+                    configMapKeyRef:
+                      name: app-config
+                      key: DB_NAME
+              command:
+                - sh
+                - -ec
+                - |
+                  ts="$(cat /meta/timestamp)"
+                  target="/backup/swiftpay-postgres-${ts}.dump"
+                  tmp="${target}.tmp"
+
+                  echo "Starting PostgreSQL backup to ${target}"
+                  pg_dump \
+                    --host="${PGHOST}" \
+                    --port="${PGPORT}" \
+                    --username="${PGUSER}" \
+                    --dbname="${PGDATABASE}" \
+                    --format=custom \
+                    --clean \
+                    --if-exists \
+                    --no-owner \
+                    --no-privileges \
+                    --file="${tmp}"
+
+                  [ -s "${tmp}" ]
+                  mv "${tmp}" "${target}"
+                  find /backup -maxdepth 1 -type f -name 'swiftpay-postgres-*.dump' -mtime +7 -delete
+                  ls -lh /backup/swiftpay-postgres-*.dump 2>/dev/null || true
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+                - name: backup-meta
+                  mountPath: /meta
+            - name: redis-backup
+              image: redis:7-alpine
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              env:
+                - name: REDIS_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-secrets
+                      key: REDIS_URL
+              command:
+                - sh
+                - -ec
+                - |
+                  ts="$(cat /meta/timestamp)"
+                  target="/backup/swiftpay-redis-${ts}.rdb"
+                  tmp="${target}.tmp"
+
+                  echo "Starting Redis backup to ${target}"
+                  redis-cli -u "${REDIS_URL}" --rdb "${tmp}"
+
+                  [ -s "${tmp}" ]
+                  mv "${tmp}" "${target}"
+                  find /backup -maxdepth 1 -type f -name 'swiftpay-redis-*.rdb' -mtime +7 -delete
+                  ls -lh /backup/swiftpay-redis-*.rdb 2>/dev/null || true
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+                - name: backup-meta
+                  mountPath: /meta
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: swiftpay-backup-storage
+            - name: backup-meta
+              emptyDir: {}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: swiftpay-backup-storage
+  namespace: swiftpay-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

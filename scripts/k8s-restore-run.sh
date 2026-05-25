@@ -1,6 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+  cat <<'EOF'
+Usage:
+  ./scripts/k8s-restore-run.sh
+  ./scripts/k8s-restore-run.sh <postgres-backup.dump> <redis-backup.rdb>
+  ./scripts/k8s-restore-run.sh --help
+
+Behavior:
+  With no arguments, restore the newest valid PostgreSQL and Redis backups.
+  With two arguments, restore the specific backup pair you name.
+EOF
+}
+
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+if [[ "$#" -ne 0 && "$#" -ne 2 ]]; then
+  echo "ERROR: expected either zero arguments or exactly two backup filenames" >&2
+  usage >&2
+  exit 1
+fi
+
 NAMESPACE="${NAMESPACE:-swiftpay-dev}"
 POD_NAME="${POD_NAME:-swiftpay-state-restore}"
 BACKUP_PVC="${BACKUP_PVC:-swiftpay-backup-storage}"

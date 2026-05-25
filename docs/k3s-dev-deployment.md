@@ -141,6 +141,11 @@ Coverage:
 - PostgreSQL business data
 - Redis continuity state
 
+Schedule standard:
+
+- the SwiftPay state backup CronJob runs daily at `02:00 UTC`
+- the CronJob timezone is explicitly pinned to `Etc/UTC`
+
 Primary reference:
 
 - [K8S_BACKUP_RESTORE.md](/Users/raymond/Documents/DevOps-Easy-Learning/SwiftPay/docs/K8S_BACKUP_RESTORE.md)

@@ -5,6 +5,7 @@ metadata:
   namespace: swiftpay-dev
 spec:
   schedule: "0 2 * * *"
+  timeZone: "Etc/UTC"
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   jobTemplate:
@@ -72,6 +73,8 @@ spec:
                     configMapKeyRef:
                       name: app-config
                       key: DB_NAME
+                - name: KEEP_BACKUPS
+                  value: "7"
               command:
                 - sh
                 - -ec
@@ -95,7 +98,10 @@ spec:
 
                   [ -s "${tmp}" ]
                   mv "${tmp}" "${target}"
-                  find /backup -maxdepth 1 -type f -name 'swiftpay-postgres-*.dump' -mtime +7 -delete
+                  keep="${KEEP_BACKUPS:-7}"
+                  if [ "${keep}" -gt 0 ] 2>/dev/null; then
+                    ls -1t /backup/swiftpay-postgres-*.dump 2>/dev/null | tail -n +"$((keep + 1))" | xargs -r rm -f
+                  fi
                   ls -lh /backup/swiftpay-postgres-*.dump 2>/dev/null || true
               volumeMounts:
                 - name: backup-storage
@@ -118,6 +124,8 @@ spec:
                     secretKeyRef:
                       name: db-secrets
                       key: REDIS_URL
+                - name: KEEP_BACKUPS
+                  value: "7"
               command:
                 - sh
                 - -ec
@@ -131,7 +139,10 @@ spec:
 
                   [ -s "${tmp}" ]
                   mv "${tmp}" "${target}"
-                  find /backup -maxdepth 1 -type f -name 'swiftpay-redis-*.rdb' -mtime +7 -delete
+                  keep="${KEEP_BACKUPS:-7}"
+                  if [ "${keep}" -gt 0 ] 2>/dev/null; then
+                    ls -1t /backup/swiftpay-redis-*.rdb 2>/dev/null | tail -n +"$((keep + 1))" | xargs -r rm -f
+                  fi
                   ls -lh /backup/swiftpay-redis-*.rdb 2>/dev/null || true
               volumeMounts:
                 - name: backup-storage

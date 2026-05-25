@@ -139,6 +139,8 @@ Use these intentionally:
 - `./scripts/k8s-restore-verify.sh`
   - verifies restore readiness and restored state
 
+The scheduled SwiftPay state backup is automated through Kubernetes CronJob and is pinned to `Etc/UTC` for a public, unambiguous operating contract.
+
 For a live restore drill with ArgoCD enabled, temporarily suspend automated sync on `internal-developer-platform-dev-root` and `swiftpay-dev` first, then re-enable automation after the drill. See [`docs/K8S_BACKUP_RESTORE.md`](docs/K8S_BACKUP_RESTORE.md) for the exact sequence.
 
 ---

@@ -38,13 +38,25 @@ Scheduled state backups are produced by:
 
 Default scheduled behavior:
 
-- daily backup run at `0 2 * * *`
-- keep the most recent `7` days by file age
+- daily backup run at `0 2 * * *` in `Etc/UTC`
+- keep the most recent `7` backup sets
+
+Timezone policy:
+
+- the backup CronJob is pinned to `Etc/UTC`
+- backup filenames are written in UTC
+- operator-facing local time conversions should be treated as secondary documentation only
 
 Each backup run produces:
 
 - `swiftpay-postgres-<timestamp>.dump`
 - `swiftpay-redis-<timestamp>.rdb`
+
+Retention policy:
+
+- PostgreSQL dumps keep the newest `7` artifacts
+- Redis snapshots keep the newest `7` artifacts
+- retention is count-based, not file-age-based
 
 ## Operator Commands
 

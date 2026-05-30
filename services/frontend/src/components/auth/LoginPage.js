@@ -127,6 +127,12 @@ export function LoginPage({ onLogin, notice }) {
         <h1 className="text-3xl font-bold text-center text-slate-900 mb-2">SwiftPay</h1>
         <p className="text-center text-slate-600 mb-8">Secure Digital Wallet</p>
 
+        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <p className="text-sm text-blue-900">
+            To test SwiftPay, create two accounts. Each new user receives a starter wallet balance, then sign in and use <strong>Send Money</strong> to transfer funds between the two accounts.
+          </p>
+        </div>
+
         {notice && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start space-x-3">
             <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />

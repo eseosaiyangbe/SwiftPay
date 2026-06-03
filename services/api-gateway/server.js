@@ -16,6 +16,22 @@ function clientErrorPayload(err, fallback = 'Service unavailable') {
   return { error: fallback };
 }
 
+function summarizeError(err) {
+  return {
+    message: err.message,
+    code: err.code || null,
+    status: err.response?.status || null,
+    responseData: err.response?.data || null,
+  };
+}
+
+function logUpstreamFailure(context, err, metadata = {}) {
+  console.error(`[api-gateway] ${context} failed`, {
+    ...metadata,
+    ...summarizeError(err),
+  });
+}
+
 const { Counter, Gauge } = require('prom-client');
 const { register, metricsMiddleware, metricsHandler, transactionTotal } = require('./shared/metrics');
 require('dotenv').config();
@@ -211,7 +227,10 @@ const executeWithCircuitBreaker = async (service, operation, fn) => {
   // #### Don't call the service if it's known to be broken ####
   if (breaker.state === 1) {
     circuitBreakerState.set({ service, operation }, 1); // #### Update metric ####
-    throw new Error(`Circuit breaker open for ${service}-${operation}`); // #### Throw error ####
+    const error = new Error(`Circuit breaker open for ${service}-${operation}`); // #### Throw error ####
+    error.code = 'CIRCUIT_BREAKER_OPEN';
+    error.statusCode = 503;
+    throw error;
   }
 
   try {
@@ -339,7 +358,7 @@ app.get('/metrics', metricsHandler);
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const response = await executeWithCircuitBreaker('auth-service', 'register', async () => {
-      return await axios.post(`${AUTH_SERVICE}/auth/register`, req.body);
+      return await axios.post(`${AUTH_SERVICE}/auth/register`, req.body, { timeout: 10000 });
     });
     
     // Create default wallet in wallet-service (auth-service no longer owns wallets table)
@@ -365,12 +384,17 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     userSignups.inc({ status: 'success', service: 'auth-service' });
     res.status(201).json(payload);
   } catch (error) {
+    logUpstreamFailure('auth register', error, {
+      email: req.body?.email,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+      circuitBreaker: getCircuitBreaker('auth-service', 'register'),
+    });
     // Track failed registration
     transactionTotal.inc({ status: 'failed', type: 'registration', service: 'auth-service' });
     userSignups.inc({ status: 'failed', service: 'auth-service' });
-    res.status(error.response?.status || 500).json(
-      error.response?.data || { error: 'Registration failed' }
-    );
+    const status = error.response?.status || error.statusCode || 500;
+    res.status(status).json(clientErrorPayload(error, 'Registration failed'));
   }
 });
 

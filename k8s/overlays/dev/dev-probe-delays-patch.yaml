@@ -23,10 +23,21 @@ spec:
     spec:
       containers:
         - name: auth-service
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3004
+            failureThreshold: 18
+            periodSeconds: 5
+            timeoutSeconds: 3
           livenessProbe:
             initialDelaySeconds: 60
+            timeoutSeconds: 3
+            failureThreshold: 6
           readinessProbe:
             initialDelaySeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 6
 ---
 apiVersion: apps/v1
 kind: Deployment

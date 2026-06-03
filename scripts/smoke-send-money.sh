@@ -4,7 +4,7 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-http://localhost:3007/api}"
 PASSWORD="${SMOKE_PASSWORD:-SwiftPay123}"
 AMOUNT="${SMOKE_AMOUNT:-25.50}"
-STAMP="$(date +%Y%m%d%H%M%S)"
+STAMP="${SMOKE_STAMP:-$(date +%Y%m%d%H%M%S).$$.$RANDOM}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then

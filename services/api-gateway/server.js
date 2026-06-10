@@ -84,6 +84,7 @@ const failedTransfers = register.getSingleMetric('failed_transfers_total') ||
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const AUTH_REGISTER_TIMEOUT_MS = parseInt(process.env.AUTH_REGISTER_TIMEOUT_MS || '10000', 10);
 
 function parseAllowedOrigins(value) {
   return (value || '')
@@ -358,7 +359,9 @@ app.get('/metrics', metricsHandler);
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const response = await executeWithCircuitBreaker('auth-service', 'register', async () => {
-      return await axios.post(`${AUTH_SERVICE}/auth/register`, req.body, { timeout: 10000 });
+      return await axios.post(`${AUTH_SERVICE}/auth/register`, req.body, {
+        timeout: AUTH_REGISTER_TIMEOUT_MS
+      });
     });
     
     // Create default wallet in wallet-service (auth-service no longer owns wallets table)

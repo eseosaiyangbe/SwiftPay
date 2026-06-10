@@ -13,6 +13,8 @@ spec:
               value: "development"
             - name: CONTAINER_ENV
               value: "true"
+            - name: AUTH_REGISTER_TIMEOUT_MS
+              value: "15000"
 ---
 apiVersion: apps/v1
 kind: Deployment

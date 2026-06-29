@@ -242,8 +242,8 @@ helm repo add external-secrets https://charts.external-secrets.io
 helm install external-secrets external-secrets/external-secrets \
   -n external-secrets --create-namespace --wait
 
-# 6. Build & push images to ECR via CI
-# Push to main branch → GitHub Actions builds and pushes to ECR automatically.
+# 6. Publish immutable images to ECR via CI
+# Push to main branch → GitHub Actions validates separately, then publishes images.
 # Get the image tag from the CI summary, then:
 
 # 7. Deploy (from repo root)
@@ -295,6 +295,7 @@ ACR_NAME=<your-acr> IMAGE_TAG=<git-sha> ./k8s/overlays/aks/deploy.sh
 | [k3s dev](docs/k3s-dev-deployment.md) | Current owned local Kubernetes path for macOS and Linux |
 | [MicroK8s](docs/microk8s-deployment.md) | Local Kubernetes deploy and troubleshooting |
 | [Local CI/CD](docs/cicd-local.md) | Self-hosted runner + MicroK8s registry + Argo CD |
+| [Cloud CI/CD](docs/cicd-cloud.md) | GitHub-hosted validation and image publishing for Docker Hub, ECR, and ACR |
 | [Home lab drills](docs/HOME-LAB-DRILLS.md) | Hands-on break/fix exercises |
 
 **AWS EKS / Terraform:** Follow the order in [docs/README.md](docs/README.md) (onboarding → deployment order → optional quick start). **Having issues?** [TROUBLESHOOTING.md](TROUBLESHOOTING.md), then [docs/troubleshooting.md](docs/troubleshooting.md) for depth. **Local quirks:** [docs/LOCAL-SETUP-GOTCHAS.md](docs/LOCAL-SETUP-GOTCHAS.md). **Ops:** [docs/RUNBOOK.md](docs/RUNBOOK.md).

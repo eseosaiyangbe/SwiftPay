@@ -1,0 +1,291 @@
+name: Publish Cloud Images
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - ".github/workflows/publish-images.yml"
+      - "services/**"
+  workflow_dispatch:
+    inputs:
+      publish_dockerhub:
+        description: Publish immutable images to Docker Hub
+        required: true
+        default: true
+        type: boolean
+      publish_ecr:
+        description: Publish immutable images to Amazon ECR
+        required: true
+        default: true
+        type: boolean
+      publish_acr:
+        description: Publish immutable images to Azure Container Registry
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'payflow-eks-cluster' }}
+  ACR_NAMESPACE: swiftpay
+
+jobs:
+  release-metadata:
+    name: Resolve release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve immutable tag
+        id: meta
+        run: |
+          set -euo pipefail
+          echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+  publish-dockerhub:
+    name: Publish Docker Hub images
+    needs: release-metadata
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - wallet-service
+          - transaction-service
+          - notification-service
+          - frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve Docker Hub publish gate
+        id: gate
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ -n "${DOCKERHUB_TOKEN:-}" ] && [ "${{ github.event_name == 'push' || inputs.publish_dockerhub }}" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services
+          file: ./services/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:${{ needs.release-metadata.outputs.short_sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summarize Docker Hub publish
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        run: |
+          {
+            echo "## Docker Hub publish"
+            echo "- service: \`${{ matrix.service }}\`"
+            echo "- immutable tag: \`${{ needs.release-metadata.outputs.short_sha }}\`"
+            echo "- mutable alias: \`latest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-ecr:
+    name: Publish Amazon ECR images
+    needs: release-metadata
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - wallet-service
+          - transaction-service
+          - notification-service
+          - frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve Amazon ECR publish gate
+        id: gate
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ] && [ "${{ github.event_name == 'push' || inputs.publish_ecr }}" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure AWS credentials
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve ECR registry
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        id: ecr
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          echo "registry=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to Amazon ECR
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services
+          file: ./services/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.EKS_CLUSTER_NAME }}/${{ matrix.service }}:${{ needs.release-metadata.outputs.short_sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.EKS_CLUSTER_NAME }}/${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summarize ECR publish
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        run: |
+          {
+            echo "## Amazon ECR publish"
+            echo "- service: \`${{ matrix.service }}\`"
+            echo "- immutable tag: \`${{ needs.release-metadata.outputs.short_sha }}\`"
+            echo "- mutable alias: \`latest\`"
+            echo "- deploy command: \`IMAGE_TAG=${{ needs.release-metadata.outputs.short_sha }} ./k8s/overlays/eks/deploy.sh\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-acr:
+    name: Publish Azure ACR images
+    needs: release-metadata
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - wallet-service
+          - transaction-service
+          - notification-service
+          - frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve Azure ACR publish gate
+        id: gate
+        env:
+          ACR_NAME: ${{ vars.ACR_NAME }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ACR_NAME:-}" ] && [ -n "${AZURE_CLIENT_ID:-}" ] && [ -n "${AZURE_CLIENT_SECRET:-}" ] && [ -n "${AZURE_SUBSCRIPTION_ID:-}" ] && [ -n "${AZURE_TENANT_ID:-}" ] && [ "${{ github.event_name == 'push' || inputs.publish_acr }}" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to Azure
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Log in to Azure Container Registry
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        run: az acr login --name "${{ vars.ACR_NAME }}"
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services
+          file: ./services/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: |
+            ${{ vars.ACR_NAME }}.azurecr.io/${{ env.ACR_NAMESPACE }}/${{ matrix.service }}:${{ needs.release-metadata.outputs.short_sha }}
+            ${{ vars.ACR_NAME }}.azurecr.io/${{ env.ACR_NAMESPACE }}/${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summarize ACR publish
+        if: ${{ steps.gate.outputs.enabled == 'true' }}
+        run: |
+          {
+            echo "## Azure ACR publish"
+            echo "- service: \`${{ matrix.service }}\`"
+            echo "- immutable tag: \`${{ needs.release-metadata.outputs.short_sha }}\`"
+            echo "- mutable alias: \`latest\`"
+            echo "- deploy command: \`ACR_NAME=${{ vars.ACR_NAME }} IMAGE_TAG=${{ needs.release-metadata.outputs.short_sha }} ./k8s/overlays/aks/deploy.sh\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  summarize-release:
+    name: Summarize cloud release contract
+    needs:
+      - release-metadata
+      - publish-dockerhub
+      - publish-ecr
+      - publish-acr
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize workflow role
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Cloud image release contract
+
+          - validation is handled separately by `.github/workflows/validate.yml`
+          - this workflow only builds and publishes images
+          - local GitOps remains in `.github/workflows/gitops-local.yml`
+          - cloud deployment remains approval-gated and script-driven via immutable `IMAGE_TAG` promotion
+          - this repo does not yet have a separate cloud GitOps source-of-truth workflow
+          EOF

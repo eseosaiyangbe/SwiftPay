@@ -1,6 +1,6 @@
 # Local CI/CD: Self-hosted GitHub Actions → MicroK8s registry → Argo CD
 
-This guide is for **SwiftPay on MicroK8s** with everything on your machine: no AWS, no Docker Hub, no cloud registry. For **cloud** builds on GitHub-hosted runners (Docker Hub / ECR / ACR), see `.github/workflows/build-and-deploy.yml` and the [documentation index](README.md).
+This guide is for **SwiftPay on MicroK8s** with everything on your machine: no AWS, no Docker Hub, no cloud registry. For **cloud** builds on GitHub-hosted runners (Docker Hub / ECR / ACR), see [cicd-cloud.md](cicd-cloud.md), `.github/workflows/publish-images.yml`, and the [documentation index](README.md).
 
 **What you get:** push to `main` → self-hosted runner builds images → images land in the MicroK8s registry (`localhost:32000` inside the cluster) → workflow commits updated tags in `k8s/overlays/local/kustomization.yaml` → Argo CD syncs the app to namespace `swiftpay`.
 
@@ -165,4 +165,4 @@ argocd app get swiftpay-local
 
 - `scripts/deploy-microk8s.sh` — interactive deploy; same image transfer/push pattern on macOS.
 - `k8s/overlays/local/kustomization.yaml` — `images:` entries (`veeno/*` → `localhost:32000/...`) updated by CI.
-- `.github/workflows/build-and-deploy.yml` — GitHub-hosted runners; Docker Hub / ECR / ACR.
+- `.github/workflows/publish-images.yml` — GitHub-hosted runners; Docker Hub / ECR / ACR image publishing only.

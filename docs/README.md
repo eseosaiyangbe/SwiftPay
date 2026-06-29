@@ -116,5 +116,5 @@ These are **not** required to run or deploy SwiftPay:
 
 | What | Where |
 |------|--------|
-| GitHub-hosted runners (Docker Hub / ECR / ACR) | [.github/workflows/build-and-deploy.yml](../.github/workflows/build-and-deploy.yml) (header comments list secrets) |
+| GitHub-hosted runners (Docker Hub / ECR / ACR) | [cicd-cloud.md](cicd-cloud.md) + [.github/workflows/publish-images.yml](../.github/workflows/publish-images.yml) |
 | MicroK8s + self-hosted runner + Argo CD | [cicd-local.md](cicd-local.md) |

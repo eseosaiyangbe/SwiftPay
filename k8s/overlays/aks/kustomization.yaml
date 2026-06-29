@@ -5,13 +5,13 @@ namespace: swiftpay
 
 resources:
   - ../../base
-  - ../../infrastructure/rabbitmq.yaml  # Self-hosted RabbitMQ (amqplib requires AMQP 0-9-1; Azure Service Bus is AMQP 1.0)
+  - rabbitmq.yaml  # Self-hosted RabbitMQ (amqplib requires AMQP 0-9-1; Azure Service Bus is AMQP 1.0)
   - aks-external-secrets.yaml
+  - ingress-patch.yaml
 
 patches:
   - path: db-config-patch.yaml
   - path: db-migration-patch.yaml
-  - path: ingress-patch.yaml
   - path: probe-delays-patch.yaml  # Extra time for Azure PostgreSQL/Redis TLS on cold start
   # Azure PostgreSQL requires SSL — append PGSSLMODE=require to each service deployment
   - target:
@@ -87,4 +87,3 @@ images:
   - name: veeno/frontend
     newName: <ACR_NAME>.azurecr.io/swiftpay/frontend
     newTag: <IMAGE_TAG>
-

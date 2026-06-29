@@ -1,0 +1,164 @@
+name: Validate Repository
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "k8s/**"
+      - "scripts/**"
+      - "services/**"
+      - ".yamllint.yml"
+  push:
+    branches:
+      - main
+      - master
+      - develop
+    paths:
+      - ".github/workflows/**"
+      - "k8s/**"
+      - "scripts/**"
+      - "services/**"
+      - ".yamllint.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            services/api-gateway/package-lock.json
+            services/auth-service/package-lock.json
+            services/frontend/package-lock.json
+            services/notification-service/package-lock.json
+            services/transaction-service/package-lock.json
+            services/wallet-service/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
+
+      - name: Install validation tools
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          python -m pip install --upgrade pip
+          python -m pip install yamllint
+
+          ACTIONLINT_VERSION=1.7.7
+          curl -sSL -o /tmp/actionlint.tgz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          tar -xzf /tmp/actionlint.tgz -C /tmp
+          sudo install /tmp/actionlint /usr/local/bin/actionlint
+
+      - name: Lint GitHub Actions workflows
+        run: |
+          set -euo pipefail
+          actionlint
+
+      - name: Lint shell scripts
+        run: |
+          set -euo pipefail
+          mapfile -t shell_scripts < <(find scripts -type f -name '*.sh' | sort)
+          if [ "${#shell_scripts[@]}" -gt 0 ]; then
+            shellcheck "${shell_scripts[@]}"
+            for script in "${shell_scripts[@]}"; do
+              bash -n "${script}"
+            done
+          fi
+
+      - name: Install service dependencies
+        run: |
+          set -euo pipefail
+          for dir in \
+            services/api-gateway \
+            services/auth-service \
+            services/wallet-service \
+            services/transaction-service \
+            services/notification-service \
+            services/frontend; do
+            npm --prefix "${dir}" ci
+          done
+
+      - name: Validate Node service syntax
+        run: |
+          set -euo pipefail
+          for entrypoint in \
+            services/api-gateway/server.js \
+            services/auth-service/server.js \
+            services/wallet-service/server.js \
+            services/transaction-service/server.js \
+            services/notification-service/server.js; do
+            node --check "${entrypoint}"
+          done
+
+      - name: Build frontend
+        run: npm --prefix services/frontend run build
+
+      - name: Lint YAML files
+        run: |
+          set -euo pipefail
+          mapfile -t yaml_files < <(
+            {
+              find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \)
+              find k8s -type f \( -name '*.yml' -o -name '*.yaml' \)
+              find scripts -type f \( -name '*.yml' -o -name '*.yaml' \)
+            } | sort -u
+          )
+          if [ "${#yaml_files[@]}" -gt 0 ]; then
+            python -m yamllint -c .yamllint.yml -s "${yaml_files[@]}"
+          fi
+
+      - name: Render Kubernetes manifests
+        run: |
+          set -euo pipefail
+          kubectl kustomize k8s/base >/tmp/swiftpay-base.yaml
+          kubectl kustomize k8s/overlays/local >/tmp/swiftpay-local.yaml
+          kubectl kustomize k8s/overlays/dev >/tmp/swiftpay-dev.yaml
+          kubectl kustomize k8s/overlays/prod >/tmp/swiftpay-prod.yaml
+          kubectl kustomize k8s/overlays/eks >/tmp/swiftpay-eks.yaml
+          kubectl kustomize k8s/overlays/aks >/tmp/swiftpay-aks.yaml
+
+      - name: Client dry-run Kubernetes manifests
+        run: |
+          set -euo pipefail
+          kubectl apply --dry-run=client -k k8s/overlays/local >/tmp/swiftpay-local-dryrun.txt
+          kubectl apply --dry-run=client -k k8s/overlays/dev >/tmp/swiftpay-dev-dryrun.txt
+          kubectl apply --dry-run=client -k k8s/overlays/prod >/tmp/swiftpay-prod-dryrun.txt
+          kubectl apply --dry-run=client -k k8s/overlays/eks >/tmp/swiftpay-eks-dryrun.txt
+          kubectl apply --dry-run=client -k k8s/overlays/aks >/tmp/swiftpay-aks-dryrun.txt
+          kubectl apply --dry-run=client -f k8s/argocd/swiftpay-dev-application.yaml >/tmp/swiftpay-argocd-dev-dryrun.txt
+          kubectl apply --dry-run=client -f k8s/argocd/swiftpay-prod-application.yaml >/tmp/swiftpay-argocd-prod-dryrun.txt
+
+      - name: Summarize validation coverage
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Validation Coverage
+
+          - GitHub Actions workflow linting via `actionlint`
+          - Shell script linting via `shellcheck` and `bash -n`
+          - Dependency installation checks for all services
+          - Node syntax validation for backend service entrypoints
+          - Frontend production build validation
+          - YAML linting via `yamllint`
+          - `kubectl kustomize` render checks for base, local, dev, prod, EKS, and AKS overlays
+          - `kubectl apply --dry-run=client` checks for local, dev, prod, EKS, AKS, and ArgoCD application manifests
+          EOF

@@ -5,7 +5,7 @@ namespace: swiftpay
 
 resources:
   - ../../base
-  - ../../backup/postgres-backup.yaml
+  - postgres-backup.yaml
   - eks-external-secrets.yaml
   - ingress-patch.yaml
 

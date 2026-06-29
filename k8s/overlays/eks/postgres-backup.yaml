@@ -1,0 +1,97 @@
+# EKS-local copy of the backup workload so Kustomize can render this overlay
+# without traversing outside the overlay root.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: swiftpay
+spec:
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: postgres-backup
+              image: postgres:16-alpine
+              securityContext:
+                allowPrivilegeEscalation: false
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  echo "Starting PostgreSQL backup..."
+
+                  BACKUP_FILE="/backups/swiftpay-$(date +%Y%m%d-%H%M%S).sql.gz"
+
+                  PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
+                    -h "$POSTGRES_HOST" \
+                    -U "$POSTGRES_USER" \
+                    -d "$POSTGRES_DB" \
+                    --clean \
+                    --if-exists \
+                    | gzip > "$BACKUP_FILE"
+
+                  if [ -f "$BACKUP_FILE" ]; then
+                    echo "Backup completed: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
+                    find /backups -name "swiftpay-*.sql.gz" -mtime +7 -delete
+                    echo "Cleaned up old backups (>7 days)"
+                  else
+                    echo "ERROR: Backup file not created!"
+                    exit 1
+                  fi
+              env:
+                - name: POSTGRES_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-secrets
+                      key: DB_HOST
+                - name: POSTGRES_PORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-secrets
+                      key: DB_PORT
+                - name: POSTGRES_DB
+                  valueFrom:
+                    configMapKeyRef:
+                      name: app-config
+                      key: DB_NAME
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-secrets
+                      key: DB_USER
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-secrets
+                      key: DB_PASSWORD
+                - name: PGSSLMODE
+                  valueFrom:
+                    configMapKeyRef:
+                      name: app-config
+                      key: PGSSLMODE
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: postgres-backup-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backup-pvc
+  namespace: swiftpay
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: microk8s-hostpath

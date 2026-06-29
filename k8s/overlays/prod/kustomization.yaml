@@ -9,6 +9,7 @@ resources:
   - vault-serviceaccount.yaml
   - vault-secret-store.yaml
   - vault-external-secrets.yaml
+  - prod-observability-networkpolicy.yaml
 
 patches:
   - path: prod-config-patch.yaml
@@ -19,9 +20,95 @@ patches:
   - path: prod-placement-patch.yaml
   - path: prod-probe-delays-patch.yaml
   - path: prod-db-migration-patch.yaml
+  - target:
+      kind: Namespace
+      name: swiftpay
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: swiftpay-prod
+      - op: add
+        path: /metadata/labels
+        value:
+          app.kubernetes.io/part-of: internal-developer-platform
+          environment: prod
+          observability.dev/app: swiftpay
+  - target:
+      kind: NetworkPolicy
+      name: allow-prometheus-scraping
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-prometheus-scraping
+  - target:
+      kind: NetworkPolicy
+      name: allow-prometheus-wallet
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-prometheus-wallet
+  - target:
+      kind: NetworkPolicy
+      name: allow-prometheus-transaction
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-prometheus-transaction
+  - target:
+      kind: NetworkPolicy
+      name: allow-prometheus-auth
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-prometheus-auth
+  - target:
+      kind: NetworkPolicy
+      name: allow-prometheus-notification
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-prometheus-notification
+  - target:
+      kind: NetworkPolicy
+      name: allow-prometheus-postgres-exporter
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-prometheus-postgres-exporter
+  - target:
+      kind: NetworkPolicy
+      name: allow-prometheus-redis-exporter
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-prometheus-redis-exporter
+  - target:
+      kind: NetworkPolicy
+      name: allow-prometheus-rabbitmq
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-prometheus-rabbitmq
 
 labels:
   - pairs:
+      app.kubernetes.io/part-of: internal-developer-platform
       environment: prod
       secret-source: vault
     includeSelectors: false

@@ -150,13 +150,36 @@ jobs:
           kubectl kustomize k8s/overlays/dev >/tmp/swiftpay-dev.yaml
           kubectl kustomize k8s/overlays/prod >/tmp/swiftpay-prod.yaml
 
-      - name: Client dry-run Kubernetes manifests
+      - name: Validate manifest document structure
         run: |
           set -euo pipefail
-          kubectl apply --dry-run=client --validate=false -k k8s/overlays/dev >/tmp/swiftpay-dev-dryrun.txt
-          kubectl apply --dry-run=client --validate=false -k k8s/overlays/prod >/tmp/swiftpay-prod-dryrun.txt
-          kubectl apply --dry-run=client --validate=false -f k8s/argocd/swiftpay-dev-application.yaml >/tmp/swiftpay-argocd-dev-dryrun.txt
-          kubectl apply --dry-run=client --validate=false -f k8s/argocd/swiftpay-prod-application.yaml >/tmp/swiftpay-argocd-prod-dryrun.txt
+          python - <<'PY'
+          import yaml
+
+          files = [
+              "/tmp/swiftpay-base.yaml",
+              "/tmp/swiftpay-dev.yaml",
+              "/tmp/swiftpay-prod.yaml",
+              "k8s/argocd/swiftpay-dev-application.yaml",
+              "k8s/argocd/swiftpay-prod-application.yaml",
+          ]
+
+          for file_path in files:
+              with open(file_path, "r", encoding="utf-8") as handle:
+                  docs = [doc for doc in yaml.safe_load_all(handle) if doc is not None]
+              if not docs:
+                  raise SystemExit(f"{file_path}: no YAML documents found")
+              for index, doc in enumerate(docs, start=1):
+                  if not isinstance(doc, dict):
+                      raise SystemExit(f"{file_path}: document {index} is not a YAML object")
+                  if not doc.get("apiVersion") or not doc.get("kind"):
+                      raise SystemExit(f"{file_path}: document {index} is missing apiVersion or kind")
+                  metadata = doc.get("metadata")
+                  if not isinstance(metadata, dict) or not metadata.get("name"):
+                      raise SystemExit(f"{file_path}: document {index} is missing metadata.name")
+
+          print(f"Validated {len(files)} manifest files")
+          PY
 
       - name: Summarize validation coverage
         run: |
@@ -170,5 +193,5 @@ jobs:
           - Frontend production build validation
           - YAML linting via `yamllint`
           - `kubectl kustomize` render checks for base, dev, and prod overlays
-          - `kubectl apply --dry-run=client --validate=false` checks for dev, prod, and ArgoCD application manifests
+          - Offline YAML document checks for rendered overlays and ArgoCD application manifests
           EOF

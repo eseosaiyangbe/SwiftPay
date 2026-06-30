@@ -1,7 +1,7 @@
 # =============================================================================
 # Local GitOps: self-hosted runner → MicroK8s registry → Argo CD
 # =============================================================================
-# Runs on pushes to main/master. Requires a self-hosted runner with Docker.
+# Manual-only local GitOps path. Requires a self-hosted runner with Docker.
 # macOS + Multipass: publishes images via ctr import/push into microk8s-vm
 # (Docker cannot push to localhost:32000 from the Mac host).
 # Linux + MicroK8s on same host: uses docker push to localhost:32000 when
@@ -15,10 +15,7 @@
 name: Local GitOps (MicroK8s)
 
 on:
-  push:
-    branches: [main, master]
-    paths-ignore:
-      - "k8s/overlays/local/kustomization.yaml"
+  workflow_dispatch:
 
 concurrency:
   group: gitops-local-${{ github.ref }}

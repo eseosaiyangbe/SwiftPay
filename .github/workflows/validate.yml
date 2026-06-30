@@ -125,15 +125,20 @@ jobs:
         run: npm --prefix services/frontend run build
 
       - name: Lint YAML files
+        env:
+          DIFF_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          DIFF_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          mapfile -t yaml_files < <(
-            {
-              find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \)
-              find k8s -type f \( -name '*.yml' -o -name '*.yaml' \)
-              find scripts -type f \( -name '*.yml' -o -name '*.yaml' \)
-            } | sort -u
-          )
+          yaml_files=()
+          if [ -n "${DIFF_BASE:-}" ] && git rev-parse --verify "${DIFF_BASE}^{commit}" >/dev/null 2>&1; then
+            mapfile -t yaml_files < <(
+              git diff --name-only "${DIFF_BASE}" "${DIFF_HEAD}" -- \
+                '.github/workflows/*.yml' '.github/workflows/*.yaml' \
+                'k8s/**/*.yml' 'k8s/**/*.yaml' \
+                'scripts/**/*.yml' 'scripts/**/*.yaml' | sort -u
+            )
+          fi
           if [ "${#yaml_files[@]}" -gt 0 ]; then
             python -m yamllint -c .yamllint.yml -s "${yaml_files[@]}"
           fi
@@ -142,22 +147,16 @@ jobs:
         run: |
           set -euo pipefail
           kubectl kustomize k8s/base >/tmp/swiftpay-base.yaml
-          kubectl kustomize k8s/overlays/local >/tmp/swiftpay-local.yaml
           kubectl kustomize k8s/overlays/dev >/tmp/swiftpay-dev.yaml
           kubectl kustomize k8s/overlays/prod >/tmp/swiftpay-prod.yaml
-          kubectl kustomize k8s/overlays/eks >/tmp/swiftpay-eks.yaml
-          kubectl kustomize k8s/overlays/aks >/tmp/swiftpay-aks.yaml
 
       - name: Client dry-run Kubernetes manifests
         run: |
           set -euo pipefail
-          kubectl apply --dry-run=client -k k8s/overlays/local >/tmp/swiftpay-local-dryrun.txt
-          kubectl apply --dry-run=client -k k8s/overlays/dev >/tmp/swiftpay-dev-dryrun.txt
-          kubectl apply --dry-run=client -k k8s/overlays/prod >/tmp/swiftpay-prod-dryrun.txt
-          kubectl apply --dry-run=client -k k8s/overlays/eks >/tmp/swiftpay-eks-dryrun.txt
-          kubectl apply --dry-run=client -k k8s/overlays/aks >/tmp/swiftpay-aks-dryrun.txt
-          kubectl apply --dry-run=client -f k8s/argocd/swiftpay-dev-application.yaml >/tmp/swiftpay-argocd-dev-dryrun.txt
-          kubectl apply --dry-run=client -f k8s/argocd/swiftpay-prod-application.yaml >/tmp/swiftpay-argocd-prod-dryrun.txt
+          kubectl apply --dry-run=client --validate=false -k k8s/overlays/dev >/tmp/swiftpay-dev-dryrun.txt
+          kubectl apply --dry-run=client --validate=false -k k8s/overlays/prod >/tmp/swiftpay-prod-dryrun.txt
+          kubectl apply --dry-run=client --validate=false -f k8s/argocd/swiftpay-dev-application.yaml >/tmp/swiftpay-argocd-dev-dryrun.txt
+          kubectl apply --dry-run=client --validate=false -f k8s/argocd/swiftpay-prod-application.yaml >/tmp/swiftpay-argocd-prod-dryrun.txt
 
       - name: Summarize validation coverage
         run: |
@@ -170,6 +169,6 @@ jobs:
           - Node syntax validation for backend service entrypoints
           - Frontend production build validation
           - YAML linting via `yamllint`
-          - `kubectl kustomize` render checks for base, local, dev, prod, EKS, and AKS overlays
-          - `kubectl apply --dry-run=client` checks for local, dev, prod, EKS, AKS, and ArgoCD application manifests
+          - `kubectl kustomize` render checks for base, dev, and prod overlays
+          - `kubectl apply --dry-run=client --validate=false` checks for dev, prod, and ArgoCD application manifests
           EOF

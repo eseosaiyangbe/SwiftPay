@@ -1,6 +1,12 @@
-# Cloud CI/CD: Validate Separately, Publish Images, Promote Manually
+# Cloud CI/CD: Dev-First Runtime, Publish Images, Manual Promotion
 
 This guide describes the current **cloud** CI/CD contract for SwiftPay on GitHub-hosted runners.
+
+The active runtime truth for this repository is the public `dev` slice:
+
+- host: `https://swiftpay.eseosadevbox.com`
+- namespace: `swiftpay-dev`
+- Argo CD application: `swiftpay-dev`
 
 It is intentionally split into clear lanes:
 
@@ -17,7 +23,12 @@ It is intentionally split into clear lanes:
    - does not mutate any cluster
    - does not change GitOps manifests
 
-3. `gitops-local.yml`
+3. `smoke-dev-public.yml`
+   - verifies the active public `dev` edge
+   - checks `/` and `/api/health`
+   - proves that the live browser path and gateway health path are reachable
+
+4. `gitops-local.yml`
    - remains the separate local-only promotion path for MicroK8s + Argo CD
 
 ## Current production boundary
@@ -56,7 +67,18 @@ The workflow publishes images for:
 
 The immutable release tag is the Git short SHA from the workflow run.
 
-### 3. Promote to EKS
+### 3. Verify the public dev edge
+
+The active public runtime is verified through:
+
+- `.github/workflows/smoke-dev-public.yml`
+
+This workflow checks:
+
+- `https://swiftpay.eseosadevbox.com/`
+- `https://swiftpay.eseosadevbox.com/api/health`
+
+### 4. Promote to EKS
 
 After image publishing completes and an operator approves release:
 
@@ -64,7 +86,7 @@ After image publishing completes and an operator approves release:
 IMAGE_TAG=<git-sha-from-ci> ./k8s/overlays/eks/deploy.sh
 ```
 
-### 4. Promote to AKS
+### 5. Promote to AKS
 
 After image publishing completes and an operator approves release:
 
@@ -75,6 +97,7 @@ ACR_NAME=<your-acr> IMAGE_TAG=<git-sha-from-ci> ./k8s/overlays/aks/deploy.sh
 ## Why this split is better
 
 - validation failures do not get mixed with registry publishing
+- the live public `dev` runtime has an explicit smoke lane
 - registry publishing does not pretend to be deployment
 - local GitOps stays separate from cloud release behavior
 - production deployment remains explicitly approval-gated

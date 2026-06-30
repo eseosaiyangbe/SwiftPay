@@ -12,6 +12,27 @@ SwiftPay Wallet is a complete payment platform demonstrating real-world microser
 
 **Credit:** If you use this repo as a base for your own project, course, or content, please **acknowledge SwiftPay Wallet** and link to [https://github.com/Ship-With-Zee/swiftpay-wallet](https://github.com/Ship-With-Zee/swiftpay-wallet). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution guidelines and attribution details.
 
+## Current Runtime Truth
+
+The active owned runtime for this repository is the public `dev` Kubernetes slice.
+
+- live public `dev` host: `https://swiftpay.eseosadevbox.com`
+- active cluster namespace: `swiftpay-dev`
+- active Argo CD application: `swiftpay-dev`
+- Docker Hub is the primary cross-environment image registry path
+- `prod` remains a held promotion contract and must be advanced manually
+
+Current CI/CD lanes:
+
+- `.github/workflows/validate.yml`
+  - validates repository and build health
+- `.github/workflows/publish-images.yml`
+  - publishes images to Docker Hub, Amazon ECR, and Azure ACR
+- `.github/workflows/smoke-dev-public.yml`
+  - verifies the active public `dev` edge at `https://swiftpay.eseosadevbox.com`
+- `.github/workflows/gitops-local.yml`
+  - remains the local MicroK8s learner lane, separate from the active public `dev` runtime
+
 ## Architecture
 
 ```mermaid

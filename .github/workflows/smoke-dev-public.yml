@@ -1,0 +1,46 @@
+name: Smoke Test Public Dev Edge
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "21 * * * *"
+
+permissions:
+  contents: read
+
+env:
+  PUBLIC_URL: https://swiftpay.eseosadevbox.com
+
+jobs:
+  smoke-public-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Smoke root page
+        run: |
+          set -euo pipefail
+          curl -fsSIL "$PUBLIC_URL" | tee root-headers.txt
+
+      - name: Smoke API health
+        run: |
+          set -euo pipefail
+          curl -fsS "$PUBLIC_URL/api/health" | tee api-health.json
+
+      - name: Upload smoke evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-dev-smoke-${{ github.run_id }}
+          path: |
+            root-headers.txt
+            api-health.json
+
+      - name: Summarize smoke result
+        run: |
+          {
+            echo "## Public dev smoke"
+            echo "- target: \`$PUBLIC_URL\`"
+            echo "- checks: \`/\`, \`/api/health\`"
+            echo "- intent: verify the active public dev SwiftPay edge without mutating cluster state"
+          } >> "$GITHUB_STEP_SUMMARY"

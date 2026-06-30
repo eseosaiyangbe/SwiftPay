@@ -40,6 +40,21 @@ See [k3s dev deployment](../docs/k3s-dev-deployment.md).
 
 See [Kubernetes backup and restore](../docs/K8S_BACKUP_RESTORE.md).
 
+### `smoke-dev.sh`
+**Public dev edge smoke check** for the active SwiftPay runtime.
+
+```bash
+# Usage
+./scripts/smoke-dev.sh
+```
+
+**Features:**
+- verifies the `swiftpay-dev` Argo CD application is present
+- prints current `swiftpay-dev` pod state
+- probes `https://swiftpay.eseosadevbox.com/`
+- probes `https://swiftpay.eseosadevbox.com/api/health`
+- provides a read-only check that the live public `dev` edge is reachable
+
 ### `k8s-backup-run.sh`
 **SwiftPay state backup runner** for the owned `k3s` path.
 

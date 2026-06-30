@@ -15,19 +15,19 @@ resources:
   - ingress-traefik.yaml
   - supplemental-networkpolicy.yaml
 
-patches:
-  - path: dev-config-patch.yaml
-  - path: dev-env-patch.yaml
-  - path: dev-probe-delays-patch.yaml
-  - path: dev-pull-policy-patch.yaml
-  - path: dev-scale-patch.yaml
-  - path: dev-hpa-patch.yaml
-  - path: dev-pdb-patch.yaml
-  - path: dev-quota-patch.yaml
-  - path: dev-cronjob-patch.yaml
-  - path: dev-db-migration-patch.yaml
-  - path: dev-resource-requests-patch.yaml
-  - path: dev-rollout-strategy-patch.yaml
+patchesStrategicMerge:
+  - dev-config-patch.yaml
+  - dev-env-patch.yaml
+  - dev-probe-delays-patch.yaml
+  - dev-pull-policy-patch.yaml
+  - dev-scale-patch.yaml
+  - dev-hpa-patch.yaml
+  - dev-pdb-patch.yaml
+  - dev-quota-patch.yaml
+  - dev-cronjob-patch.yaml
+  - dev-db-migration-patch.yaml
+  - dev-resource-requests-patch.yaml
+  - dev-rollout-strategy-patch.yaml
 
 labels:
   - pairs:

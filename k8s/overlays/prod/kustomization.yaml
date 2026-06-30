@@ -11,15 +11,16 @@ resources:
   - vault-external-secrets.yaml
   - prod-observability-networkpolicy.yaml
 
+patchesStrategicMerge:
+  - prod-config-patch.yaml
+  - prod-env-patch.yaml
+  - prod-scale-patch.yaml
+  - prod-hpa-patch.yaml
+  - prod-pdb-patch.yaml
+  - prod-placement-patch.yaml
+  - prod-probe-delays-patch.yaml
+  - prod-db-migration-patch.yaml
 patches:
-  - path: prod-config-patch.yaml
-  - path: prod-env-patch.yaml
-  - path: prod-scale-patch.yaml
-  - path: prod-hpa-patch.yaml
-  - path: prod-pdb-patch.yaml
-  - path: prod-placement-patch.yaml
-  - path: prod-probe-delays-patch.yaml
-  - path: prod-db-migration-patch.yaml
   - target:
       kind: Namespace
       name: swiftpay

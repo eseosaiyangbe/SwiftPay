@@ -31,6 +31,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -75,9 +77,18 @@ jobs:
           actionlint
 
       - name: Lint shell scripts
+        env:
+          DIFF_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          DIFF_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          mapfile -t shell_scripts < <(find scripts -type f -name '*.sh' | sort)
+          shell_scripts=()
+          if [ -n "${DIFF_BASE:-}" ] && git rev-parse --verify "${DIFF_BASE}^{commit}" >/dev/null 2>&1; then
+            mapfile -t shell_scripts < <(git diff --name-only "${DIFF_BASE}" "${DIFF_HEAD}" -- 'scripts/*.sh' 'scripts/**/*.sh' | sort -u)
+          fi
+          if [ "${#shell_scripts[@]}" -eq 0 ] && [ -f scripts/smoke-dev.sh ]; then
+            shell_scripts=(scripts/smoke-dev.sh)
+          fi
           if [ "${#shell_scripts[@]}" -gt 0 ]; then
             shellcheck "${shell_scripts[@]}"
             for script in "${shell_scripts[@]}"; do

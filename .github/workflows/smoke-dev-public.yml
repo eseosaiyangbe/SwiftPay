@@ -3,7 +3,7 @@ name: Smoke Test Public Dev Edge
 on:
   workflow_dispatch:
   schedule:
-    - cron: "21 * * * *"
+    - cron: "23 * * * *"
 
 permissions:
   contents: read
@@ -15,32 +15,56 @@ jobs:
   smoke-public-dev:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Smoke root page
+      - name: Check public dev root and API health endpoint
         run: |
           set -euo pipefail
-          curl -fsSIL "$PUBLIC_URL" | tee root-headers.txt
+          ROOT_HEADERS="public-root-headers.txt"
+          HEALTH_HEADERS="public-api-health-headers.txt"
+          HEALTH_BODY="public-api-health.json"
 
-      - name: Smoke API health
-        run: |
-          set -euo pipefail
-          curl -fsS "$PUBLIC_URL/api/health" | tee api-health.json
+          ROOT_CODE=$(curl -k -sS -o /dev/null -D "$ROOT_HEADERS" -w '%{http_code}' "${PUBLIC_URL}/")
+          HEALTH_CODE=$(curl -k -sS -o "$HEALTH_BODY" -D "$HEALTH_HEADERS" -w '%{http_code}' "${PUBLIC_URL}/api/health")
+
+          python - <<'PY'
+          import json
+
+          with open("public-api-health.json", "r", encoding="utf-8") as handle:
+              payload = json.load(handle)
+
+          if payload.get("status") != "healthy":
+              raise SystemExit(f"Unexpected API health payload: {payload}")
+          if payload.get("service") != "api-gateway":
+              raise SystemExit(f"Unexpected service identifier: {payload}")
+          PY
+
+          {
+            echo "## Public dev smoke result"
+            echo
+            printf -- "- url: %s\n" "$PUBLIC_URL"
+            printf -- "- root status: %s\n" "$ROOT_CODE"
+            printf -- "- api health status: %s\n" "$HEALTH_CODE"
+            printf -- "- api health contract: %s\n" "status=healthy, service=api-gateway"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$ROOT_CODE" != "200" ]; then
+            echo "Unexpected root status code" >&2
+            cat "$ROOT_HEADERS" >&2
+            exit 1
+          fi
+
+          if [ "$HEALTH_CODE" != "200" ]; then
+            echo "Unexpected API health status code" >&2
+            cat "$HEALTH_HEADERS" >&2
+            exit 1
+          fi
 
       - name: Upload smoke evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: public-dev-smoke-${{ github.run_id }}
           path: |
-            root-headers.txt
-            api-health.json
-
-      - name: Summarize smoke result
-        run: |
-          {
-            echo "## Public dev smoke"
-            echo "- target: \`$PUBLIC_URL\`"
-            echo "- checks: \`/\`, \`/api/health\`"
-            echo "- intent: verify the active public dev SwiftPay edge without mutating cluster state"
-          } >> "$GITHUB_STEP_SUMMARY"
+            public-root-headers.txt
+            public-api-health-headers.txt
+            public-api-health.json
+          retention-days: 14

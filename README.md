@@ -203,7 +203,7 @@ docker compose up -d
 ./scripts/docker-storage-check.sh
 ./scripts/validate.sh
 open http://localhost:8081
-# API: http://localhost:3007/health — RabbitMQ UI: http://localhost:15672 (swiftpay / swiftpay123)
+# API: http://localhost:3007/health — RabbitMQ UI: http://localhost:15672 (sign in with the local RabbitMQ user you set in your .env)
 ```
 
 **Monitoring profile** (Prometheus + Grafana + Alertmanager)—great for the learning path “minimal triad”:

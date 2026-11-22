@@ -35,6 +35,10 @@ Current CI/CD lanes:
 
 ## Architecture
 
+![SwiftPay platform architecture](docs/architecture/swiftpay-platform-architecture.png)
+
+*SwiftPay as it is operated inside the Internal Developer Platform: the public `dev` slice on Kubernetes (k3s), behind Cloudflare Tunnel and Traefik ingress, with Vault backed secrets delivery through External Secrets, the shared Prometheus, Loki, Grafana, and alerting observability stack, and the validation practice that defines this workload, a live audit that runs a synthetic transfer end to end and waits until Prometheus observes it before asserting success (44 of 44 checks, Phase 6 lab audit). The full design record, with the editable Mermaid source for this image, is in [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md). The service level diagram below remains the in repo reference for ports and routes.*
+
 ```mermaid
 graph TB
     Browser[Browser] -->|HTTP| Frontend[Frontend:80<br/>React + Nginx]

@@ -168,3 +168,16 @@ docker-push*.log
 # Archives produced during image transfer / backup (can be huge)
 *.image.tar
 payflow-*.tar
+
+# Repo hygiene additions
+# Local phase and planning scratch files
+phase*
+PHASE*
+
+# Backup dumps and archives
+swiftpay-postgres-*.dump
+*.dump
+*.rdb
+*.sql.gz
+*.tgz
+backups/
